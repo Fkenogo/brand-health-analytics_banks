@@ -2,12 +2,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getResponses } from '@/utils/storage';
 import { exportToCSV } from '@/utils/export';
 import { CountryCode, Language } from '@/types';
-import { fetchDashboardMetrics, fetchNPSDrivers, fetchTrendData, DashboardMetrics, NPSDriver, TrendData } from '@/utils/api';
+import { fetchDashboardMetrics, fetchNPSDrivers, fetchTrendData, fetchCompetitorData, DashboardMetrics, NPSDriver, TrendData, CompetitorData } from '@/utils/api';
 import { 
   ArrowLeft, Globe, Loader2, Lock, TrendingUp, TrendingDown, Target as TargetIcon, 
   Activity, Users, Languages, SlidersHorizontal, Share2, ChevronDown,
-  CheckCircle, Lightbulb, AlertTriangle
+  CheckCircle, Lightbulb, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { BANKS, COUNTRY_THEMES, COUNTRY_CHOICES, UI_STRINGS } from '@/constants';
 
 interface AdminDashboardProps {
@@ -27,6 +35,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
   const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null);
   const [npsDrivers, setNpsDrivers] = useState<NPSDriver[]>([]);
   const [trendData, setTrendData] = useState<TrendData[]>([]);
+  const [competitorData, setCompetitorData] = useState<CompetitorData[]>([]);
 
   const theme = COUNTRY_THEMES[activeCountry];
   const s = UI_STRINGS.admin;
@@ -41,14 +50,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
   const load = useCallback(async () => {
     if (!selectedBankId) return;
     setLoading(true);
-    const [m, d, t] = await Promise.all([
+    const [m, d, t, c] = await Promise.all([
       fetchDashboardMetrics(selectedBankId, { country: activeCountry }),
       fetchNPSDrivers(selectedBankId),
-      fetchTrendData(selectedBankId)
+      fetchTrendData(selectedBankId),
+      fetchCompetitorData(activeCountry)
     ]);
     setDashboardData(m);
     setNpsDrivers(d);
     setTrendData(t);
+    setCompetitorData(c);
     setLoading(false);
   }, [selectedBankId, activeCountry]);
 
@@ -373,6 +384,300 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
     );
   };
 
+  // Competitor Analysis Table Component
+  const CompetitorAnalysisTable = () => {
+    const getTrendIcon = (trend: number) => {
+      if (trend > 0) return <ArrowUpRight size={14} className="text-emerald-500" />;
+      if (trend < 0) return <ArrowDownRight size={14} className="text-destructive" />;
+      return <Minus size={14} className="text-muted-foreground" />;
+    };
+
+    const getNpsColor = (nps: number) => {
+      if (nps >= 50) return 'text-emerald-500';
+      if (nps >= 0) return 'text-yellow-500';
+      return 'text-destructive';
+    };
+
+    return (
+      <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+        {/* Summary Header */}
+        <div className="glass-card p-6 rounded-2xl">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h2 className="text-xl lg:text-2xl font-black text-foreground mb-2">
+                Competitive Analysis
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Comparative overview of all {competitorData.length} banks in {theme.name}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-[9px] font-black uppercase text-muted-foreground tracking-widest bg-secondary/50 px-4 py-1.5 rounded-full border border-border">
+                {competitorData.length} Banks
+              </div>
+              <div className="text-[9px] font-black uppercase text-muted-foreground tracking-widest bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 text-emerald-500">
+                Live Data
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Comparison Table */}
+        <div className="glass-card rounded-2xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-border bg-secondary/30">
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground w-12">
+                    #
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground min-w-[180px]">
+                    Bank
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    Top of Mind
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    Total Awareness
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    NPS
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    Consideration
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    Trend
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {competitorData.map((bank, idx) => {
+                  const isSelected = bank.id === selectedBankId;
+                  return (
+                    <TableRow 
+                      key={bank.id}
+                      className={`border-b border-border transition-all cursor-pointer hover:bg-secondary/30 ${
+                        isSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''
+                      }`}
+                      onClick={() => setSelectedBankId(bank.id)}
+                    >
+                      <TableCell className="font-black text-muted-foreground">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${
+                          idx === 0 ? 'bg-yellow-500 text-black' : 
+                          idx === 1 ? 'bg-slate-400 text-white' : 
+                          idx === 2 ? 'bg-amber-700 text-white' : 
+                          'bg-secondary text-muted-foreground'
+                        }`}>
+                          {idx + 1}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-2 h-8 rounded-full" 
+                            style={{ 
+                              backgroundColor: isSelected ? 'hsl(var(--primary))' : 
+                                idx % 4 === 0 ? '#3B82F6' : 
+                                idx % 4 === 1 ? '#22C55E' : 
+                                idx % 4 === 2 ? '#F59E0B' : '#8B5CF6'
+                            }}
+                          />
+                          <span className={`font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                            {bank.name}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-lg font-black text-foreground">{bank.tom}%</span>
+                          <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden mt-1">
+                            <div 
+                              className="h-full bg-primary rounded-full transition-all duration-500"
+                              style={{ width: `${bank.tom}%` }}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-lg font-black text-foreground">{bank.total}%</span>
+                          <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden mt-1">
+                            <div 
+                              className="h-full bg-accent rounded-full transition-all duration-500"
+                              style={{ width: `${bank.total}%` }}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className={`text-lg font-black ${getNpsColor(bank.nps)}`}>
+                          {bank.nps > 0 ? '+' : ''}{bank.nps}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="text-lg font-black text-foreground">{bank.consideration}%</span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {getTrendIcon(bank.trend)}
+                          <span className={`text-sm font-bold ${
+                            bank.trend > 0 ? 'text-emerald-500' : 
+                            bank.trend < 0 ? 'text-destructive' : 'text-muted-foreground'
+                          }`}>
+                            {bank.trend > 0 ? '+' : ''}{bank.trend.toFixed(1)}%
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* Loyalty Breakdown Table */}
+        <div className="glass-card p-6 rounded-2xl">
+          <h3 className="text-lg font-black text-foreground mb-6 flex items-center gap-3">
+            <Activity size={20} className="text-primary" />
+            Loyalty Segment Distribution
+          </h3>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-border bg-secondary/30">
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground min-w-[180px]">
+                    Bank
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="text-primary">Committed</span>
+                      <span className="text-[8px] text-muted-foreground font-normal">Exclusive</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="text-indigo-500">Favors</span>
+                      <span className="text-[8px] text-muted-foreground font-normal">Preference</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="text-yellow-500">Potential</span>
+                      <span className="text-[8px] text-muted-foreground font-normal">Considering</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="text-destructive">Rejectors</span>
+                      <span className="text-[8px] text-muted-foreground font-normal">Never</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="text-slate-500">Accessibles</span>
+                      <span className="text-[8px] text-muted-foreground font-normal">Unaware</span>
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {competitorData.slice(0, 10).map((bank) => {
+                  const isSelected = bank.id === selectedBankId;
+                  return (
+                    <TableRow 
+                      key={bank.id}
+                      className={`border-b border-border transition-all cursor-pointer hover:bg-secondary/30 ${
+                        isSelected ? 'bg-primary/10' : ''
+                      }`}
+                      onClick={() => setSelectedBankId(bank.id)}
+                    >
+                      <TableCell>
+                        <span className={`font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                          {bank.name}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-sm font-black text-primary">{bank.loyalty.committed}%</span>
+                          <div className="w-12 h-1 bg-secondary rounded-full overflow-hidden mt-1">
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${bank.loyalty.committed * 5}%` }}/>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-sm font-black text-indigo-500">{bank.loyalty.favors}%</span>
+                          <div className="w-12 h-1 bg-secondary rounded-full overflow-hidden mt-1">
+                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${bank.loyalty.favors * 2}%` }}/>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-sm font-black text-yellow-500">{bank.loyalty.potential}%</span>
+                          <div className="w-12 h-1 bg-secondary rounded-full overflow-hidden mt-1">
+                            <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${bank.loyalty.potential * 2}%` }}/>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-sm font-black text-destructive">{bank.loyalty.rejectors}%</span>
+                          <div className="w-12 h-1 bg-secondary rounded-full overflow-hidden mt-1">
+                            <div className="h-full bg-destructive rounded-full" style={{ width: `${bank.loyalty.rejectors * 5}%` }}/>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-sm font-black text-slate-500">{bank.loyalty.accessibles}%</span>
+                          <div className="w-12 h-1 bg-secondary rounded-full overflow-hidden mt-1">
+                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${bank.loyalty.accessibles * 2}%` }}/>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* Market Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="glass-card p-5 rounded-2xl">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Market Leader</div>
+            <div className="text-xl font-black text-foreground">{competitorData[0]?.name || '-'}</div>
+            <div className="text-sm text-emerald-500 font-bold mt-1">
+              {competitorData[0]?.total || 0}% Total Awareness
+            </div>
+          </div>
+          <div className="glass-card p-5 rounded-2xl">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Highest NPS</div>
+            <div className="text-xl font-black text-foreground">
+              {[...competitorData].sort((a, b) => b.nps - a.nps)[0]?.name || '-'}
+            </div>
+            <div className="text-sm text-emerald-500 font-bold mt-1">
+              +{[...competitorData].sort((a, b) => b.nps - a.nps)[0]?.nps || 0} NPS
+            </div>
+          </div>
+          <div className="glass-card p-5 rounded-2xl">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Most Considered</div>
+            <div className="text-xl font-black text-foreground">
+              {[...competitorData].sort((a, b) => b.consideration - a.consideration)[0]?.name || '-'}
+            </div>
+            <div className="text-sm text-accent font-bold mt-1">
+              {[...competitorData].sort((a, b) => b.consideration - a.consideration)[0]?.consideration || 0}% Consideration
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
       <header className="px-6 lg:px-10 py-8 lg:py-10 bg-background/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-border">
@@ -472,6 +777,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
             <Loader2 size={48} className="animate-spin mx-auto text-primary mb-6" />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Syncing Intelligence...</span>
           </div>
+        ) : currentTab === 'competitive' ? (
+          <CompetitorAnalysisTable />
         ) : (
           <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-1000">
             {/* KPI Cards Row */}
