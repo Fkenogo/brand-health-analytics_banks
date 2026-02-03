@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BANKS, COUNTRY_THEMES, COUNTRY_CHOICES, UI_STRINGS } from '@/constants';
+import { AwarenessTab, UsageTab, MomentumTab, LoyaltyTab, SnapshotTab, NPSDriversTab } from './tabs';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -779,6 +780,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
           </div>
         ) : currentTab === 'competitive' ? (
           <CompetitorAnalysisTable />
+        ) : currentTab === 'awareness' ? (
+          <AwarenessTab 
+            dashboardData={dashboardData}
+            competitorData={competitorData}
+            trendData={trendData}
+            selectedBankName={BANKS.find(b => b.id === selectedBankId)?.name.split(' (')[0] || ''}
+          />
+        ) : currentTab === 'usage' ? (
+          <UsageTab 
+            dashboardData={dashboardData}
+            competitorData={competitorData}
+            selectedBankName={BANKS.find(b => b.id === selectedBankId)?.name.split(' (')[0] || ''}
+          />
+        ) : currentTab === 'momentum' ? (
+          <MomentumTab 
+            dashboardData={dashboardData}
+            trendData={trendData}
+            competitorData={competitorData}
+            selectedBankName={BANKS.find(b => b.id === selectedBankId)?.name.split(' (')[0] || ''}
+          />
+        ) : currentTab === 'loyalty' ? (
+          <LoyaltyTab 
+            dashboardData={dashboardData}
+            competitorData={competitorData}
+            selectedBankName={BANKS.find(b => b.id === selectedBankId)?.name.split(' (')[0] || ''}
+          />
+        ) : currentTab === 'snapshot' ? (
+          <SnapshotTab 
+            dashboardData={dashboardData}
+            selectedBankName={BANKS.find(b => b.id === selectedBankId)?.name.split(' (')[0] || ''}
+            sampleSize={dashboardData?.sampleSize || 0}
+          />
+        ) : currentTab === 'nps' ? (
+          <NPSDriversTab 
+            dashboardData={dashboardData}
+            npsDrivers={npsDrivers}
+            selectedBankName={BANKS.find(b => b.id === selectedBankId)?.name.split(' (')[0] || ''}
+          />
         ) : (
           <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-1000">
             {/* KPI Cards Row */}
