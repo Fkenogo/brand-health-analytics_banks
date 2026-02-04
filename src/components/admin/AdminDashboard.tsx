@@ -5,7 +5,7 @@ import { CountryCode, Language } from '@/types';
 import { fetchDashboardMetrics, fetchNPSDrivers, fetchTrendData, fetchCompetitorData, DashboardMetrics, NPSDriver, TrendData, CompetitorData } from '@/utils/api';
 import { 
   ArrowLeft, Globe, Loader2, Lock, TrendingUp, TrendingDown, Target as TargetIcon, 
-  Activity, Users, Languages, SlidersHorizontal, Share2, ChevronDown,
+  Activity, Users, Languages, Share2, ChevronDown,
   CheckCircle, Lightbulb, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react';
 import {
@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { BANKS, COUNTRY_THEMES, COUNTRY_CHOICES, UI_STRINGS } from '@/constants';
 import { AwarenessTab, UsageTab, MomentumTab, LoyaltyTab, SnapshotTab, NPSDriversTab } from './tabs';
+import { DashboardFilters, FilterState, ComparisonState } from './DashboardFilters';
+import { ComparisonView } from './ComparisonView';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -37,6 +39,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
   const [npsDrivers, setNpsDrivers] = useState<NPSDriver[]>([]);
   const [trendData, setTrendData] = useState<TrendData[]>([]);
   const [competitorData, setCompetitorData] = useState<CompetitorData[]>([]);
+  
+  // Filters state
+  const [filters, setFilters] = useState<FilterState>({ ageGroups: [], genders: [], timePeriod: 'all' });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  
+  // Comparison state
+  const [comparison, setComparison] = useState<ComparisonState>({ enabled: false, compareWithBankId: null });
+  const [compareBankData, setCompareBankData] = useState<DashboardMetrics | null>(null);
 
   const theme = COUNTRY_THEMES[activeCountry];
   const s = UI_STRINGS.admin;
@@ -51,18 +61,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
   const load = useCallback(async () => {
     if (!selectedBankId) return;
     setLoading(true);
-    const [m, d, t, c] = await Promise.all([
-      fetchDashboardMetrics(selectedBankId, { country: activeCountry }),
+    
+    const filterParams = {
+      country: activeCountry,
+      ageGroups: filters.ageGroups.length > 0 ? filters.ageGroups : undefined,
+      genders: filters.genders.length > 0 ? filters.genders : undefined,
+      timePeriod: filters.timePeriod !== 'all' ? filters.timePeriod : undefined
+    };
+    
+    const promises: Promise<any>[] = [
+      fetchDashboardMetrics(selectedBankId, filterParams),
       fetchNPSDrivers(selectedBankId),
       fetchTrendData(selectedBankId),
       fetchCompetitorData(activeCountry)
-    ]);
-    setDashboardData(m);
-    setNpsDrivers(d);
-    setTrendData(t);
-    setCompetitorData(c);
+    ];
+    
+    // If comparison is enabled, also fetch comparison bank data
+    if (comparison.enabled && comparison.compareWithBankId) {
+      promises.push(fetchDashboardMetrics(comparison.compareWithBankId, filterParams));
+    }
+    
+    const results = await Promise.all(promises);
+    setDashboardData(results[0]);
+    setNpsDrivers(results[1]);
+    setTrendData(results[2]);
+    setCompetitorData(results[3]);
+    
+    if (comparison.enabled && comparison.compareWithBankId && results[4]) {
+      setCompareBankData(results[4]);
+    } else {
+      setCompareBankData(null);
+    }
+    
     setLoading(false);
-  }, [selectedBankId, activeCountry]);
+  }, [selectedBankId, activeCountry, filters, comparison]);
 
   useEffect(() => { if (isAuthenticated) load(); }, [isAuthenticated, load]);
 
@@ -715,9 +747,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
             <button onClick={toggleLang} className="px-5 py-3 glass-card rounded-2xl flex items-center gap-2 font-black uppercase text-[10px] border-border hover:bg-secondary/50 transition-all">
               <Languages size={14}/> {lang.toUpperCase()}
             </button>
-            <button className="px-6 py-3 bg-secondary text-foreground rounded-2xl flex items-center gap-2 font-black uppercase text-[10px] border border-border hover:bg-secondary/80 transition-all">
-              <SlidersHorizontal size={14}/> {s.filters[lang]}
-            </button>
+            <DashboardFilters 
+              filters={filters}
+              onFiltersChange={setFilters}
+              comparison={comparison}
+              onComparisonChange={setComparison}
+              activeCountry={activeCountry}
+              selectedBankId={selectedBankId}
+              isOpen={filtersOpen}
+              onToggle={() => setFiltersOpen(!filtersOpen)}
+            />
             <button 
               onClick={() => exportToCSV(getResponses().filter(r => r.selected_country === activeCountry))} 
               className="px-6 lg:px-8 py-3 bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-2xl flex items-center gap-2 font-black uppercase text-[10px] shadow-lg shadow-primary/30 active:scale-95 transition-all"
@@ -729,6 +768,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
             </button>
           </div>
         </div>
+
+        {/* Filters Panel */}
+        {filtersOpen && (
+          <div className="mt-6">
+            <DashboardFilters 
+              filters={filters}
+              onFiltersChange={setFilters}
+              comparison={comparison}
+              onComparisonChange={setComparison}
+              activeCountry={activeCountry}
+              selectedBankId={selectedBankId}
+              isOpen={filtersOpen}
+              onToggle={() => setFiltersOpen(false)}
+            />
+          </div>
+        )}
 
         <div className="flex gap-4 overflow-x-auto pb-2 -mx-6 lg:-mx-10 px-6 lg:px-10">
           {BANKS.filter(b => b.country === activeCountry).map((b, i) => (
@@ -778,6 +833,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, lang: in
             <Loader2 size={48} className="animate-spin mx-auto text-primary mb-6" />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Syncing Intelligence...</span>
           </div>
+        ) : comparison.enabled && compareBankData ? (
+          <ComparisonView
+            bankAData={dashboardData}
+            bankBData={compareBankData}
+            bankAName={BANKS.find(b => b.id === selectedBankId)?.name.split(' (')[0] || ''}
+            bankBName={BANKS.find(b => b.id === comparison.compareWithBankId)?.name.split(' (')[0] || ''}
+          />
         ) : currentTab === 'competitive' ? (
           <CompetitorAnalysisTable />
         ) : currentTab === 'awareness' ? (
