@@ -474,7 +474,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     label: { en: 'Even if other banks exist, which ONE bank would you not replace as the bank for your banking needs?', rw: 'Niyo banki zindi zihari, ni iyihe banki IMWE udashobora gusimbuza ku bikenewe byawe bya banki?', fr: 'Même si d\'autres banques existent, quelle banque unique ne remplaceriez-vous pas pour vos besoins bancaires ?' },
     required: true,
     filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.d5_future_intent !== undefined
+    logic: (d) => d.d5_future_intent && Object.keys(d.d5_future_intent).length > 0
   },
   {
     id: 'd7_favors',

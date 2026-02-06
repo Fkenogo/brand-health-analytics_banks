@@ -18,7 +18,8 @@ export type QuestionType =
   | 'dropdown' 
   | 'date' 
   | 'rating-0-10-nr' 
-  | 'rating-0-10-dk';
+  | 'rating-0-10-dk'
+  | 'rating-matrix';
 
 export interface Bank {
   id: string;
