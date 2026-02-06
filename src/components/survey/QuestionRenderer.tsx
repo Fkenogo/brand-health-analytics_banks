@@ -74,6 +74,87 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
     </div>
   );
 
+  const renderRatingMatrix = () => {
+    const ratings = [...Array(11).keys()];
+    const currentValue = (value || {}) as Record<string, number | undefined>;
+
+    const handleRatingChange = (bankId: string, rating: number) => {
+      onChange({ ...currentValue, [bankId]: rating });
+    };
+
+    return (
+      <div className="space-y-2">
+        {/* Header row with rating numbers */}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse min-w-[500px]">
+            <thead>
+              <tr>
+                <th className="text-left p-2 min-w-[120px]"></th>
+                {ratings.map(num => (
+                  <th 
+                    key={num} 
+                    className={`text-center p-1 text-xs font-bold min-w-[32px] ${
+                      num === 0 ? 'text-rose-500' : num === 10 ? 'text-emerald-500' : 'text-slate-400'
+                    }`}
+                  >
+                    {num}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {choices.map((choice, index) => (
+                <tr 
+                  key={choice.value} 
+                  className={`border-t border-white/5 ${index % 2 === 0 ? 'bg-white/[0.02]' : ''}`}
+                >
+                  <td className="p-3 text-sm font-semibold text-white min-w-[120px]">
+                    {choice.label[lang]}
+                  </td>
+                  {ratings.map(num => {
+                    const isSelected = currentValue[choice.value] === num;
+                    return (
+                      <td key={num} className="text-center p-1">
+                        <button
+                          onClick={() => handleRatingChange(choice.value, num)}
+                          className={`w-7 h-7 rounded-full transition-all flex items-center justify-center mx-auto text-xs font-bold ${
+                            isSelected
+                              ? (isHighContrast 
+                                  ? 'bg-yellow-400 text-black' 
+                                  : 'bg-blue-600 text-white shadow-lg')
+                              : (isHighContrast 
+                                  ? 'border border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10' 
+                                  : 'border border-white/10 text-slate-500 hover:bg-white/5')
+                          }`}
+                          style={isSelected && themeColor ? { backgroundColor: themeColor } : {}}
+                        >
+                          {isSelected ? '✓' : ''}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Legend */}
+        <div className="flex justify-between pt-4 px-2 text-[9px] font-bold uppercase tracking-widest">
+          <span className="text-rose-500">0: {RATING_DESCRIPTORS[0][lang]}</span>
+          <span className="text-emerald-500">10: {RATING_DESCRIPTORS[10][lang]}</span>
+        </div>
+        
+        {/* Progress indicator */}
+        <div className="pt-2 text-center">
+          <span className="text-[10px] text-slate-500">
+            {Object.keys(currentValue).filter(k => typeof currentValue[k] === 'number').length} / {choices.length} {lang === 'en' ? 'rated' : lang === 'fr' ? 'évalué(s)' : 'byatanzwe'}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   switch (question.type) {
     case 'note':
       return (
@@ -169,6 +250,9 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" size={20} />
         </div>
       );
+
+    case 'rating-matrix':
+      return renderRatingMatrix();
 
     case 'rating-0-10-nr':
     case 'rating-0-10-dk':
