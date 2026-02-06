@@ -451,9 +451,9 @@ export const SURVEY_QUESTIONS: Question[] = [
     section: 'D',
     label: { en: 'Future Intent', rw: 'Ibyifuzo by\'ahazaza', fr: 'Intention Future' },
     description: { 
-      en: 'Please rate how likely you are to use each of these banks in the future.',
-      rw: 'Nyamuneka tangaza uko ushobora gukoresha buri muri izi banki mu gihe kizaza.',
-      fr: 'Veuillez évaluer la probabilité que vous utilisiez chacune de ces banques à l\'avenir.'
+      en: 'Please rate how likely you are to use each of the banks you are aware of in the future. (It doesn\'t matter if you have ever banked with the bank before or not)',
+      rw: 'Nyamuneka tangaza uko ushobora gukoresha buri muri izi banki uzi mu gihe kizaza. (Ntibisobanura niba warigeze gukoresha iyo banki mbere cyangwa ntabwo)',
+      fr: 'Veuillez évaluer la probabilité que vous utilisiez chacune des banques que vous connaissez à l\'avenir. (Peu importe si vous avez déjà utilisé la banque auparavant ou non)'
     },
     logic: (d) => d.d3_popularity
   },
@@ -461,10 +461,10 @@ export const SURVEY_QUESTIONS: Question[] = [
     id: 'd5_future_intent',
     type: 'rating-0-10-nr',
     section: 'D',
-    label: { en: 'How likely are you to bank with each bank in the future?', rw: 'Ushobora gute gukoresha buri banki mu gihe kizaza?', fr: 'Quelle est la probabilité que vous utilisiez chaque banque à l\'avenir ?' },
+    label: { en: 'How likely are you to bank with [BANK] in the future?', rw: 'Ushobora gute gukoresha [BANK] mu gihe kizaza?', fr: 'Quelle est la probabilité que vous utilisiez [BANK] à l\'avenir ?' },
     description: { en: 'Rate from 0 (Not at all likely) to 10 (Extremely likely).', rw: 'Tangaza kuva 0 (Ntibishoboka) kugeza 10 (Birashoboka cyane).', fr: 'Évaluez de 0 (Pas du tout probable) à 10 (Extrêmement probable).' },
     required: true,
-    repeatFor: 'all_country_banks',
+    repeatFor: 'c3_aware_banks',
     logic: (d) => d.d3_popularity
   },
   {
