@@ -459,13 +459,13 @@ export const SURVEY_QUESTIONS: Question[] = [
   },
   {
     id: 'd5_future_intent',
-    type: 'rating-0-10-nr',
+    type: 'rating-matrix',
     section: 'D',
-    label: { en: 'How likely are you to bank with [BANK] in the future?', rw: 'Ushobora gute gukoresha [BANK] mu gihe kizaza?', fr: 'Quelle est la probabilité que vous utilisiez [BANK] à l\'avenir ?' },
-    description: { en: 'Rate from 0 (Not at all likely) to 10 (Extremely likely).', rw: 'Tangaza kuva 0 (Ntibishoboka) kugeza 10 (Birashoboka cyane).', fr: 'Évaluez de 0 (Pas du tout probable) à 10 (Extrêmement probable).' },
+    label: { en: 'How likely are you to bank with each of the following banks in the future?', rw: 'Ushobora gute gukoresha buri banki muri izi zikurikira mu gihe kizaza?', fr: 'Quelle est la probabilité que vous utilisiez chacune des banques suivantes à l\'avenir ?' },
+    description: { en: 'Rate each bank from 0 (Not at all likely) to 10 (Extremely likely).', rw: 'Tangaza buri banki kuva 0 (Ntibishoboka) kugeza 10 (Birashoboka cyane).', fr: 'Évaluez chaque banque de 0 (Pas du tout probable) à 10 (Extrêmement probable).' },
     required: true,
-    repeatFor: 'c3_aware_banks',
-    logic: (d) => d.d3_popularity
+    filterChoices: getAwareBanksChoices,
+    logic: (d) => d.d3_popularity && d.c3_aware_banks && d.c3_aware_banks.length > 0
   },
   {
     id: 'd6_committed',
