@@ -50,7 +50,7 @@ export interface Question {
   placeholder?: Localized;
   logic?: (data: any) => boolean;
   filterChoices?: (data: any) => Choice[];
-  repeatFor?: 'all_country_banks' | 'c4_ever_used';
+  repeatFor?: 'all_country_banks' | 'c3_aware_banks' | 'c4_ever_used';
   isTerminationPoint?: boolean;
 }
 
