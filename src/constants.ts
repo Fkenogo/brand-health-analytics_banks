@@ -114,6 +114,14 @@ export const getBankChoicesByCountry = (country?: CountryCode): Choice[] => {
     .map(b => ({ label: { en: b.name, rw: b.name, fr: b.name }, value: b.id }));
 };
 
+export const getBankChoicesWithNone = (country?: CountryCode): Choice[] => {
+  const banks = getBankChoicesByCountry(country);
+  return [
+    ...banks,
+    { label: { en: 'None', rw: 'Ntayo', fr: 'Aucune' }, value: 'none' }
+  ];
+};
+
 export const getBankChoicesWithExtras = (country?: CountryCode): Choice[] => {
   const banks = getBankChoicesByCountry(country);
   return [
@@ -128,6 +136,23 @@ export const getAwareBanksChoices = (data: any): Choice[] => {
   const allBanks = getBankChoicesByCountry(data.selected_country);
   const aware = new Set<string>(data.c3_aware_banks || []);
   return allBanks.filter(b => aware.has(b.value));
+};
+
+export const getAwareBanksWithNone = (data: any): Choice[] => {
+  const banks = getAwareBanksChoices(data);
+  return [
+    ...banks,
+    { label: { en: 'None', rw: 'Ntayo', fr: 'Aucune' }, value: 'none' }
+  ];
+};
+
+export const getAwareBanksWithExtras = (data: any): Choice[] => {
+  const banks = getAwareBanksChoices(data);
+  return [
+    ...banks,
+    { label: { en: 'None', rw: 'Ntayo', fr: 'Aucune' }, value: 'none' },
+    { label: { en: "Don't Know", rw: 'Simbizi', fr: 'Je ne sais pas' }, value: 'dont_know' }
+  ];
 };
 
 export const getEverUsedBanksChoices = (data: any): Choice[] => {
@@ -223,9 +248,9 @@ export const RATING_DESCRIPTORS: Record<number, Localized> = {
 export const RECENCY_CHOICES: Choice[] = [
   { label: { en: 'This week', rw: 'Icyi cyumweru', fr: 'Cette semaine' }, value: 'this_week' },
   { label: { en: 'This Month', rw: 'Uku kwezi', fr: 'Ce mois-ci' }, value: 'this_month' },
-  { label: { en: 'More than a month ago', rw: 'Harenze ukwezi', fr: 'Il y a plus d\'un mois' }, value: 'more_than_month' },
-  { label: { en: 'Never', rw: 'Ntabwo nigeze', fr: 'Jamais' }, value: 'never' },
-  { label: { en: 'Cannot Remember', rw: 'Sinibuka', fr: 'Je ne me souviens pas' }, value: 'cannot_remember' }
+  { label: { en: 'In the Last 3 Months', rw: 'Mu mezi 3 ashize', fr: 'Au cours des 3 derniers mois' }, value: 'last_3_months' },
+  { label: { en: 'Longer than 3 months', rw: 'Harenze amezi 3', fr: 'Plus de 3 mois' }, value: 'longer_than_3_months' },
+  { label: { en: 'Never', rw: 'Ntabwo nigeze', fr: 'Jamais' }, value: 'never' }
 ];
 
 export const AGE_SCREENING_CHOICES: Choice[] = [
@@ -262,7 +287,7 @@ export const EDUCATION_CHOICES: Choice[] = [
 // Helper to check if user passed screening
 const passedScreening = (d: any) => 
   d.consent === 'yes' && 
-  (d.b1_recency === 'this_week' || d.b1_recency === 'this_month') && 
+  (d.b1_recency === 'this_week' || d.b1_recency === 'this_month' || d.b1_recency === 'last_3_months') && 
   d.b2_age && d.b2_age !== 'below_18';
 
 export const SURVEY_QUESTIONS: Question[] = [
@@ -271,7 +296,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     id: 'intro',
     type: 'note',
     section: 'A',
-    label: { en: 'Welcome to Regional Banking Insights 2026', rw: 'Ikaze mu bushakashatsi 2026', fr: 'Bienvenue aux Perspectives Bancaires 2026' },
+    label: { en: 'Welcome to Banking Insights', rw: 'Ikaze mu bushakashatsi bwa Banki', fr: 'Bienvenue aux Perspectives Bancaires' },
     description: { 
       en: 'We invite you to take part in this important survey about banking services. By sharing your honest views, you help improve services for everyone. Your responses will remain completely confidential.',
       rw: 'Turagutumira kugira uruhare muri ubu bushakashatsi ku serivisi za banki. Ibitekerezo byanyu bizafasha kunoza serivisi. Ibisubizo byanyu bizaguma ari ibanga.',
@@ -317,9 +342,9 @@ export const SURVEY_QUESTIONS: Question[] = [
     type: 'radio',
     section: 'B',
     label: { 
-      en: 'When was the last time you used banking services? (It could have been to send or receive money, make payments or any other transaction through the bank).', 
-      rw: 'Ni ryari mwaherukaga gukoresha serivisi za banki? (Byaba byari kohereza cyangwa kwakira amafaranga, kwishyura cyangwa indi transaction iyo ari yo yose unyuze muri banki).', 
-      fr: 'Quand avez-vous utilisé les services bancaires pour la dernière fois ? (Cela pourrait avoir été pour envoyer ou recevoir de l\'argent, effectuer des paiements ou toute autre transaction via la banque).' 
+      en: 'When was the last time you used a commercial bank (e.g. branch visit, ATM, bank app, bank transfer)?', 
+      rw: 'Ni ryari mwaherukaga gukoresha banki y\'ubucuruzi (urugero: gusura ishami, ATM, application ya banki, kohereza amafaranga)?', 
+      fr: 'Quand avez-vous utilisé une banque commerciale pour la dernière fois (par ex. visite en agence, guichet automatique, application bancaire, virement bancaire) ?' 
     },
     required: true,
     logic: (d) => d.consent === 'yes',
@@ -335,7 +360,7 @@ export const SURVEY_QUESTIONS: Question[] = [
       rw: 'Murakoze ku mushishikariye. Tureba abakoresha banki vuba muri ubu bushakashatsi.',
       fr: 'Merci de votre intérêt. Nous ciblons les utilisateurs bancaires récents pour cette enquête.'
     },
-    logic: (d) => d.b1_recency === 'more_than_month' || d.b1_recency === 'never' || d.b1_recency === 'cannot_remember',
+    logic: (d) => d.b1_recency === 'longer_than_3_months' || d.b1_recency === 'never',
     isTerminationPoint: true
   },
   {
@@ -344,7 +369,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     section: 'B',
     label: { en: 'Which of the following age categories do you fall in?', rw: 'Ni mu kihe cyiciro cy\'imyaka muri?', fr: 'Dans quelle catégorie d\'âge vous situez-vous ?' },
     required: true,
-    logic: (d) => d.consent === 'yes' && (d.b1_recency === 'this_week' || d.b1_recency === 'this_month'),
+    logic: (d) => d.consent === 'yes' && (d.b1_recency === 'this_week' || d.b1_recency === 'this_month' || d.b1_recency === 'last_3_months'),
     choices: AGE_SCREENING_CHOICES
   },
   {
@@ -361,7 +386,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     isTerminationPoint: true
   },
 
-  // ========== SECTION C: Brand Awareness & Usage ==========
+  // ========== SECTION C: Brand Awareness ==========
   {
     id: 'c1_top_of_mind',
     type: 'text',
@@ -388,12 +413,25 @@ export const SURVEY_QUESTIONS: Question[] = [
     filterChoices: (d) => getBankChoicesByCountry(d.selected_country),
     logic: (d) => passedScreening(d) && d.c1_top_of_mind
   },
+
+  // ========== SECTION C: Brand Usage ==========
+  {
+    id: 'c_usage_intro',
+    type: 'note',
+    section: 'C',
+    label: { en: 'Brand Usage', rw: 'Ikoreshwa rya Banki', fr: 'Utilisation des Banques' },
+    description: { 
+      en: 'The next questions are about how you see different banks, even if you don\'t currently use them.',
+      rw: 'Ibibazo bikurikira ni ibijyanye n\'uko ubona banki zitandukanye, nubwo utazikoresha ubu.',
+      fr: 'Les questions suivantes portent sur la façon dont vous percevez les différentes banques, même si vous ne les utilisez pas actuellement.'
+    },
+    logic: (d) => d.c3_aware_banks && d.c3_aware_banks.length > 0
+  },
   {
     id: 'c4_ever_used',
     type: 'checkbox',
     section: 'C',
-    label: { en: 'Which ones have you ever banked with or used?', rw: 'Ni izihe warigeze gukoresha cyangwa ukayifatamo konti?', fr: 'Lesquelles avez-vous déjà utilisées ou avec lesquelles avez-vous eu un compte ?' },
-    description: { en: 'Select from banks you are aware of.', rw: 'Hitamo mu banki uzi.', fr: 'Sélectionnez parmi les banques que vous connaissez.' },
+    label: { en: 'Which of these banks you are aware of have you ever banked with or used?', rw: 'Ni izihe muri izi banki uzi warigeze gukoresha cyangwa ukayifatamo konti?', fr: 'Parmi ces banques que vous connaissez, lesquelles avez-vous déjà utilisées ?' },
     required: true,
     filterChoices: getAwareBanksChoices,
     logic: (d) => d.c3_aware_banks && d.c3_aware_banks.length > 0
@@ -414,109 +452,83 @@ export const SURVEY_QUESTIONS: Question[] = [
     label: { en: 'Which ONE bank do you use most often?', rw: 'Ni iyihe banki IMWE ukoresha cyane?', fr: 'Quelle banque unique utilisez-vous le plus souvent ?' },
     required: true,
     filterChoices: getCurrentlyUsingBanksChoices,
-    logic: (d) => d.c5_currently_using && d.c5_currently_using.length > 0
+    // Auto-skip if only one bank in current usage - the logic handles visibility
+    // If only one bank selected in c5, this question is skipped and that bank becomes main bank
+    logic: (d) => d.c5_currently_using && d.c5_currently_using.length > 1
   },
 
-  // ========== SECTION D: Brand Imagery & Loyalty ==========
+  // ========== SECTION D: Brand Imagery & Intentions ==========
   {
-    id: 'd1_best_bank',
-    type: 'radio',
-    section: 'D',
-    label: { en: 'Which of these banks do you think is the best bank in your country?', rw: 'Ni iyihe muri izi banki utekereza ko ari banki nziza mu gihugu cyanyu?', fr: 'Laquelle de ces banques pensez-vous être la meilleure banque de votre pays ?' },
-    required: true,
-    filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.c6_main_bank
-  },
-  {
-    id: 'd2_relevance',
-    type: 'radio',
-    section: 'D',
-    label: { en: 'Which of these banks do you think is a bank for people like you?', rw: 'Ni iyihe muri izi banki utekereza ko ari banki y\'abantu bameze nkawe?', fr: 'Laquelle de ces banques pensez-vous être une banque pour des gens comme vous ?' },
-    required: true,
-    filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.d1_best_bank
-  },
-  {
-    id: 'd3_popularity',
-    type: 'radio',
-    section: 'D',
-    label: { en: 'Which of these banks do you think is the most known/popular bank in your country?', rw: 'Ni iyihe muri izi banki utekereza ko izwi cyane/ikunzwe cyane mu gihugu cyanyu?', fr: 'Laquelle de ces banques pensez-vous être la plus connue/populaire dans votre pays ?' },
-    required: true,
-    filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.d2_relevance
-  },
-  {
-    id: 'd4_future_intent_note',
+    id: 'd1_future_intent_note',
     type: 'note',
     section: 'D',
     label: { en: 'Future Intent', rw: 'Ibyifuzo by\'ahazaza', fr: 'Intention Future' },
     description: { 
-      en: 'Please rate how likely you are to use each of the banks you are aware of in the future. (It doesn\'t matter if you have ever banked with the bank before or not)',
-      rw: 'Nyamuneka tangaza uko ushobora gukoresha buri muri izi banki uzi mu gihe kizaza. (Ntibisobanura niba warigeze gukoresha iyo banki mbere cyangwa ntabwo)',
-      fr: 'Veuillez évaluer la probabilité que vous utilisiez chacune des banques que vous connaissez à l\'avenir. (Peu importe si vous avez déjà utilisé la banque auparavant ou non)'
+      en: 'Please rate how likely you are to use each of the banks you are aware of in the future including the ones you are currently using. It doesn\'t matter if you have ever banked with the bank before or not.',
+      rw: 'Nyamuneka tangaza uko ushobora gukoresha buri muri izi banki uzi mu gihe kizaza harimo n\'izo ukoresha ubu. Ntibisobanura niba warigeze gukoresha iyo banki mbere cyangwa ntabwo.',
+      fr: 'Veuillez évaluer la probabilité que vous utilisiez chacune des banques que vous connaissez à l\'avenir, y compris celles que vous utilisez actuellement. Peu importe si vous avez déjà utilisé la banque auparavant ou non.'
     },
-    logic: (d) => d.d3_popularity
+    logic: (d) => d.c5_currently_using && d.c5_currently_using.length > 0
   },
   {
-    id: 'd5_future_intent',
+    id: 'd2_future_intent',
     type: 'rating-matrix',
     section: 'D',
     label: { en: 'How likely are you to bank with each of the following banks in the future?', rw: 'Ushobora gute gukoresha buri banki muri izi zikurikira mu gihe kizaza?', fr: 'Quelle est la probabilité que vous utilisiez chacune des banques suivantes à l\'avenir ?' },
     description: { en: 'Rate each bank from 0 (Not at all likely) to 10 (Extremely likely).', rw: 'Tangaza buri banki kuva 0 (Ntibishoboka) kugeza 10 (Birashoboka cyane).', fr: 'Évaluez chaque banque de 0 (Pas du tout probable) à 10 (Extrêmement probable).' },
     required: true,
     filterChoices: getAwareBanksChoices,
-    logic: (d) => d.d3_popularity && d.c3_aware_banks && d.c3_aware_banks.length > 0
+    logic: (d) => d.c5_currently_using && d.c5_currently_using.length > 0 && d.c3_aware_banks && d.c3_aware_banks.length > 0
   },
   {
-    id: 'd6_committed',
+    id: 'd3_relevance',
+    type: 'checkbox',
+    section: 'D',
+    label: { en: 'Which bank(s) do you feel is most suitable for people like you (based on your needs, lifestyle, income level)?', rw: 'Ni iyihe/izihe banki wumva ko ari nziza cyane ku bantu bameze nkawe (hashingiwe ku bikenewe byawe, imibereho, urwego rw\'umutungo)?', fr: 'Quelle(s) banque(s) estimez-vous la/les plus adaptée(s) pour des personnes comme vous (selon vos besoins, votre style de vie, votre niveau de revenus) ?' },
+    required: true,
+    filterChoices: getAwareBanksWithNone,
+    logic: (d) => d.d2_future_intent && Object.keys(d.d2_future_intent).length > 0
+  },
+  {
+    id: 'd4_popularity',
     type: 'radio',
     section: 'D',
-    label: { en: 'Even if other banks exist, which ONE bank would you not replace as the bank for your banking needs?', rw: 'Niyo banki zindi zihari, ni iyihe banki IMWE udashobora gusimbuza ku bikenewe byawe bya banki?', fr: 'Même si d\'autres banques existent, quelle banque unique ne remplaceriez-vous pas pour vos besoins bancaires ?' },
+    label: { en: 'Which ONE bank do you think most people in your country know or talk about the most?', rw: 'Ni iyihe banki IMWE utekereza ko abantu benshi mu gihugu cyawe bazi cyangwa bavugaho cyane?', fr: 'Quelle banque unique pensez-vous que la plupart des gens de votre pays connaissent ou dont ils parlent le plus ?' },
     required: true,
-    filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.d5_future_intent && Object.keys(d.d5_future_intent).length > 0
+    filterChoices: getAwareBanksWithExtras,
+    logic: (d) => d.d3_relevance
   },
   {
-    id: 'd7_favors',
-    type: 'checkbox',
+    id: 'd5_committed',
+    type: 'radio',
     section: 'D',
-    label: { en: 'Which other bank do you consider among your favorite banks that you like or admire?', rw: 'Ni izihe banki zindi utekereza ko ari mu banki zawe ukunda cyangwa ukomeye?', fr: 'Quelles autres banques considérez-vous parmi vos banques préférées que vous aimez ou admirez ?' },
-    filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.d6_committed
-  },
-  {
-    id: 'd8_potential',
-    type: 'checkbox',
-    section: 'D',
-    label: { en: 'Which bank(s), if any, would you consider using in the future, even if you are not using them now?', rw: 'Ni iyihe/izihe banki ushobora gutekereza gukoresha mu gihe kizaza, niba utazikoresha ubu?', fr: 'Quelle(s) banque(s), le cas échéant, envisageriez-vous d\'utiliser à l\'avenir, même si vous ne les utilisez pas actuellement ?' },
-    filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.d6_committed
-  },
-  {
-    id: 'd9_rejectors',
-    type: 'checkbox',
-    section: 'D',
-    label: { en: 'Which bank(s) would you say you would NEVER consider using under any circumstances?', rw: 'Ni iyihe/izihe banki wavuga ko UTAZIGERA utekereza gukoresha mu buryo ubwo ari bwo bwose?', fr: 'Quelle(s) banque(s) diriez-vous que vous n\'envisageriez JAMAIS d\'utiliser en aucune circonstance ?' },
-    filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.d6_committed
-  },
-  {
-    id: 'd10_accessibles',
-    type: 'checkbox',
-    section: 'D',
-    label: { en: 'Which of the following banks have you never heard of before today?', rw: 'Ni izihe muri izi banki utarigeze wumva mbere y\'uyu munsi?', fr: 'Parmi les banques suivantes, lesquelles n\'avez-vous jamais entendu parler avant aujourd\'hui ?' },
-    filterChoices: (d) => getBankChoicesWithExtras(d.selected_country),
-    logic: (d) => d.d6_committed
-  },
-  {
-    id: 'd11_nps',
-    type: 'rating-0-10-nr',
-    section: 'D',
-    label: { en: 'How likely are you to recommend the banks you have ever used to a friend?', rw: 'Ushobora gute gushishikariza banki warigeze gukoresha inshuti?', fr: 'Quelle est la probabilité que vous recommandiez les banques que vous avez déjà utilisées à un ami ?' },
-    description: { en: 'Rate from 0 (Not at all likely) to 10 (Extremely likely) for banks you have ever used.', rw: 'Tangaza kuva 0 kugeza 10 ku banki warigeze gukoresha.', fr: 'Évaluez de 0 à 10 pour les banques que vous avez déjà utilisées.' },
+    label: { en: 'If you were forced to keep only ONE bank, which one would it be?', rw: 'Ubaye ugomba gusigara n\'ibanki IMWE gusa, ni iyihe waba warasigaye?', fr: 'Si vous étiez obligé de ne garder qu\'une seule banque, laquelle serait-ce ?' },
     required: true,
-    repeatFor: 'c4_ever_used',
-    logic: (d) => d.d6_committed
+    filterChoices: getCurrentlyUsingBanksChoices,
+    // Auto-skip if only one bank in currently using
+    logic: (d) => d.d4_popularity && d.c5_currently_using && d.c5_currently_using.length > 1
+  },
+  {
+    id: 'd6_nps_note',
+    type: 'note',
+    section: 'D',
+    label: { en: 'Net Promoter Score', rw: 'Igipimo cya NPS', fr: 'Net Promoter Score' },
+    description: { 
+      en: 'Please rate how likely you are to recommend the banks you have ever used to a friend or colleague.',
+      rw: 'Nyamuneka tangaza uko ushobora gushishikariza banki warigeze gukoresha inshuti cyangwa mukorana.',
+      fr: 'Veuillez évaluer la probabilité que vous recommandiez les banques que vous avez déjà utilisées à un ami ou un collègue.'
+    },
+    logic: (d) => (d.d5_committed || (d.c5_currently_using && d.c5_currently_using.length === 1))
+  },
+  {
+    id: 'd7_nps',
+    type: 'rating-matrix',
+    section: 'D',
+    label: { en: 'How likely are you to recommend each bank you have ever used to a friend or colleague?', rw: 'Ushobora gute gushishikariza buri banki warigeze gukoresha inshuti cyangwa mukorana?', fr: 'Quelle est la probabilité que vous recommandiez chaque banque que vous avez utilisée à un ami ou un collègue ?' },
+    description: { en: 'Rate each bank from 0 (Not at all likely) to 10 (Extremely likely).', rw: 'Tangaza buri banki kuva 0 (Ntibishoboka) kugeza 10 (Birashoboka cyane).', fr: 'Évaluez chaque banque de 0 (Pas du tout probable) à 10 (Extrêmement probable).' },
+    required: true,
+    filterChoices: getEverUsedBanksChoices,
+    logic: (d) => (d.d5_committed || (d.c5_currently_using && d.c5_currently_using.length === 1)) && d.c4_ever_used && d.c4_ever_used.length > 0
   },
 
   // ========== SECTION E: Detailed Demographics ==========
@@ -526,7 +538,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     section: 'E',
     label: { en: 'Work/Employment Status', rw: 'Imirimo/Imiterere y\'akazi', fr: 'Statut professionnel' },
     required: true,
-    logic: (d) => typeof d.d11_nps === 'number',
+    logic: (d) => d.d7_nps && Object.keys(d.d7_nps).length > 0,
     choices: EMPLOYMENT_CHOICES
   },
   {
