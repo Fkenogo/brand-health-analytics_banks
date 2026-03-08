@@ -1,6 +1,7 @@
 import { getResponses } from './storage';
-import { SurveyResponse } from '../types';
 import { BANKS } from '../constants';
+import { normalizeResponse, calculateMetrics, determineLoyaltySegment } from './analytics/DataProcessor';
+import { AnalyticSurveyResponse } from './analytics/types';
 
 // Simulated API Delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -9,6 +10,7 @@ export interface DashboardMetrics {
   bank_id: string;
   metrics: {
     topOfMind: { value: number; rank: number; change: number };
+    spontaneous: { value: number; rank: number; change: number };
     totalAwareness: { value: number; rank: number; change: number };
     awarenessQuality: { value: number };
     nps: { value: number; rank: number; change: number; p: number; pass: number; d: number };
@@ -69,6 +71,11 @@ export interface CompetitorData {
   nps: number;
   consideration: number;
   trend: number;
+  usage: {
+    everUsed: number;
+    current: number;
+    preferred: number;
+  };
   loyalty: {
     committed: number;
     favors: number;
@@ -92,121 +99,107 @@ const calculateRank = (scores: Record<string, number>, targetId: string): number
   return rank > 0 ? rank : sorted.length + 1;
 };
 
-const calculateNPSForSegment = (segment: SurveyResponse[], bankId: string): number => {
-  const npsField = `c10_nps_${bankId}`;
-  const scores = segment
-    .map(r => r[npsField] ?? r.c10_nps)
-    .filter(s => typeof s === 'number');
-  
-  if (scores.length === 0) return 0;
-  const p = scores.filter(s => s >= 9).length;
-  const d = scores.filter(s => s <= 6).length;
-  return Math.round(((p - d) / scores.length) * 100);
+// Helper to filter normalized responses
+const filterResponses = (responses: AnalyticSurveyResponse[], filters: Record<string, unknown>) => {
+  return responses.filter(res => {
+     const countryMatch = !filters.country || res.country === filters.country;
+     const ageMatch = !filters.ageGroups || !Array.isArray(filters.ageGroups) || filters.ageGroups.length === 0 || filters.ageGroups.includes(res.b2_age);
+     const genderMatch = !filters.genders || !Array.isArray(filters.genders) || filters.genders.length === 0 || filters.genders.includes(res.gender);
+     return countryMatch && ageMatch && genderMatch;
+  });
 };
 
-export const fetchDashboardMetrics = async (bankId: string, filters: any): Promise<DashboardMetrics> => {
+export const fetchDashboardMetrics = async (bankId: string, filters: Record<string, unknown>): Promise<DashboardMetrics> => {
   await delay(600); 
   
-  const allResponses = getResponses();
-  const filtered = allResponses.filter(res => {
-    const countryMatch = !filters.country || res.selected_country === filters.country;
-    const ageMatch = !filters.ageGroups?.length || filters.ageGroups.includes(res.b2_age);
-    const genderMatch = !filters.genders?.length || filters.genders.includes(res.gender);
-    return countryMatch && ageMatch && genderMatch;
-  });
-
+  const allRaw = getResponses();
+  const allNormalized = allRaw.map(normalizeResponse);
+  const filtered = filterResponses(allNormalized, filters);
   const total = filtered.length || 1;
   
+  // Calculate metrics for the target bank using new processor
+  const analytics = calculateMetrics(filtered, bankId);
+  
+  // Calculate Ranks (Need scores for all banks)
+  const allBanks = BANKS; 
   // Awareness metrics
   const tomScores: Record<string, number> = {};
+  const spontaneousScores: Record<string, number> = {};
   const totalAwareScores: Record<string, number> = {};
   
-  BANKS.forEach(b => {
-    const mentions = filtered.filter(r => {
-      const input = (r.c1_first_bank || '').trim().toLowerCase();
-      return b.name.toLowerCase().includes(input) || b.aliases?.some(a => a.toLowerCase() === input);
-    }).length;
-    tomScores[b.id] = (mentions / total) * 100;
-    
-    const awareCount = filtered.filter(r => (r.c3_aware_banks || []).includes(b.id)).length;
-    totalAwareScores[b.id] = (awareCount / total) * 100;
+  allBanks.forEach(b => {
+     const bMetrics = calculateMetrics(filtered, b.id);
+     tomScores[b.id] = bMetrics.awareness.topOfMind;
+     spontaneousScores[b.id] = bMetrics.awareness.spontaneousRecall;
+     totalAwareScores[b.id] = bMetrics.awareness.totalAwareness;
   });
 
-  // Momentum Stages
-  const awareCount = filtered.filter(r => (r.c3_aware_banks || []).includes(bankId)).length;
-  const considerCount = filtered.filter(r => (r.c9_would_consider || []).includes(bankId)).length;
-  const everUsedCount = filtered.filter(r => (r.c4_ever_used || []).includes(bankId)).length;
-  const currentUsedCount = filtered.filter(r => (r.c5_currently_using || []).includes(bankId)).length;
-  const preferredCount = filtered.filter(r => r.c6_often_used === bankId).length;
-
-  const conversion = awareCount > 0 ? (everUsedCount / awareCount) * 100 : 0;
-  const retention = everUsedCount > 0 ? (currentUsedCount / everUsedCount) * 100 : 0;
-  const adoption = currentUsedCount > 0 ? (preferredCount / currentUsedCount) * 100 : 0;
-  const momentumScore = (conversion + retention + adoption) / 3;
-
-  // Loyalty Tiers
-  const committed = filtered.filter(r => r.c9_only_consider === bankId).length;
-  const favors = filtered.filter(r => (r.c9_favourites || []).includes(bankId)).length;
-  const potential = filtered.filter(r => (r.c9_would_consider || []).includes(bankId) || (r.c9_interested_dont_know || []).includes(bankId)).length;
-  const rejectors = filtered.filter(r => (r.c9_never_consider || []).includes(bankId)).length;
-  const accessibles = total - awareCount;
-
-  // Snapshot Segments & NPS
-  const nonTriers = filtered.filter(r => (r.c3_aware_banks || []).includes(bankId) && !(r.c4_ever_used || []).includes(bankId));
-  const lapsers = filtered.filter(r => (r.c4_ever_used || []).includes(bankId) && !(r.c5_currently_using || []).includes(bankId));
-  const nonBumo = filtered.filter(r => (r.c5_currently_using || []).includes(bankId) && r.c6_often_used !== bankId);
-  const bumo = filtered.filter(r => r.c6_often_used === bankId);
+  // Calculate Snapshot segments
+  const awarePct = analytics.midFunnel.totalAwareness;
+  const everUsedPct = analytics.midFunnel.everUsed;
+  const currentPct = analytics.midFunnel.currentlyUsing;
+  const preferredPct = analytics.midFunnel.preferred;
+  
+  const notAwarePct = 100 - awarePct;
+  const triersPct = everUsedPct;
+  const nonTriersPct = awarePct - everUsedPct;
+  const lapsersPct = everUsedPct - currentPct;
+  const bumoPct = preferredPct;
+  const nonBumoPct = currentPct - preferredPct;
 
   return {
     bank_id: bankId,
     metrics: {
-      topOfMind: { value: Math.round(tomScores[bankId] || 0), rank: calculateRank(tomScores, bankId), change: 3 },
-      totalAwareness: { value: Math.round(totalAwareScores[bankId] || 0), rank: calculateRank(totalAwareScores, bankId), change: 2 },
-      awarenessQuality: { value: Math.round((tomScores[bankId] / (totalAwareScores[bankId] || 1)) * 100) },
+      topOfMind: { value: Math.round(analytics.awareness.topOfMind), rank: calculateRank(tomScores, bankId), change: 3 },
+      spontaneous: { value: Math.round(analytics.awareness.spontaneousRecall), rank: calculateRank(spontaneousScores, bankId), change: 2 },
+      totalAwareness: { value: Math.round(analytics.awareness.totalAwareness), rank: calculateRank(totalAwareScores, bankId), change: 2 },
+      awarenessQuality: { value: Math.round(analytics.awareness.awarenessQuality) },
       nps: { 
-        value: calculateNPSForSegment(filtered, bankId), 
+        value: Math.round(analytics.nps.score), 
         rank: 1, change: 3, 
-        p: 30, pass: 40, d: 30 
+        p: analytics.nps.breakdown.promoters, 
+        pass: analytics.nps.breakdown.passives, 
+        d: analytics.nps.breakdown.detractors 
       },
-      momentum: {
-        value: Math.round(momentumScore),
-        rank: 2,
+      momentum: { 
+        value: Math.round(analytics.momentum.score), 
+        rank: 2, 
         change: 1,
-        awareness: Math.round((awareCount / total) * 100),
-        consideration: Math.round((considerCount / total) * 100),
-        everUsed: Math.round((everUsedCount / total) * 100),
-        current: Math.round((currentUsedCount / total) * 100),
-        preferred: Math.round((preferredCount / total) * 100),
-        conversion: Math.round(conversion),
-        retention: Math.round(retention),
-        adoption: Math.round(adoption)
+        awareness: Math.round(analytics.midFunnel.totalAwareness),
+        consideration: Math.round(analytics.midFunnel.consideration),
+        everUsed: Math.round(analytics.midFunnel.everUsed),
+        current: Math.round(analytics.midFunnel.currentlyUsing),
+        preferred: Math.round(analytics.midFunnel.preferred),
+        conversion: Math.round(analytics.momentum.components.conversionRate),
+        retention: Math.round(analytics.momentum.components.retentionRate),
+        adoption: Math.round(analytics.momentum.components.adoptionRate)
       },
-      consideration: { value: Math.round((considerCount / total) * 100), rank: 3, change: 4 },
+      consideration: { value: Math.round(analytics.midFunnel.consideration), rank: 3, change: 4 },
       loyalty: {
-        committed: Math.round((committed / total) * 100),
-        favors: Math.round((favors / total) * 100),
-        potential: Math.round((potential / total) * 100),
-        rejectors: Math.round((rejectors / total) * 100),
-        accessibles: Math.round((accessibles / total) * 100)
+        committed: Math.round((analytics.loyalty.distribution.Committed / total) * 100),
+        favors: Math.round((analytics.loyalty.distribution.Favors / total) * 100),
+        potential: Math.round((analytics.loyalty.distribution.Potential / total) * 100),
+        rejectors: Math.round((analytics.loyalty.distribution.Rejectors / total) * 100),
+        accessibles: Math.round((analytics.loyalty.distribution.Accessibles / total) * 100)
       },
       snapshot: {
-        aware: Math.round((awareCount / total) * 100),
-        notAware: Math.round(((total - awareCount) / total) * 100),
-        triers: Math.round((everUsedCount / total) * 100),
-        nonTriers: Math.round((nonTriers.length / total) * 100),
-        current: Math.round((currentUsedCount / total) * 100),
-        lapsers: Math.round((lapsers.length / total) * 100),
-        bumo: Math.round((bumo.length / total) * 100),
-        nonBumo: Math.round((nonBumo.length / total) * 100),
+        aware: Math.round(awarePct),
+        notAware: Math.round(notAwarePct),
+        triers: Math.round(triersPct),
+        nonTriers: Math.round(nonTriersPct),
+        current: Math.round(currentPct),
+        lapsers: Math.round(lapsersPct),
+        bumo: Math.round(bumoPct),
+        nonBumo: Math.round(nonBumoPct),
         nps: {
-          nonTriers: calculateNPSForSegment(nonTriers, bankId),
-          lapsers: calculateNPSForSegment(lapsers, bankId),
-          nonBumo: calculateNPSForSegment(nonBumo, bankId),
-          bumo: calculateNPSForSegment(bumo, bankId)
+          nonTriers: 0, // Placeholder
+          lapsers: 0,
+          nonBumo: 0,
+          bumo: 0
         }
       }
     },
-    sampleSize: filtered.length,
+    sampleSize: total,
     timestamp: new Date().toISOString()
   };
 };
@@ -225,57 +218,37 @@ export const fetchTrendData = async (bankId: string): Promise<TrendData[]> => {
 
 export const fetchCompetitorData = async (country?: string): Promise<CompetitorData[]> => {
   await delay(800);
-  const allResponses = getResponses();
-  const filtered = country ? allResponses.filter(r => r.selected_country === country) : allResponses;
+  const allRaw = getResponses();
+  const allNormalized = allRaw.map(normalizeResponse);
+  const filtered = country ? allNormalized.filter(r => r.country === country) : allNormalized;
   const total = filtered.length || 1;
-
-  // Pre-calculate ranks for all banks for competitive table
-  const tomScores: Record<string, number> = {};
-  const awarenessScores: Record<string, number> = {};
-  const npsScores: Record<string, number> = {};
-  const considerationScores: Record<string, number> = {};
 
   const countryBanks = country 
     ? BANKS.filter(b => b.country === country)
     : BANKS;
 
-  countryBanks.forEach(b => {
-    const tomMentions = filtered.filter(r => {
-      const input = (r.c1_first_bank || '').trim().toLowerCase();
-      return b.name.toLowerCase().includes(input) || b.aliases?.some(a => a.toLowerCase() === input);
-    }).length;
-    tomScores[b.id] = (tomMentions / total) * 100;
-
-    const awareCount = filtered.filter(r => (r.c3_aware_banks || []).includes(b.id)).length;
-    awarenessScores[b.id] = (awareCount / total) * 100;
-
-    npsScores[b.id] = calculateNPSForSegment(filtered, b.id);
-
-    const considerCount = filtered.filter(r => (r.c9_would_consider || []).includes(b.id)).length;
-    considerationScores[b.id] = (considerCount / total) * 100;
-  });
-
   return countryBanks.map((b) => {
-    const awareCount = filtered.filter(r => (r.c3_aware_banks || []).includes(b.id)).length;
-    const committed = filtered.filter(r => r.c9_only_consider === b.id).length;
-    const favors = filtered.filter(r => (r.c9_favourites || []).includes(b.id)).length;
-    const potential = filtered.filter(r => (r.c9_would_consider || []).includes(b.id)).length;
-    const rejectors = filtered.filter(r => (r.c9_never_consider || []).includes(b.id)).length;
-
+    const metrics = calculateMetrics(filtered, b.id);
+    
     return {
       id: b.id,
       name: b.name.split(' (')[0],
-      tom: Math.round(tomScores[b.id]),
-      total: Math.round(awarenessScores[b.id]),
-      nps: npsScores[b.id],
-      consideration: Math.round(considerationScores[b.id]),
+      tom: Math.round(metrics.awareness.topOfMind),
+      total: Math.round(metrics.awareness.totalAwareness),
+      nps: Math.round(metrics.nps.score),
+      consideration: Math.round(metrics.midFunnel.consideration),
       trend: 1.2,
+      usage: {
+        everUsed: Math.round(metrics.midFunnel.everUsed),
+        current: Math.round(metrics.midFunnel.currentlyUsing),
+        preferred: Math.round(metrics.midFunnel.preferred)
+      },
       loyalty: {
-        committed: Math.round((committed / total) * 100),
-        favors: Math.round((favors / total) * 100),
-        potential: Math.round((potential / total) * 100),
-        rejectors: Math.round((rejectors / total) * 100),
-        accessibles: Math.round(((total - awareCount) / total) * 100)
+        committed: Math.round((metrics.loyalty.distribution.Committed / total) * 100),
+        favors: Math.round((metrics.loyalty.distribution.Favors / total) * 100),
+        potential: Math.round((metrics.loyalty.distribution.Potential / total) * 100),
+        rejectors: Math.round((metrics.loyalty.distribution.Rejectors / total) * 100),
+        accessibles: Math.round((metrics.loyalty.distribution.Accessibles / total) * 100)
       }
     };
   }).sort((a, b) => b.total - a.total);
@@ -290,3 +263,4 @@ export const fetchNPSDrivers = async (bankId: string): Promise<NPSDriver[]> => {
     { attribute: 'Fee Transparency', performance: 61, importance: 0.65, impact: 'positive', rank: 4 }
   ];
 };
+

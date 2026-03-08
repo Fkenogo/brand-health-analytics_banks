@@ -1,7 +1,7 @@
 import { BANKS } from '../constants';
 import { ValidationRule, Language } from '../types';
 
-export const validateInput = (value: any, rules: ValidationRule[] | undefined, lang: Language): string | null => {
+export const validateInput = (value: unknown, rules: ValidationRule[] | undefined, lang: Language): string | null => {
   if (!rules) return null;
 
   for (const rule of rules) {
@@ -23,7 +23,7 @@ export const validateInput = (value: any, rules: ValidationRule[] | undefined, l
     }
 
     if (rule.type === 'min-length') {
-      if (String(value).length < rule.params) {
+      if (String(value).length < (rule.params?.min as number)) {
         return rule.message[lang];
       }
     }

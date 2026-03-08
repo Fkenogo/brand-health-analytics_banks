@@ -1,4 +1,4 @@
-import { Bank, Choice, Question, Localized, CountryCode } from './types';
+import { Bank, Choice, Question, Localized, CountryCode, SurveyResponse } from './types';
 
 export interface CountryTheme {
   primary: string;
@@ -131,14 +131,14 @@ export const getBankChoicesWithExtras = (country?: CountryCode): Choice[] => {
   ];
 };
 
-export const getAwareBanksChoices = (data: any): Choice[] => {
+export const getAwareBanksChoices = (data: { selected_country?: CountryCode; c3_aware_banks?: string[] }): Choice[] => {
   if (!data.selected_country || !data.c3_aware_banks) return [];
   const allBanks = getBankChoicesByCountry(data.selected_country);
   const aware = new Set<string>(data.c3_aware_banks || []);
   return allBanks.filter(b => aware.has(b.value));
 };
 
-export const getAwareBanksWithNone = (data: any): Choice[] => {
+export const getAwareBanksWithNone = (data: { selected_country?: CountryCode; c3_aware_banks?: string[] }): Choice[] => {
   const banks = getAwareBanksChoices(data);
   return [
     ...banks,
@@ -146,7 +146,7 @@ export const getAwareBanksWithNone = (data: any): Choice[] => {
   ];
 };
 
-export const getAwareBanksWithExtras = (data: any): Choice[] => {
+export const getAwareBanksWithExtras = (data: { selected_country?: CountryCode; c3_aware_banks?: string[] }): Choice[] => {
   const banks = getAwareBanksChoices(data);
   return [
     ...banks,
@@ -155,14 +155,14 @@ export const getAwareBanksWithExtras = (data: any): Choice[] => {
   ];
 };
 
-export const getEverUsedBanksChoices = (data: any): Choice[] => {
+export const getEverUsedBanksChoices = (data: { selected_country?: CountryCode; c4_ever_used?: string[] }): Choice[] => {
   if (!data.selected_country || !data.c4_ever_used) return [];
   const allBanks = getBankChoicesByCountry(data.selected_country);
   const everUsed = new Set<string>(data.c4_ever_used || []);
   return allBanks.filter(b => everUsed.has(b.value));
 };
 
-export const getCurrentlyUsingBanksChoices = (data: any): Choice[] => {
+export const getCurrentlyUsingBanksChoices = (data: { selected_country?: CountryCode; c5_currently_using?: string[] }): Choice[] => {
   if (!data.selected_country || !data.c5_currently_using) return [];
   const allBanks = getBankChoicesByCountry(data.selected_country);
   const currentlyUsing = new Set<string>(data.c5_currently_using || []);
@@ -216,11 +216,10 @@ export const UI_STRINGS = {
       overview: { en: 'Overview', rw: 'Incamake', fr: 'Vue d\'ensemble' },
       awareness: { en: 'Awareness', rw: 'Kumenyekana', fr: 'Notoriété' },
       usage: { en: 'Usage', rw: 'Ikoreshwa', fr: 'Usage' },
-      momentum: { en: 'Momentum', rw: 'Ingufu', fr: 'Momentum' },
+      brand_health: { en: 'Brand Health', rw: 'Ubuzima bw\'Ikirango', fr: 'Santé de la Marque' },
       loyalty: { en: 'Loyalty', rw: 'Ubudahemuka', fr: 'Fidélité' },
       snapshot: { en: 'Snapshot', rw: 'Ishusho', fr: 'Instantané' },
-      competitive: { en: 'Competitive', rw: 'Ihangana', fr: 'Compétition' },
-      nps: { en: 'NPS Drivers', rw: 'Ibintu bitera NPS', fr: 'Facteurs NPS' }
+      competitive: { en: 'Competitive', rw: 'Ihangana', fr: 'Compétition' }
     },
     kpis: {
       tom: { en: 'Top-of-Mind Recall', rw: 'Iya mbere m\'intekerezo', fr: 'Notoriété Top-of-Mind' },
@@ -285,7 +284,7 @@ export const EDUCATION_CHOICES: Choice[] = [
 ];
 
 // Helper to check if user passed screening
-const passedScreening = (d: any) => 
+const passedScreening = (d: SurveyResponse): boolean => 
   d.consent === 'yes' && 
   (d.b1_recency === 'this_week' || d.b1_recency === 'this_month' || d.b1_recency === 'last_3_months') && 
   d.b2_age && d.b2_age !== 'below_18';
@@ -402,7 +401,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     section: 'C',
     label: { en: 'Which other banks from your country come to your mind?', rw: 'Ni izihe banki z\'igihugu cyanyu zindi zikuza mu mutwe?', fr: 'Quelles autres banques de votre pays vous viennent à l\'esprit ?' },
     description: { en: 'List all that come to mind, separated by commas.', rw: 'Andika izikuza mu mutwe zose, uzitandukanyije na koma.', fr: 'Listez toutes celles qui vous viennent à l\'esprit, séparées par des virgules.' },
-    logic: (d) => passedScreening(d) && d.c1_top_of_mind
+    logic: (d) => passedScreening(d) && !!d.c1_top_of_mind
   },
   {
     id: 'c3_aware_banks',
@@ -411,7 +410,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     label: { en: 'Tick all banks that you are aware of:', rw: 'Hitamo banki zose uzi:', fr: 'Cochez toutes les banques que vous connaissez :' },
     required: true,
     filterChoices: (d) => getBankChoicesByCountry(d.selected_country),
-    logic: (d) => passedScreening(d) && d.c1_top_of_mind
+    logic: (d) => passedScreening(d) && !!d.c1_top_of_mind
   },
 
   // ========== SECTION C: Brand Usage ==========
@@ -496,7 +495,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     label: { en: 'Which ONE bank do you think most people in your country know or talk about the most?', rw: 'Ni iyihe banki IMWE utekereza ko abantu benshi mu gihugu cyawe bazi cyangwa bavugaho cyane?', fr: 'Quelle banque unique pensez-vous que la plupart des gens de votre pays connaissent ou dont ils parlent le plus ?' },
     required: true,
     filterChoices: getAwareBanksWithExtras,
-    logic: (d) => d.d3_relevance
+    logic: (d) => !!d.d3_relevance
   },
   {
     id: 'd5_committed',
@@ -518,7 +517,7 @@ export const SURVEY_QUESTIONS: Question[] = [
       rw: 'Nyamuneka tangaza uko ushobora gushishikariza banki warigeze gukoresha inshuti cyangwa mukorana.',
       fr: 'Veuillez évaluer la probabilité que vous recommandiez les banques que vous avez déjà utilisées à un ami ou un collègue.'
     },
-    logic: (d) => (d.d5_committed || (d.c5_currently_using && d.c5_currently_using.length === 1))
+    logic: (d) => !!(d.d5_committed || (d.c5_currently_using && d.c5_currently_using.length === 1))
   },
   {
     id: 'd7_nps',
@@ -547,7 +546,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     section: 'E',
     label: { en: 'Level of Education', rw: 'Urwego rw\'amashuri', fr: 'Niveau d\'éducation' },
     required: true,
-    logic: (d) => d.e1_employment,
+    logic: (d) => !!d.e1_employment,
     choices: EDUCATION_CHOICES
   },
   {
@@ -556,7 +555,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     section: 'E',
     label: { en: 'Gender', rw: 'Igitsina', fr: 'Genre' },
     required: true,
-    logic: (d) => d.e2_education,
+    logic: (d) => !!d.e2_education,
     choices: GENDER_CHOICES
   },
 
@@ -567,7 +566,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     section: 'F',
     label: { en: 'Complete', rw: 'Murakoze', fr: 'Terminé' },
     description: { en: 'Thank you for participating in this survey!', rw: 'Murakoze kugira uruhare muri ubu bushakashatsi!', fr: 'Merci d\'avoir participé à cette enquête !' },
-    logic: (d) => d.e3_gender
+    logic: (d) => !!d.e3_gender
   }
 ];
 
@@ -579,3 +578,7 @@ export const AGE_CHOICES = [
   { label: { en: '45-54', rw: '45-54', fr: '45-54' }, value: '45-54' },
   { label: { en: '55+', rw: '55+', fr: '55+' }, value: '55+' }
 ];
+
+// Bank Recognition Configuration
+export const CONFIDENCE_THRESHOLD = 0.6;
+export const MAX_SUGGESTIONS = 3;

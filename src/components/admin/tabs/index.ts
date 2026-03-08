@@ -1,6 +1,7 @@
 export { AwarenessTab } from './AwarenessTab';
 export { UsageTab } from './UsageTab';
-export { MomentumTab } from './MomentumTab';
 export { LoyaltyTab } from './LoyaltyTab';
 export { SnapshotTab } from './SnapshotTab';
-export { NPSDriversTab } from './NPSDriversTab';
+export { BrandHealthTab } from './BrandHealthTab';
+export { CompetitiveTab } from './CompetitiveTab';
+export { OverviewTab } from './OverviewTab';

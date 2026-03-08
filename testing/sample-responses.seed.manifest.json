@@ -1,0 +1,456 @@
+{
+  "createdAt": "2026-02-12T05:56:42.701Z",
+  "source": "/Users/theo/brand-health-analytics_banks/testing/sample-responses.seed.json",
+  "docs": [
+    {
+      "docId": "vAj5hAaz0lkH8HWhVJdi",
+      "response_id": "sample_rwanda_001",
+      "country": "rwanda"
+    },
+    {
+      "docId": "pCzL1y3QEvCVWtvdLWaL",
+      "response_id": "sample_rwanda_002",
+      "country": "rwanda"
+    },
+    {
+      "docId": "7sIxAXP6cjuqJDnZQ77p",
+      "response_id": "sample_rwanda_003",
+      "country": "rwanda"
+    },
+    {
+      "docId": "0PqHNOftC5dMdhsKnUuR",
+      "response_id": "sample_rwanda_004",
+      "country": "rwanda"
+    },
+    {
+      "docId": "XBoRUOnu0FSgC0XO1tQf",
+      "response_id": "sample_rwanda_005",
+      "country": "rwanda"
+    },
+    {
+      "docId": "OXZBoiFpMwYcqR4tQtuv",
+      "response_id": "sample_rwanda_006",
+      "country": "rwanda"
+    },
+    {
+      "docId": "jp7KXTV81YfOiaiAn9sF",
+      "response_id": "sample_rwanda_007",
+      "country": "rwanda"
+    },
+    {
+      "docId": "jEslkJHAH9MWmur6IB5V",
+      "response_id": "sample_rwanda_008",
+      "country": "rwanda"
+    },
+    {
+      "docId": "U4FMsFwgUD4VGVinSQdO",
+      "response_id": "sample_rwanda_009",
+      "country": "rwanda"
+    },
+    {
+      "docId": "MCXBEg4ai5L9IkgV9Qfd",
+      "response_id": "sample_rwanda_010",
+      "country": "rwanda"
+    },
+    {
+      "docId": "xVp9seDNcK1xmVsaVmFT",
+      "response_id": "sample_rwanda_011",
+      "country": "rwanda"
+    },
+    {
+      "docId": "ENxpjUVEH65qcbi8JDrC",
+      "response_id": "sample_rwanda_012",
+      "country": "rwanda"
+    },
+    {
+      "docId": "LQ4djfpPXCN1V8cTYv7I",
+      "response_id": "sample_rwanda_013",
+      "country": "rwanda"
+    },
+    {
+      "docId": "hr6pM4rDQo91fSFxiLPd",
+      "response_id": "sample_rwanda_014",
+      "country": "rwanda"
+    },
+    {
+      "docId": "zKYeEhBwQBmHTwkM89Vl",
+      "response_id": "sample_rwanda_015",
+      "country": "rwanda"
+    },
+    {
+      "docId": "xYGP244A2O9PYWPAxCW0",
+      "response_id": "sample_rwanda_016",
+      "country": "rwanda"
+    },
+    {
+      "docId": "6b9nHJ3RxMzQ6zFCIW94",
+      "response_id": "sample_rwanda_017",
+      "country": "rwanda"
+    },
+    {
+      "docId": "28SLdjroDSshnthoJHMW",
+      "response_id": "sample_rwanda_018",
+      "country": "rwanda"
+    },
+    {
+      "docId": "M8xrO6EdIU3HTI7Lqanq",
+      "response_id": "sample_rwanda_019",
+      "country": "rwanda"
+    },
+    {
+      "docId": "G8afoa454gqAeFG7edya",
+      "response_id": "sample_rwanda_020",
+      "country": "rwanda"
+    },
+    {
+      "docId": "hF7JW7qYJ19HVkoEk4cW",
+      "response_id": "sample_rwanda_021",
+      "country": "rwanda"
+    },
+    {
+      "docId": "NKs7u9sMAfiShXjUJveb",
+      "response_id": "sample_rwanda_022",
+      "country": "rwanda"
+    },
+    {
+      "docId": "w1bpk6ij73QNQSs4TO9Y",
+      "response_id": "sample_rwanda_023",
+      "country": "rwanda"
+    },
+    {
+      "docId": "deg2Utev1XlCXDXgUZm6",
+      "response_id": "sample_rwanda_024",
+      "country": "rwanda"
+    },
+    {
+      "docId": "OigSRQZV3kFvjNBzRGO2",
+      "response_id": "sample_rwanda_025",
+      "country": "rwanda"
+    },
+    {
+      "docId": "8Lc3mIoXOr7bQMrUAhmz",
+      "response_id": "sample_rwanda_026",
+      "country": "rwanda"
+    },
+    {
+      "docId": "eXREOAQsBPKm6XIB2DXa",
+      "response_id": "sample_rwanda_027",
+      "country": "rwanda"
+    },
+    {
+      "docId": "BFY4Qx4h7i7QBBdI7fWy",
+      "response_id": "sample_rwanda_028",
+      "country": "rwanda"
+    },
+    {
+      "docId": "PMRPYPlmjkmUnIAYvxCF",
+      "response_id": "sample_rwanda_029",
+      "country": "rwanda"
+    },
+    {
+      "docId": "SSilHJ8CoTe985FLpwgg",
+      "response_id": "sample_rwanda_030",
+      "country": "rwanda"
+    },
+    {
+      "docId": "mQWhhynFDeJsgH28OUEl",
+      "response_id": "sample_uganda_001",
+      "country": "uganda"
+    },
+    {
+      "docId": "0CMcMpxHFnHAjiLMdtgF",
+      "response_id": "sample_uganda_002",
+      "country": "uganda"
+    },
+    {
+      "docId": "WHQocKyOR92ELainqlmc",
+      "response_id": "sample_uganda_003",
+      "country": "uganda"
+    },
+    {
+      "docId": "eXAxTGR0Nll9hNxRjiT2",
+      "response_id": "sample_uganda_004",
+      "country": "uganda"
+    },
+    {
+      "docId": "YvNfj34JpJuMU1809ZbJ",
+      "response_id": "sample_uganda_005",
+      "country": "uganda"
+    },
+    {
+      "docId": "sIAOVLh1XpsPKX236fOb",
+      "response_id": "sample_uganda_006",
+      "country": "uganda"
+    },
+    {
+      "docId": "SclTc9yj8poNGR7WfRKV",
+      "response_id": "sample_uganda_007",
+      "country": "uganda"
+    },
+    {
+      "docId": "gWSQMlKcmif3i1mBfkYr",
+      "response_id": "sample_uganda_008",
+      "country": "uganda"
+    },
+    {
+      "docId": "4cB4hfKIQ9uMbftmrMBR",
+      "response_id": "sample_uganda_009",
+      "country": "uganda"
+    },
+    {
+      "docId": "VwCBZ8hcXkSB9jmjcxHr",
+      "response_id": "sample_uganda_010",
+      "country": "uganda"
+    },
+    {
+      "docId": "UvegPJ0eUwpMOQATBD1T",
+      "response_id": "sample_uganda_011",
+      "country": "uganda"
+    },
+    {
+      "docId": "Tg6aYZY4jusC6YJnVyXQ",
+      "response_id": "sample_uganda_012",
+      "country": "uganda"
+    },
+    {
+      "docId": "hgZhL4I3dzQaXrYglySC",
+      "response_id": "sample_uganda_013",
+      "country": "uganda"
+    },
+    {
+      "docId": "cA0ukaBYeBvS5onkSRqo",
+      "response_id": "sample_uganda_014",
+      "country": "uganda"
+    },
+    {
+      "docId": "ZUeXwxEKTbQDJu8mXAT4",
+      "response_id": "sample_uganda_015",
+      "country": "uganda"
+    },
+    {
+      "docId": "hsZK6F1JTEiCORWGjX2b",
+      "response_id": "sample_uganda_016",
+      "country": "uganda"
+    },
+    {
+      "docId": "wUaYxJVMiXnxNxq4aRdO",
+      "response_id": "sample_uganda_017",
+      "country": "uganda"
+    },
+    {
+      "docId": "Kfc6AHPH4rznhmPe6Dhv",
+      "response_id": "sample_uganda_018",
+      "country": "uganda"
+    },
+    {
+      "docId": "IWGtb1mNrbHszF4NWLdZ",
+      "response_id": "sample_uganda_019",
+      "country": "uganda"
+    },
+    {
+      "docId": "39W6C4BqxBinK1dxEITN",
+      "response_id": "sample_uganda_020",
+      "country": "uganda"
+    },
+    {
+      "docId": "2T6Sp3s4i1sREYqwa05N",
+      "response_id": "sample_uganda_021",
+      "country": "uganda"
+    },
+    {
+      "docId": "TkhCdm1Y9PtjmP2w2MiC",
+      "response_id": "sample_uganda_022",
+      "country": "uganda"
+    },
+    {
+      "docId": "URYVYxSafn4V4dmlfDnF",
+      "response_id": "sample_uganda_023",
+      "country": "uganda"
+    },
+    {
+      "docId": "vyTSfYdALUHPfs4PWrNT",
+      "response_id": "sample_uganda_024",
+      "country": "uganda"
+    },
+    {
+      "docId": "FwkljPlQq8IZWF3NuEp0",
+      "response_id": "sample_uganda_025",
+      "country": "uganda"
+    },
+    {
+      "docId": "gWSdJ90qEUI9olUbeOUc",
+      "response_id": "sample_uganda_026",
+      "country": "uganda"
+    },
+    {
+      "docId": "MQotUmsnx3urDMxtyfFJ",
+      "response_id": "sample_uganda_027",
+      "country": "uganda"
+    },
+    {
+      "docId": "Yf4R8a51vOCjV8l5vW60",
+      "response_id": "sample_uganda_028",
+      "country": "uganda"
+    },
+    {
+      "docId": "PoRa0uNbvsL9a7nisaeT",
+      "response_id": "sample_uganda_029",
+      "country": "uganda"
+    },
+    {
+      "docId": "w7ypCvA2A3rGUlIRPtsB",
+      "response_id": "sample_uganda_030",
+      "country": "uganda"
+    },
+    {
+      "docId": "IE0vRnzJVBHTDANYVqEe",
+      "response_id": "sample_burundi_001",
+      "country": "burundi"
+    },
+    {
+      "docId": "6mIkbrbDzJpsCcEZT81e",
+      "response_id": "sample_burundi_002",
+      "country": "burundi"
+    },
+    {
+      "docId": "gM37pahrog9uE6BhakbG",
+      "response_id": "sample_burundi_003",
+      "country": "burundi"
+    },
+    {
+      "docId": "5QgBM2v0nAejVUoYPCNj",
+      "response_id": "sample_burundi_004",
+      "country": "burundi"
+    },
+    {
+      "docId": "7Y41XuraEmZ8ArIrYmF0",
+      "response_id": "sample_burundi_005",
+      "country": "burundi"
+    },
+    {
+      "docId": "hG0uNdBojPKnxSsr1DnD",
+      "response_id": "sample_burundi_006",
+      "country": "burundi"
+    },
+    {
+      "docId": "mtRF4BUgVBPU4tz9zyps",
+      "response_id": "sample_burundi_007",
+      "country": "burundi"
+    },
+    {
+      "docId": "b5pxG1hOtMxbIOk5QV1F",
+      "response_id": "sample_burundi_008",
+      "country": "burundi"
+    },
+    {
+      "docId": "OGcq1F2BWIiurZw8hmWR",
+      "response_id": "sample_burundi_009",
+      "country": "burundi"
+    },
+    {
+      "docId": "6FG8a4seriZYHDbGjLEH",
+      "response_id": "sample_burundi_010",
+      "country": "burundi"
+    },
+    {
+      "docId": "gYbS9p6w2IPQrvbgTx5O",
+      "response_id": "sample_burundi_011",
+      "country": "burundi"
+    },
+    {
+      "docId": "LwWYmTcJvBnBBmvWkc58",
+      "response_id": "sample_burundi_012",
+      "country": "burundi"
+    },
+    {
+      "docId": "XXgb047YNKVWZm2zBo03",
+      "response_id": "sample_burundi_013",
+      "country": "burundi"
+    },
+    {
+      "docId": "PtAepExDu4HbHEtihGWp",
+      "response_id": "sample_burundi_014",
+      "country": "burundi"
+    },
+    {
+      "docId": "0vdrTXXDN9PzYKKlJHw8",
+      "response_id": "sample_burundi_015",
+      "country": "burundi"
+    },
+    {
+      "docId": "V1mzN16JZjy0jfafIv4P",
+      "response_id": "sample_burundi_016",
+      "country": "burundi"
+    },
+    {
+      "docId": "UUzmPxYv06bUozG6LzqN",
+      "response_id": "sample_burundi_017",
+      "country": "burundi"
+    },
+    {
+      "docId": "UOjp3Fju6tigfm6J2cyr",
+      "response_id": "sample_burundi_018",
+      "country": "burundi"
+    },
+    {
+      "docId": "j7fRddTdaDzyLYt9iqNS",
+      "response_id": "sample_burundi_019",
+      "country": "burundi"
+    },
+    {
+      "docId": "Arwm2IfZrCXZwT6IDHWn",
+      "response_id": "sample_burundi_020",
+      "country": "burundi"
+    },
+    {
+      "docId": "0cn63OdwURdID3qW83tp",
+      "response_id": "sample_burundi_021",
+      "country": "burundi"
+    },
+    {
+      "docId": "cgORLJbMd7WjeG9Tmmur",
+      "response_id": "sample_burundi_022",
+      "country": "burundi"
+    },
+    {
+      "docId": "uCoq2htVgSqhg7ehp0lK",
+      "response_id": "sample_burundi_023",
+      "country": "burundi"
+    },
+    {
+      "docId": "3B02csXfSzArciLkY9bh",
+      "response_id": "sample_burundi_024",
+      "country": "burundi"
+    },
+    {
+      "docId": "YG7SZWdPylysZGo9icKi",
+      "response_id": "sample_burundi_025",
+      "country": "burundi"
+    },
+    {
+      "docId": "YSwFLYXiipZAQJwY6Hmj",
+      "response_id": "sample_burundi_026",
+      "country": "burundi"
+    },
+    {
+      "docId": "OnnZstPk8CEjTpJKdmHm",
+      "response_id": "sample_burundi_027",
+      "country": "burundi"
+    },
+    {
+      "docId": "pPtlZG0TyBxRBsG1ZHbJ",
+      "response_id": "sample_burundi_028",
+      "country": "burundi"
+    },
+    {
+      "docId": "d6GbN52PJ7S7CfK0qWq8",
+      "response_id": "sample_burundi_029",
+      "country": "burundi"
+    },
+    {
+      "docId": "XDqrOMDwrps7N32Midxj",
+      "response_id": "sample_burundi_030",
+      "country": "burundi"
+    }
+  ]
+}

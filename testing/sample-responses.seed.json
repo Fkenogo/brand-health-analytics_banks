@@ -1,0 +1,6362 @@
+[
+  {
+    "response_id": "sample_rwanda_001",
+    "device_id": "sim_device_rwanda_1",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-02-12T05:56:35.624Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "BK_RW",
+    "c2_recognized_bank_ids": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c3_aware_banks": [
+      "BK_RW",
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c4_ever_used": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c5_currently_using": [
+      "BK_RW"
+    ],
+    "c6_main_bank": "BK_RW",
+    "c6_often_used": "BK_RW",
+    "c9_would_consider": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c9_favourites": [
+      "BK_RW"
+    ],
+    "c9_never_consider": [
+      "ECO_RW"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "BK_RW": 7,
+      "IM_RW": 5
+    },
+    "d3_relevance": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "d4_popularity": "BK_RW",
+    "d5_committed": "BK_RW",
+    "d7_nps": {
+      "BK_RW": 10,
+      "IM_RW": 9
+    },
+    "e1_employment": "full_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_002",
+    "device_id": "sim_device_rwanda_2",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-02-09T05:56:35.626Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "IM_RW",
+    "c2_recognized_bank_ids": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c3_aware_banks": [
+      "IM_RW",
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c4_ever_used": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c5_currently_using": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c6_main_bank": "IM_RW",
+    "c6_often_used": "IM_RW",
+    "c9_would_consider": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c9_favourites": [
+      "IM_RW"
+    ],
+    "c9_never_consider": [
+      "KCB_RW"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "IM_RW": 8,
+      "BPR_RW": 6
+    },
+    "d3_relevance": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "d4_popularity": "IM_RW",
+    "d5_committed": "BPR_RW",
+    "d7_nps": {
+      "IM_RW": 9,
+      "BPR_RW": 8
+    },
+    "e1_employment": "part_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_003",
+    "device_id": "sim_device_rwanda_3",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-02-06T05:56:35.626Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "BPR_RW",
+    "c2_recognized_bank_ids": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c3_aware_banks": [
+      "BPR_RW",
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c4_ever_used": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c5_currently_using": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c6_main_bank": "BPR_RW",
+    "c6_often_used": "BPR_RW",
+    "c9_would_consider": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c9_favourites": [
+      "BPR_RW"
+    ],
+    "c9_never_consider": [
+      "BK_RW"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "BPR_RW": 9,
+      "ECO_RW": 7
+    },
+    "d3_relevance": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "d4_popularity": "BPR_RW",
+    "d5_committed": "ECO_RW",
+    "d7_nps": {
+      "BPR_RW": 8,
+      "ECO_RW": 7
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_004",
+    "device_id": "sim_device_rwanda_4",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-02-03T05:56:35.626Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "ECO_RW",
+    "c2_recognized_bank_ids": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c3_aware_banks": [
+      "ECO_RW",
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c4_ever_used": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c5_currently_using": [
+      "ECO_RW"
+    ],
+    "c6_main_bank": "ECO_RW",
+    "c6_often_used": "ECO_RW",
+    "c9_would_consider": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c9_favourites": [
+      "ECO_RW"
+    ],
+    "c9_never_consider": [
+      "IM_RW"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "ECO_RW": 10,
+      "KCB_RW": 8
+    },
+    "d3_relevance": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "d4_popularity": "ECO_RW",
+    "d5_committed": "KCB_RW",
+    "d7_nps": {
+      "ECO_RW": 7,
+      "KCB_RW": 6
+    },
+    "e1_employment": "student",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_005",
+    "device_id": "sim_device_rwanda_5",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-31T05:56:35.626Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "KCB_RW",
+    "c2_recognized_bank_ids": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c3_aware_banks": [
+      "KCB_RW",
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c4_ever_used": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c5_currently_using": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c6_main_bank": "KCB_RW",
+    "c6_often_used": "KCB_RW",
+    "c9_would_consider": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c9_favourites": [
+      "KCB_RW"
+    ],
+    "c9_never_consider": [
+      "BPR_RW"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "KCB_RW": 7,
+      "BK_RW": 9
+    },
+    "d3_relevance": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "d4_popularity": "KCB_RW",
+    "d5_committed": "KCB_RW",
+    "d7_nps": {
+      "KCB_RW": 6,
+      "BK_RW": 5
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_006",
+    "device_id": "sim_device_rwanda_6",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-28T05:56:35.626Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "BK_RW",
+    "c2_recognized_bank_ids": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c3_aware_banks": [
+      "BK_RW",
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c4_ever_used": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c5_currently_using": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c6_main_bank": "BK_RW",
+    "c6_often_used": "BK_RW",
+    "c9_would_consider": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c9_favourites": [
+      "BK_RW"
+    ],
+    "c9_never_consider": [
+      "ECO_RW"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "BK_RW": 8,
+      "IM_RW": 5
+    },
+    "d3_relevance": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "d4_popularity": "BK_RW",
+    "d5_committed": "IM_RW",
+    "d7_nps": {
+      "BK_RW": 5,
+      "IM_RW": 4
+    },
+    "e1_employment": "full_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_007",
+    "device_id": "sim_device_rwanda_7",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-25T05:56:35.626Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "IM_RW",
+    "c2_recognized_bank_ids": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c3_aware_banks": [
+      "IM_RW",
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c4_ever_used": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c5_currently_using": [
+      "IM_RW"
+    ],
+    "c6_main_bank": "IM_RW",
+    "c6_often_used": "IM_RW",
+    "c9_would_consider": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c9_favourites": [
+      "IM_RW"
+    ],
+    "c9_never_consider": [
+      "KCB_RW"
+    ],
+    "c10_nps": 4,
+    "d2_future_intent": {
+      "IM_RW": 9,
+      "BPR_RW": 6
+    },
+    "d3_relevance": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "d4_popularity": "IM_RW",
+    "d5_committed": "BPR_RW",
+    "d7_nps": {
+      "IM_RW": 4,
+      "BPR_RW": 3
+    },
+    "e1_employment": "part_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_008",
+    "device_id": "sim_device_rwanda_8",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-22T05:56:35.626Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "BPR_RW",
+    "c2_recognized_bank_ids": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c3_aware_banks": [
+      "BPR_RW",
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c4_ever_used": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c5_currently_using": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c6_main_bank": "BPR_RW",
+    "c6_often_used": "BPR_RW",
+    "c9_would_consider": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c9_favourites": [
+      "BPR_RW"
+    ],
+    "c9_never_consider": [
+      "BK_RW"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "BPR_RW": 10,
+      "ECO_RW": 7
+    },
+    "d3_relevance": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "d4_popularity": "BPR_RW",
+    "d5_committed": "ECO_RW",
+    "d7_nps": {
+      "BPR_RW": 8,
+      "ECO_RW": 7
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_009",
+    "device_id": "sim_device_rwanda_9",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-19T05:56:35.626Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "ECO_RW",
+    "c2_recognized_bank_ids": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c3_aware_banks": [
+      "ECO_RW",
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c4_ever_used": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c5_currently_using": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c6_main_bank": "ECO_RW",
+    "c6_often_used": "ECO_RW",
+    "c9_would_consider": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c9_favourites": [
+      "ECO_RW"
+    ],
+    "c9_never_consider": [
+      "IM_RW"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "ECO_RW": 7,
+      "KCB_RW": 8
+    },
+    "d3_relevance": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "d4_popularity": "ECO_RW",
+    "d5_committed": "ECO_RW",
+    "d7_nps": {
+      "ECO_RW": 9,
+      "KCB_RW": 8
+    },
+    "e1_employment": "student",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_010",
+    "device_id": "sim_device_rwanda_10",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-16T05:56:35.626Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "KCB_RW",
+    "c2_recognized_bank_ids": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c3_aware_banks": [
+      "KCB_RW",
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c4_ever_used": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c5_currently_using": [
+      "KCB_RW"
+    ],
+    "c6_main_bank": "KCB_RW",
+    "c6_often_used": "KCB_RW",
+    "c9_would_consider": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c9_favourites": [
+      "KCB_RW"
+    ],
+    "c9_never_consider": [
+      "BPR_RW"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "KCB_RW": 8,
+      "BK_RW": 9
+    },
+    "d3_relevance": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "d4_popularity": "KCB_RW",
+    "d5_committed": "BK_RW",
+    "d7_nps": {
+      "KCB_RW": 7,
+      "BK_RW": 6
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_011",
+    "device_id": "sim_device_rwanda_11",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-13T05:56:35.626Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "BK_RW",
+    "c2_recognized_bank_ids": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c3_aware_banks": [
+      "BK_RW",
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c4_ever_used": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c5_currently_using": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c6_main_bank": "BK_RW",
+    "c6_often_used": "BK_RW",
+    "c9_would_consider": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c9_favourites": [
+      "BK_RW"
+    ],
+    "c9_never_consider": [
+      "ECO_RW"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "BK_RW": 9,
+      "IM_RW": 5
+    },
+    "d3_relevance": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "d4_popularity": "BK_RW",
+    "d5_committed": "IM_RW",
+    "d7_nps": {
+      "BK_RW": 6,
+      "IM_RW": 5
+    },
+    "e1_employment": "full_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_012",
+    "device_id": "sim_device_rwanda_12",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-10T05:56:35.626Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "IM_RW",
+    "c2_recognized_bank_ids": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c3_aware_banks": [
+      "IM_RW",
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c4_ever_used": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c5_currently_using": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c6_main_bank": "IM_RW",
+    "c6_often_used": "IM_RW",
+    "c9_would_consider": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c9_favourites": [
+      "IM_RW"
+    ],
+    "c9_never_consider": [
+      "KCB_RW"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "IM_RW": 10,
+      "BPR_RW": 6
+    },
+    "d3_relevance": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "d4_popularity": "IM_RW",
+    "d5_committed": "BPR_RW",
+    "d7_nps": {
+      "IM_RW": 10,
+      "BPR_RW": 9
+    },
+    "e1_employment": "part_time",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_013",
+    "device_id": "sim_device_rwanda_13",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-07T05:56:35.626Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "BPR_RW",
+    "c2_recognized_bank_ids": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c3_aware_banks": [
+      "BPR_RW",
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c4_ever_used": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c5_currently_using": [
+      "BPR_RW"
+    ],
+    "c6_main_bank": "BPR_RW",
+    "c6_often_used": "BPR_RW",
+    "c9_would_consider": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c9_favourites": [
+      "BPR_RW"
+    ],
+    "c9_never_consider": [
+      "BK_RW"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "BPR_RW": 7,
+      "ECO_RW": 7
+    },
+    "d3_relevance": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "d4_popularity": "BPR_RW",
+    "d5_committed": "BPR_RW",
+    "d7_nps": {
+      "BPR_RW": 10,
+      "ECO_RW": 9
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_014",
+    "device_id": "sim_device_rwanda_14",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-04T05:56:35.626Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "ECO_RW",
+    "c2_recognized_bank_ids": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c3_aware_banks": [
+      "ECO_RW",
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c4_ever_used": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c5_currently_using": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c6_main_bank": "ECO_RW",
+    "c6_often_used": "ECO_RW",
+    "c9_would_consider": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c9_favourites": [
+      "ECO_RW"
+    ],
+    "c9_never_consider": [
+      "IM_RW"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "ECO_RW": 8,
+      "KCB_RW": 8
+    },
+    "d3_relevance": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "d4_popularity": "ECO_RW",
+    "d5_committed": "KCB_RW",
+    "d7_nps": {
+      "ECO_RW": 9,
+      "KCB_RW": 8
+    },
+    "e1_employment": "student",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_015",
+    "device_id": "sim_device_rwanda_15",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2026-01-01T05:56:35.626Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "KCB_RW",
+    "c2_recognized_bank_ids": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c3_aware_banks": [
+      "KCB_RW",
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c4_ever_used": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c5_currently_using": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c6_main_bank": "KCB_RW",
+    "c6_often_used": "KCB_RW",
+    "c9_would_consider": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c9_favourites": [
+      "KCB_RW"
+    ],
+    "c9_never_consider": [
+      "BPR_RW"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "KCB_RW": 9,
+      "BK_RW": 9
+    },
+    "d3_relevance": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "d4_popularity": "KCB_RW",
+    "d5_committed": "BK_RW",
+    "d7_nps": {
+      "KCB_RW": 8,
+      "BK_RW": 7
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_016",
+    "device_id": "sim_device_rwanda_16",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-29T05:56:35.626Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "BK_RW",
+    "c2_recognized_bank_ids": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c3_aware_banks": [
+      "BK_RW",
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c4_ever_used": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c5_currently_using": [
+      "BK_RW"
+    ],
+    "c6_main_bank": "BK_RW",
+    "c6_often_used": "BK_RW",
+    "c9_would_consider": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c9_favourites": [
+      "BK_RW"
+    ],
+    "c9_never_consider": [
+      "ECO_RW"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "BK_RW": 10,
+      "IM_RW": 5
+    },
+    "d3_relevance": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "d4_popularity": "BK_RW",
+    "d5_committed": "IM_RW",
+    "d7_nps": {
+      "BK_RW": 7,
+      "IM_RW": 6
+    },
+    "e1_employment": "full_time",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_017",
+    "device_id": "sim_device_rwanda_17",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-26T05:56:35.626Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "IM_RW",
+    "c2_recognized_bank_ids": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c3_aware_banks": [
+      "IM_RW",
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c4_ever_used": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c5_currently_using": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c6_main_bank": "IM_RW",
+    "c6_often_used": "IM_RW",
+    "c9_would_consider": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c9_favourites": [
+      "IM_RW"
+    ],
+    "c9_never_consider": [
+      "KCB_RW"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "IM_RW": 7,
+      "BPR_RW": 6
+    },
+    "d3_relevance": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "d4_popularity": "IM_RW",
+    "d5_committed": "IM_RW",
+    "d7_nps": {
+      "IM_RW": 6,
+      "BPR_RW": 5
+    },
+    "e1_employment": "part_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_018",
+    "device_id": "sim_device_rwanda_18",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-23T05:56:35.626Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "BPR_RW",
+    "c2_recognized_bank_ids": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c3_aware_banks": [
+      "BPR_RW",
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c4_ever_used": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c5_currently_using": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c6_main_bank": "BPR_RW",
+    "c6_often_used": "BPR_RW",
+    "c9_would_consider": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c9_favourites": [
+      "BPR_RW"
+    ],
+    "c9_never_consider": [
+      "BK_RW"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "BPR_RW": 8,
+      "ECO_RW": 7
+    },
+    "d3_relevance": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "d4_popularity": "BPR_RW",
+    "d5_committed": "ECO_RW",
+    "d7_nps": {
+      "BPR_RW": 5,
+      "ECO_RW": 4
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_019",
+    "device_id": "sim_device_rwanda_19",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-20T05:56:35.626Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "ECO_RW",
+    "c2_recognized_bank_ids": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c3_aware_banks": [
+      "ECO_RW",
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c4_ever_used": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c5_currently_using": [
+      "ECO_RW"
+    ],
+    "c6_main_bank": "ECO_RW",
+    "c6_often_used": "ECO_RW",
+    "c9_would_consider": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c9_favourites": [
+      "ECO_RW"
+    ],
+    "c9_never_consider": [
+      "IM_RW"
+    ],
+    "c10_nps": 4,
+    "d2_future_intent": {
+      "ECO_RW": 9,
+      "KCB_RW": 8
+    },
+    "d3_relevance": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "d4_popularity": "ECO_RW",
+    "d5_committed": "KCB_RW",
+    "d7_nps": {
+      "ECO_RW": 4,
+      "KCB_RW": 3
+    },
+    "e1_employment": "student",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_020",
+    "device_id": "sim_device_rwanda_20",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-17T05:56:35.626Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "KCB_RW",
+    "c2_recognized_bank_ids": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c3_aware_banks": [
+      "KCB_RW",
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c4_ever_used": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c5_currently_using": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c6_main_bank": "KCB_RW",
+    "c6_often_used": "KCB_RW",
+    "c9_would_consider": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c9_favourites": [
+      "KCB_RW"
+    ],
+    "c9_never_consider": [
+      "BPR_RW"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "KCB_RW": 10,
+      "BK_RW": 9
+    },
+    "d3_relevance": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "d4_popularity": "KCB_RW",
+    "d5_committed": "BK_RW",
+    "d7_nps": {
+      "KCB_RW": 8,
+      "BK_RW": 7
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_021",
+    "device_id": "sim_device_rwanda_21",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-14T05:56:35.626Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "BK_RW",
+    "c2_recognized_bank_ids": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c3_aware_banks": [
+      "BK_RW",
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c4_ever_used": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c5_currently_using": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c6_main_bank": "BK_RW",
+    "c6_often_used": "BK_RW",
+    "c9_would_consider": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c9_favourites": [
+      "BK_RW"
+    ],
+    "c9_never_consider": [
+      "ECO_RW"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "BK_RW": 7,
+      "IM_RW": 5
+    },
+    "d3_relevance": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "d4_popularity": "BK_RW",
+    "d5_committed": "BK_RW",
+    "d7_nps": {
+      "BK_RW": 9,
+      "IM_RW": 8
+    },
+    "e1_employment": "full_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_022",
+    "device_id": "sim_device_rwanda_22",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-11T05:56:35.626Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "IM_RW",
+    "c2_recognized_bank_ids": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c3_aware_banks": [
+      "IM_RW",
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c4_ever_used": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c5_currently_using": [
+      "IM_RW"
+    ],
+    "c6_main_bank": "IM_RW",
+    "c6_often_used": "IM_RW",
+    "c9_would_consider": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c9_favourites": [
+      "IM_RW"
+    ],
+    "c9_never_consider": [
+      "KCB_RW"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "IM_RW": 8,
+      "BPR_RW": 6
+    },
+    "d3_relevance": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "d4_popularity": "IM_RW",
+    "d5_committed": "BPR_RW",
+    "d7_nps": {
+      "IM_RW": 7,
+      "BPR_RW": 6
+    },
+    "e1_employment": "part_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_023",
+    "device_id": "sim_device_rwanda_23",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-08T05:56:35.626Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "BPR_RW",
+    "c2_recognized_bank_ids": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c3_aware_banks": [
+      "BPR_RW",
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c4_ever_used": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c5_currently_using": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c6_main_bank": "BPR_RW",
+    "c6_often_used": "BPR_RW",
+    "c9_would_consider": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c9_favourites": [
+      "BPR_RW"
+    ],
+    "c9_never_consider": [
+      "BK_RW"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "BPR_RW": 9,
+      "ECO_RW": 7
+    },
+    "d3_relevance": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "d4_popularity": "BPR_RW",
+    "d5_committed": "ECO_RW",
+    "d7_nps": {
+      "BPR_RW": 6,
+      "ECO_RW": 5
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_024",
+    "device_id": "sim_device_rwanda_24",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-05T05:56:35.626Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "ECO_RW",
+    "c2_recognized_bank_ids": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c3_aware_banks": [
+      "ECO_RW",
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c4_ever_used": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c5_currently_using": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c6_main_bank": "ECO_RW",
+    "c6_often_used": "ECO_RW",
+    "c9_would_consider": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c9_favourites": [
+      "ECO_RW"
+    ],
+    "c9_never_consider": [
+      "IM_RW"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "ECO_RW": 10,
+      "KCB_RW": 8
+    },
+    "d3_relevance": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "d4_popularity": "ECO_RW",
+    "d5_committed": "KCB_RW",
+    "d7_nps": {
+      "ECO_RW": 10,
+      "KCB_RW": 9
+    },
+    "e1_employment": "student",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_025",
+    "device_id": "sim_device_rwanda_25",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-12-02T05:56:35.626Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "KCB_RW",
+    "c2_recognized_bank_ids": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c3_aware_banks": [
+      "KCB_RW",
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c4_ever_used": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c5_currently_using": [
+      "KCB_RW"
+    ],
+    "c6_main_bank": "KCB_RW",
+    "c6_often_used": "KCB_RW",
+    "c9_would_consider": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c9_favourites": [
+      "KCB_RW"
+    ],
+    "c9_never_consider": [
+      "BPR_RW"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "KCB_RW": 7,
+      "BK_RW": 9
+    },
+    "d3_relevance": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "d4_popularity": "KCB_RW",
+    "d5_committed": "KCB_RW",
+    "d7_nps": {
+      "KCB_RW": 10,
+      "BK_RW": 9
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_026",
+    "device_id": "sim_device_rwanda_26",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-11-29T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "BK_RW",
+    "c2_recognized_bank_ids": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c3_aware_banks": [
+      "BK_RW",
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c4_ever_used": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c5_currently_using": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c6_main_bank": "BK_RW",
+    "c6_often_used": "BK_RW",
+    "c9_would_consider": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c9_favourites": [
+      "BK_RW"
+    ],
+    "c9_never_consider": [
+      "ECO_RW"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "BK_RW": 8,
+      "IM_RW": 5
+    },
+    "d3_relevance": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "d4_popularity": "BK_RW",
+    "d5_committed": "IM_RW",
+    "d7_nps": {
+      "BK_RW": 9,
+      "IM_RW": 8
+    },
+    "e1_employment": "full_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_027",
+    "device_id": "sim_device_rwanda_27",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-11-26T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "IM_RW",
+    "c2_recognized_bank_ids": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c3_aware_banks": [
+      "IM_RW",
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c4_ever_used": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c5_currently_using": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c6_main_bank": "IM_RW",
+    "c6_often_used": "IM_RW",
+    "c9_would_consider": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "c9_favourites": [
+      "IM_RW"
+    ],
+    "c9_never_consider": [
+      "KCB_RW"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "IM_RW": 9,
+      "BPR_RW": 6
+    },
+    "d3_relevance": [
+      "IM_RW",
+      "BPR_RW"
+    ],
+    "d4_popularity": "IM_RW",
+    "d5_committed": "BPR_RW",
+    "d7_nps": {
+      "IM_RW": 8,
+      "BPR_RW": 7
+    },
+    "e1_employment": "part_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_028",
+    "device_id": "sim_device_rwanda_28",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-11-23T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "BPR_RW",
+    "c2_recognized_bank_ids": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c3_aware_banks": [
+      "BPR_RW",
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c4_ever_used": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c5_currently_using": [
+      "BPR_RW"
+    ],
+    "c6_main_bank": "BPR_RW",
+    "c6_often_used": "BPR_RW",
+    "c9_would_consider": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "c9_favourites": [
+      "BPR_RW"
+    ],
+    "c9_never_consider": [
+      "BK_RW"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "BPR_RW": 10,
+      "ECO_RW": 7
+    },
+    "d3_relevance": [
+      "BPR_RW",
+      "ECO_RW"
+    ],
+    "d4_popularity": "BPR_RW",
+    "d5_committed": "ECO_RW",
+    "d7_nps": {
+      "BPR_RW": 7,
+      "ECO_RW": 6
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_rwanda_029",
+    "device_id": "sim_device_rwanda_29",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-11-20T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "ECO_RW",
+    "c2_recognized_bank_ids": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c3_aware_banks": [
+      "ECO_RW",
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c4_ever_used": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c5_currently_using": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c6_main_bank": "ECO_RW",
+    "c6_often_used": "ECO_RW",
+    "c9_would_consider": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "c9_favourites": [
+      "ECO_RW"
+    ],
+    "c9_never_consider": [
+      "IM_RW"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "ECO_RW": 7,
+      "KCB_RW": 8
+    },
+    "d3_relevance": [
+      "ECO_RW",
+      "KCB_RW"
+    ],
+    "d4_popularity": "ECO_RW",
+    "d5_committed": "ECO_RW",
+    "d7_nps": {
+      "ECO_RW": 6,
+      "KCB_RW": 5
+    },
+    "e1_employment": "student",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_rwanda_030",
+    "device_id": "sim_device_rwanda_30",
+    "country": "rwanda",
+    "selected_country": "rwanda",
+    "timestamp": "2025-11-17T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "KCB_RW",
+    "c2_recognized_bank_ids": [
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c3_aware_banks": [
+      "KCB_RW",
+      "BK_RW",
+      "IM_RW"
+    ],
+    "c4_ever_used": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c5_currently_using": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c6_main_bank": "KCB_RW",
+    "c6_often_used": "KCB_RW",
+    "c9_would_consider": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "c9_favourites": [
+      "KCB_RW"
+    ],
+    "c9_never_consider": [
+      "BPR_RW"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "KCB_RW": 8,
+      "BK_RW": 9
+    },
+    "d3_relevance": [
+      "KCB_RW",
+      "BK_RW"
+    ],
+    "d4_popularity": "KCB_RW",
+    "d5_committed": "BK_RW",
+    "d7_nps": {
+      "KCB_RW": 5,
+      "BK_RW": 4
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_001",
+    "device_id": "sim_device_uganda_1",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-02-12T05:56:35.627Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "STB_UG",
+    "c2_recognized_bank_ids": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c3_aware_banks": [
+      "STB_UG",
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c4_ever_used": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c5_currently_using": [
+      "STB_UG"
+    ],
+    "c6_main_bank": "STB_UG",
+    "c6_often_used": "STB_UG",
+    "c9_would_consider": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c9_favourites": [
+      "STB_UG"
+    ],
+    "c9_never_consider": [
+      "CEN_UG"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "STB_UG": 7,
+      "ABSA_UG": 5
+    },
+    "d3_relevance": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "d4_popularity": "STB_UG",
+    "d5_committed": "STB_UG",
+    "d7_nps": {
+      "STB_UG": 10,
+      "ABSA_UG": 9
+    },
+    "e1_employment": "full_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_002",
+    "device_id": "sim_device_uganda_2",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-02-09T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "ABSA_UG",
+    "c2_recognized_bank_ids": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c3_aware_banks": [
+      "ABSA_UG",
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c4_ever_used": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c5_currently_using": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c6_main_bank": "ABSA_UG",
+    "c6_often_used": "ABSA_UG",
+    "c9_would_consider": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c9_favourites": [
+      "ABSA_UG"
+    ],
+    "c9_never_consider": [
+      "EQU_UG"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "ABSA_UG": 8,
+      "DFCU_UG": 6
+    },
+    "d3_relevance": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "d4_popularity": "ABSA_UG",
+    "d5_committed": "DFCU_UG",
+    "d7_nps": {
+      "ABSA_UG": 9,
+      "DFCU_UG": 8
+    },
+    "e1_employment": "part_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_003",
+    "device_id": "sim_device_uganda_3",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-02-06T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "DFCU_UG",
+    "c2_recognized_bank_ids": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c3_aware_banks": [
+      "DFCU_UG",
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c4_ever_used": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c5_currently_using": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c6_main_bank": "DFCU_UG",
+    "c6_often_used": "DFCU_UG",
+    "c9_would_consider": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c9_favourites": [
+      "DFCU_UG"
+    ],
+    "c9_never_consider": [
+      "STB_UG"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "DFCU_UG": 9,
+      "CEN_UG": 7
+    },
+    "d3_relevance": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "d4_popularity": "DFCU_UG",
+    "d5_committed": "CEN_UG",
+    "d7_nps": {
+      "DFCU_UG": 8,
+      "CEN_UG": 7
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_004",
+    "device_id": "sim_device_uganda_4",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-02-03T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "CEN_UG",
+    "c2_recognized_bank_ids": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c3_aware_banks": [
+      "CEN_UG",
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c4_ever_used": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c5_currently_using": [
+      "CEN_UG"
+    ],
+    "c6_main_bank": "CEN_UG",
+    "c6_often_used": "CEN_UG",
+    "c9_would_consider": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c9_favourites": [
+      "CEN_UG"
+    ],
+    "c9_never_consider": [
+      "ABSA_UG"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "CEN_UG": 10,
+      "EQU_UG": 8
+    },
+    "d3_relevance": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "d4_popularity": "CEN_UG",
+    "d5_committed": "EQU_UG",
+    "d7_nps": {
+      "CEN_UG": 7,
+      "EQU_UG": 6
+    },
+    "e1_employment": "student",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_005",
+    "device_id": "sim_device_uganda_5",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-31T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "EQU_UG",
+    "c2_recognized_bank_ids": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c3_aware_banks": [
+      "EQU_UG",
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c4_ever_used": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c5_currently_using": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c6_main_bank": "EQU_UG",
+    "c6_often_used": "EQU_UG",
+    "c9_would_consider": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c9_favourites": [
+      "EQU_UG"
+    ],
+    "c9_never_consider": [
+      "DFCU_UG"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "EQU_UG": 7,
+      "STB_UG": 9
+    },
+    "d3_relevance": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "d4_popularity": "EQU_UG",
+    "d5_committed": "EQU_UG",
+    "d7_nps": {
+      "EQU_UG": 6,
+      "STB_UG": 5
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_006",
+    "device_id": "sim_device_uganda_6",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-28T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "STB_UG",
+    "c2_recognized_bank_ids": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c3_aware_banks": [
+      "STB_UG",
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c4_ever_used": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c5_currently_using": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c6_main_bank": "STB_UG",
+    "c6_often_used": "STB_UG",
+    "c9_would_consider": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c9_favourites": [
+      "STB_UG"
+    ],
+    "c9_never_consider": [
+      "CEN_UG"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "STB_UG": 8,
+      "ABSA_UG": 5
+    },
+    "d3_relevance": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "d4_popularity": "STB_UG",
+    "d5_committed": "ABSA_UG",
+    "d7_nps": {
+      "STB_UG": 5,
+      "ABSA_UG": 4
+    },
+    "e1_employment": "full_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_007",
+    "device_id": "sim_device_uganda_7",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-25T05:56:35.627Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "ABSA_UG",
+    "c2_recognized_bank_ids": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c3_aware_banks": [
+      "ABSA_UG",
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c4_ever_used": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c5_currently_using": [
+      "ABSA_UG"
+    ],
+    "c6_main_bank": "ABSA_UG",
+    "c6_often_used": "ABSA_UG",
+    "c9_would_consider": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c9_favourites": [
+      "ABSA_UG"
+    ],
+    "c9_never_consider": [
+      "EQU_UG"
+    ],
+    "c10_nps": 4,
+    "d2_future_intent": {
+      "ABSA_UG": 9,
+      "DFCU_UG": 6
+    },
+    "d3_relevance": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "d4_popularity": "ABSA_UG",
+    "d5_committed": "DFCU_UG",
+    "d7_nps": {
+      "ABSA_UG": 4,
+      "DFCU_UG": 3
+    },
+    "e1_employment": "part_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_008",
+    "device_id": "sim_device_uganda_8",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-22T05:56:35.627Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "DFCU_UG",
+    "c2_recognized_bank_ids": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c3_aware_banks": [
+      "DFCU_UG",
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c4_ever_used": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c5_currently_using": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c6_main_bank": "DFCU_UG",
+    "c6_often_used": "DFCU_UG",
+    "c9_would_consider": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c9_favourites": [
+      "DFCU_UG"
+    ],
+    "c9_never_consider": [
+      "STB_UG"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "DFCU_UG": 10,
+      "CEN_UG": 7
+    },
+    "d3_relevance": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "d4_popularity": "DFCU_UG",
+    "d5_committed": "CEN_UG",
+    "d7_nps": {
+      "DFCU_UG": 8,
+      "CEN_UG": 7
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_009",
+    "device_id": "sim_device_uganda_9",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-19T05:56:35.627Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "CEN_UG",
+    "c2_recognized_bank_ids": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c3_aware_banks": [
+      "CEN_UG",
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c4_ever_used": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c5_currently_using": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c6_main_bank": "CEN_UG",
+    "c6_often_used": "CEN_UG",
+    "c9_would_consider": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c9_favourites": [
+      "CEN_UG"
+    ],
+    "c9_never_consider": [
+      "ABSA_UG"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "CEN_UG": 7,
+      "EQU_UG": 8
+    },
+    "d3_relevance": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "d4_popularity": "CEN_UG",
+    "d5_committed": "CEN_UG",
+    "d7_nps": {
+      "CEN_UG": 9,
+      "EQU_UG": 8
+    },
+    "e1_employment": "student",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_010",
+    "device_id": "sim_device_uganda_10",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-16T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "EQU_UG",
+    "c2_recognized_bank_ids": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c3_aware_banks": [
+      "EQU_UG",
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c4_ever_used": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c5_currently_using": [
+      "EQU_UG"
+    ],
+    "c6_main_bank": "EQU_UG",
+    "c6_often_used": "EQU_UG",
+    "c9_would_consider": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c9_favourites": [
+      "EQU_UG"
+    ],
+    "c9_never_consider": [
+      "DFCU_UG"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "EQU_UG": 8,
+      "STB_UG": 9
+    },
+    "d3_relevance": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "d4_popularity": "EQU_UG",
+    "d5_committed": "STB_UG",
+    "d7_nps": {
+      "EQU_UG": 7,
+      "STB_UG": 6
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_011",
+    "device_id": "sim_device_uganda_11",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-13T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "STB_UG",
+    "c2_recognized_bank_ids": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c3_aware_banks": [
+      "STB_UG",
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c4_ever_used": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c5_currently_using": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c6_main_bank": "STB_UG",
+    "c6_often_used": "STB_UG",
+    "c9_would_consider": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c9_favourites": [
+      "STB_UG"
+    ],
+    "c9_never_consider": [
+      "CEN_UG"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "STB_UG": 9,
+      "ABSA_UG": 5
+    },
+    "d3_relevance": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "d4_popularity": "STB_UG",
+    "d5_committed": "ABSA_UG",
+    "d7_nps": {
+      "STB_UG": 6,
+      "ABSA_UG": 5
+    },
+    "e1_employment": "full_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_012",
+    "device_id": "sim_device_uganda_12",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-10T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "ABSA_UG",
+    "c2_recognized_bank_ids": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c3_aware_banks": [
+      "ABSA_UG",
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c4_ever_used": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c5_currently_using": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c6_main_bank": "ABSA_UG",
+    "c6_often_used": "ABSA_UG",
+    "c9_would_consider": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c9_favourites": [
+      "ABSA_UG"
+    ],
+    "c9_never_consider": [
+      "EQU_UG"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "ABSA_UG": 10,
+      "DFCU_UG": 6
+    },
+    "d3_relevance": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "d4_popularity": "ABSA_UG",
+    "d5_committed": "DFCU_UG",
+    "d7_nps": {
+      "ABSA_UG": 10,
+      "DFCU_UG": 9
+    },
+    "e1_employment": "part_time",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_013",
+    "device_id": "sim_device_uganda_13",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-07T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "DFCU_UG",
+    "c2_recognized_bank_ids": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c3_aware_banks": [
+      "DFCU_UG",
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c4_ever_used": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c5_currently_using": [
+      "DFCU_UG"
+    ],
+    "c6_main_bank": "DFCU_UG",
+    "c6_often_used": "DFCU_UG",
+    "c9_would_consider": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c9_favourites": [
+      "DFCU_UG"
+    ],
+    "c9_never_consider": [
+      "STB_UG"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "DFCU_UG": 7,
+      "CEN_UG": 7
+    },
+    "d3_relevance": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "d4_popularity": "DFCU_UG",
+    "d5_committed": "DFCU_UG",
+    "d7_nps": {
+      "DFCU_UG": 10,
+      "CEN_UG": 9
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_014",
+    "device_id": "sim_device_uganda_14",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-04T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "CEN_UG",
+    "c2_recognized_bank_ids": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c3_aware_banks": [
+      "CEN_UG",
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c4_ever_used": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c5_currently_using": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c6_main_bank": "CEN_UG",
+    "c6_often_used": "CEN_UG",
+    "c9_would_consider": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c9_favourites": [
+      "CEN_UG"
+    ],
+    "c9_never_consider": [
+      "ABSA_UG"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "CEN_UG": 8,
+      "EQU_UG": 8
+    },
+    "d3_relevance": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "d4_popularity": "CEN_UG",
+    "d5_committed": "EQU_UG",
+    "d7_nps": {
+      "CEN_UG": 9,
+      "EQU_UG": 8
+    },
+    "e1_employment": "student",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_015",
+    "device_id": "sim_device_uganda_15",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2026-01-01T05:56:35.627Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "EQU_UG",
+    "c2_recognized_bank_ids": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c3_aware_banks": [
+      "EQU_UG",
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c4_ever_used": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c5_currently_using": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c6_main_bank": "EQU_UG",
+    "c6_often_used": "EQU_UG",
+    "c9_would_consider": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c9_favourites": [
+      "EQU_UG"
+    ],
+    "c9_never_consider": [
+      "DFCU_UG"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "EQU_UG": 9,
+      "STB_UG": 9
+    },
+    "d3_relevance": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "d4_popularity": "EQU_UG",
+    "d5_committed": "STB_UG",
+    "d7_nps": {
+      "EQU_UG": 8,
+      "STB_UG": 7
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_016",
+    "device_id": "sim_device_uganda_16",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-29T05:56:35.627Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "STB_UG",
+    "c2_recognized_bank_ids": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c3_aware_banks": [
+      "STB_UG",
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c4_ever_used": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c5_currently_using": [
+      "STB_UG"
+    ],
+    "c6_main_bank": "STB_UG",
+    "c6_often_used": "STB_UG",
+    "c9_would_consider": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c9_favourites": [
+      "STB_UG"
+    ],
+    "c9_never_consider": [
+      "CEN_UG"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "STB_UG": 10,
+      "ABSA_UG": 5
+    },
+    "d3_relevance": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "d4_popularity": "STB_UG",
+    "d5_committed": "ABSA_UG",
+    "d7_nps": {
+      "STB_UG": 7,
+      "ABSA_UG": 6
+    },
+    "e1_employment": "full_time",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_017",
+    "device_id": "sim_device_uganda_17",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-26T05:56:35.627Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "ABSA_UG",
+    "c2_recognized_bank_ids": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c3_aware_banks": [
+      "ABSA_UG",
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c4_ever_used": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c5_currently_using": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c6_main_bank": "ABSA_UG",
+    "c6_often_used": "ABSA_UG",
+    "c9_would_consider": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c9_favourites": [
+      "ABSA_UG"
+    ],
+    "c9_never_consider": [
+      "EQU_UG"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "ABSA_UG": 7,
+      "DFCU_UG": 6
+    },
+    "d3_relevance": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "d4_popularity": "ABSA_UG",
+    "d5_committed": "ABSA_UG",
+    "d7_nps": {
+      "ABSA_UG": 6,
+      "DFCU_UG": 5
+    },
+    "e1_employment": "part_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_018",
+    "device_id": "sim_device_uganda_18",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-23T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "DFCU_UG",
+    "c2_recognized_bank_ids": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c3_aware_banks": [
+      "DFCU_UG",
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c4_ever_used": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c5_currently_using": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c6_main_bank": "DFCU_UG",
+    "c6_often_used": "DFCU_UG",
+    "c9_would_consider": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c9_favourites": [
+      "DFCU_UG"
+    ],
+    "c9_never_consider": [
+      "STB_UG"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "DFCU_UG": 8,
+      "CEN_UG": 7
+    },
+    "d3_relevance": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "d4_popularity": "DFCU_UG",
+    "d5_committed": "CEN_UG",
+    "d7_nps": {
+      "DFCU_UG": 5,
+      "CEN_UG": 4
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_019",
+    "device_id": "sim_device_uganda_19",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-20T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "CEN_UG",
+    "c2_recognized_bank_ids": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c3_aware_banks": [
+      "CEN_UG",
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c4_ever_used": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c5_currently_using": [
+      "CEN_UG"
+    ],
+    "c6_main_bank": "CEN_UG",
+    "c6_often_used": "CEN_UG",
+    "c9_would_consider": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c9_favourites": [
+      "CEN_UG"
+    ],
+    "c9_never_consider": [
+      "ABSA_UG"
+    ],
+    "c10_nps": 4,
+    "d2_future_intent": {
+      "CEN_UG": 9,
+      "EQU_UG": 8
+    },
+    "d3_relevance": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "d4_popularity": "CEN_UG",
+    "d5_committed": "EQU_UG",
+    "d7_nps": {
+      "CEN_UG": 4,
+      "EQU_UG": 3
+    },
+    "e1_employment": "student",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_020",
+    "device_id": "sim_device_uganda_20",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-17T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "EQU_UG",
+    "c2_recognized_bank_ids": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c3_aware_banks": [
+      "EQU_UG",
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c4_ever_used": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c5_currently_using": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c6_main_bank": "EQU_UG",
+    "c6_often_used": "EQU_UG",
+    "c9_would_consider": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c9_favourites": [
+      "EQU_UG"
+    ],
+    "c9_never_consider": [
+      "DFCU_UG"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "EQU_UG": 10,
+      "STB_UG": 9
+    },
+    "d3_relevance": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "d4_popularity": "EQU_UG",
+    "d5_committed": "STB_UG",
+    "d7_nps": {
+      "EQU_UG": 8,
+      "STB_UG": 7
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_021",
+    "device_id": "sim_device_uganda_21",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-14T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "STB_UG",
+    "c2_recognized_bank_ids": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c3_aware_banks": [
+      "STB_UG",
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c4_ever_used": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c5_currently_using": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c6_main_bank": "STB_UG",
+    "c6_often_used": "STB_UG",
+    "c9_would_consider": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c9_favourites": [
+      "STB_UG"
+    ],
+    "c9_never_consider": [
+      "CEN_UG"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "STB_UG": 7,
+      "ABSA_UG": 5
+    },
+    "d3_relevance": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "d4_popularity": "STB_UG",
+    "d5_committed": "STB_UG",
+    "d7_nps": {
+      "STB_UG": 9,
+      "ABSA_UG": 8
+    },
+    "e1_employment": "full_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_022",
+    "device_id": "sim_device_uganda_22",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-11T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "ABSA_UG",
+    "c2_recognized_bank_ids": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c3_aware_banks": [
+      "ABSA_UG",
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c4_ever_used": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c5_currently_using": [
+      "ABSA_UG"
+    ],
+    "c6_main_bank": "ABSA_UG",
+    "c6_often_used": "ABSA_UG",
+    "c9_would_consider": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c9_favourites": [
+      "ABSA_UG"
+    ],
+    "c9_never_consider": [
+      "EQU_UG"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "ABSA_UG": 8,
+      "DFCU_UG": 6
+    },
+    "d3_relevance": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "d4_popularity": "ABSA_UG",
+    "d5_committed": "DFCU_UG",
+    "d7_nps": {
+      "ABSA_UG": 7,
+      "DFCU_UG": 6
+    },
+    "e1_employment": "part_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_023",
+    "device_id": "sim_device_uganda_23",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-08T05:56:35.627Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "DFCU_UG",
+    "c2_recognized_bank_ids": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c3_aware_banks": [
+      "DFCU_UG",
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c4_ever_used": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c5_currently_using": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c6_main_bank": "DFCU_UG",
+    "c6_often_used": "DFCU_UG",
+    "c9_would_consider": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c9_favourites": [
+      "DFCU_UG"
+    ],
+    "c9_never_consider": [
+      "STB_UG"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "DFCU_UG": 9,
+      "CEN_UG": 7
+    },
+    "d3_relevance": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "d4_popularity": "DFCU_UG",
+    "d5_committed": "CEN_UG",
+    "d7_nps": {
+      "DFCU_UG": 6,
+      "CEN_UG": 5
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_024",
+    "device_id": "sim_device_uganda_24",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-05T05:56:35.627Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "CEN_UG",
+    "c2_recognized_bank_ids": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c3_aware_banks": [
+      "CEN_UG",
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c4_ever_used": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c5_currently_using": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c6_main_bank": "CEN_UG",
+    "c6_often_used": "CEN_UG",
+    "c9_would_consider": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c9_favourites": [
+      "CEN_UG"
+    ],
+    "c9_never_consider": [
+      "ABSA_UG"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "CEN_UG": 10,
+      "EQU_UG": 8
+    },
+    "d3_relevance": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "d4_popularity": "CEN_UG",
+    "d5_committed": "EQU_UG",
+    "d7_nps": {
+      "CEN_UG": 10,
+      "EQU_UG": 9
+    },
+    "e1_employment": "student",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_025",
+    "device_id": "sim_device_uganda_25",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-12-02T05:56:35.627Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "EQU_UG",
+    "c2_recognized_bank_ids": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c3_aware_banks": [
+      "EQU_UG",
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c4_ever_used": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c5_currently_using": [
+      "EQU_UG"
+    ],
+    "c6_main_bank": "EQU_UG",
+    "c6_often_used": "EQU_UG",
+    "c9_would_consider": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c9_favourites": [
+      "EQU_UG"
+    ],
+    "c9_never_consider": [
+      "DFCU_UG"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "EQU_UG": 7,
+      "STB_UG": 9
+    },
+    "d3_relevance": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "d4_popularity": "EQU_UG",
+    "d5_committed": "EQU_UG",
+    "d7_nps": {
+      "EQU_UG": 10,
+      "STB_UG": 9
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_026",
+    "device_id": "sim_device_uganda_26",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-11-29T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "STB_UG",
+    "c2_recognized_bank_ids": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c3_aware_banks": [
+      "STB_UG",
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c4_ever_used": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c5_currently_using": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c6_main_bank": "STB_UG",
+    "c6_often_used": "STB_UG",
+    "c9_would_consider": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c9_favourites": [
+      "STB_UG"
+    ],
+    "c9_never_consider": [
+      "CEN_UG"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "STB_UG": 8,
+      "ABSA_UG": 5
+    },
+    "d3_relevance": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "d4_popularity": "STB_UG",
+    "d5_committed": "ABSA_UG",
+    "d7_nps": {
+      "STB_UG": 9,
+      "ABSA_UG": 8
+    },
+    "e1_employment": "full_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_027",
+    "device_id": "sim_device_uganda_27",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-11-26T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "ABSA_UG",
+    "c2_recognized_bank_ids": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c3_aware_banks": [
+      "ABSA_UG",
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c4_ever_used": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c5_currently_using": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c6_main_bank": "ABSA_UG",
+    "c6_often_used": "ABSA_UG",
+    "c9_would_consider": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "c9_favourites": [
+      "ABSA_UG"
+    ],
+    "c9_never_consider": [
+      "EQU_UG"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "ABSA_UG": 9,
+      "DFCU_UG": 6
+    },
+    "d3_relevance": [
+      "ABSA_UG",
+      "DFCU_UG"
+    ],
+    "d4_popularity": "ABSA_UG",
+    "d5_committed": "DFCU_UG",
+    "d7_nps": {
+      "ABSA_UG": 8,
+      "DFCU_UG": 7
+    },
+    "e1_employment": "part_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_028",
+    "device_id": "sim_device_uganda_28",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-11-23T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "DFCU_UG",
+    "c2_recognized_bank_ids": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c3_aware_banks": [
+      "DFCU_UG",
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c4_ever_used": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c5_currently_using": [
+      "DFCU_UG"
+    ],
+    "c6_main_bank": "DFCU_UG",
+    "c6_often_used": "DFCU_UG",
+    "c9_would_consider": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "c9_favourites": [
+      "DFCU_UG"
+    ],
+    "c9_never_consider": [
+      "STB_UG"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "DFCU_UG": 10,
+      "CEN_UG": 7
+    },
+    "d3_relevance": [
+      "DFCU_UG",
+      "CEN_UG"
+    ],
+    "d4_popularity": "DFCU_UG",
+    "d5_committed": "CEN_UG",
+    "d7_nps": {
+      "DFCU_UG": 7,
+      "CEN_UG": 6
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_uganda_029",
+    "device_id": "sim_device_uganda_29",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-11-20T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "CEN_UG",
+    "c2_recognized_bank_ids": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c3_aware_banks": [
+      "CEN_UG",
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c4_ever_used": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c5_currently_using": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c6_main_bank": "CEN_UG",
+    "c6_often_used": "CEN_UG",
+    "c9_would_consider": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "c9_favourites": [
+      "CEN_UG"
+    ],
+    "c9_never_consider": [
+      "ABSA_UG"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "CEN_UG": 7,
+      "EQU_UG": 8
+    },
+    "d3_relevance": [
+      "CEN_UG",
+      "EQU_UG"
+    ],
+    "d4_popularity": "CEN_UG",
+    "d5_committed": "CEN_UG",
+    "d7_nps": {
+      "CEN_UG": 6,
+      "EQU_UG": 5
+    },
+    "e1_employment": "student",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_uganda_030",
+    "device_id": "sim_device_uganda_30",
+    "country": "uganda",
+    "selected_country": "uganda",
+    "timestamp": "2025-11-17T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "EQU_UG",
+    "c2_recognized_bank_ids": [
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c3_aware_banks": [
+      "EQU_UG",
+      "STB_UG",
+      "ABSA_UG"
+    ],
+    "c4_ever_used": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c5_currently_using": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c6_main_bank": "EQU_UG",
+    "c6_often_used": "EQU_UG",
+    "c9_would_consider": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "c9_favourites": [
+      "EQU_UG"
+    ],
+    "c9_never_consider": [
+      "DFCU_UG"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "EQU_UG": 8,
+      "STB_UG": 9
+    },
+    "d3_relevance": [
+      "EQU_UG",
+      "STB_UG"
+    ],
+    "d4_popularity": "EQU_UG",
+    "d5_committed": "STB_UG",
+    "d7_nps": {
+      "EQU_UG": 5,
+      "STB_UG": 4
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_001",
+    "device_id": "sim_device_burundi_1",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-02-12T05:56:35.627Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "KCB_BI",
+    "c2_recognized_bank_ids": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c3_aware_banks": [
+      "KCB_BI",
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c4_ever_used": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c5_currently_using": [
+      "KCB_BI"
+    ],
+    "c6_main_bank": "KCB_BI",
+    "c6_often_used": "KCB_BI",
+    "c9_would_consider": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c9_favourites": [
+      "KCB_BI"
+    ],
+    "c9_never_consider": [
+      "BBCI_BI"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "KCB_BI": 7,
+      "CRDB_BI": 5
+    },
+    "d3_relevance": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "d4_popularity": "KCB_BI",
+    "d5_committed": "KCB_BI",
+    "d7_nps": {
+      "KCB_BI": 10,
+      "CRDB_BI": 9
+    },
+    "e1_employment": "full_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_002",
+    "device_id": "sim_device_burundi_2",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-02-09T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "CRDB_BI",
+    "c2_recognized_bank_ids": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c3_aware_banks": [
+      "CRDB_BI",
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c4_ever_used": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c5_currently_using": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c6_main_bank": "CRDB_BI",
+    "c6_often_used": "CRDB_BI",
+    "c9_would_consider": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c9_favourites": [
+      "CRDB_BI"
+    ],
+    "c9_never_consider": [
+      "DTB_BI"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "CRDB_BI": 8,
+      "ECO_BI": 6
+    },
+    "d3_relevance": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "d4_popularity": "CRDB_BI",
+    "d5_committed": "ECO_BI",
+    "d7_nps": {
+      "CRDB_BI": 9,
+      "ECO_BI": 8
+    },
+    "e1_employment": "part_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_003",
+    "device_id": "sim_device_burundi_3",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-02-06T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "ECO_BI",
+    "c2_recognized_bank_ids": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c3_aware_banks": [
+      "ECO_BI",
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c4_ever_used": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c5_currently_using": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c6_main_bank": "ECO_BI",
+    "c6_often_used": "ECO_BI",
+    "c9_would_consider": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c9_favourites": [
+      "ECO_BI"
+    ],
+    "c9_never_consider": [
+      "KCB_BI"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "ECO_BI": 9,
+      "BBCI_BI": 7
+    },
+    "d3_relevance": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "d4_popularity": "ECO_BI",
+    "d5_committed": "BBCI_BI",
+    "d7_nps": {
+      "ECO_BI": 8,
+      "BBCI_BI": 7
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_004",
+    "device_id": "sim_device_burundi_4",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-02-03T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "BBCI_BI",
+    "c2_recognized_bank_ids": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c3_aware_banks": [
+      "BBCI_BI",
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c4_ever_used": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c5_currently_using": [
+      "BBCI_BI"
+    ],
+    "c6_main_bank": "BBCI_BI",
+    "c6_often_used": "BBCI_BI",
+    "c9_would_consider": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c9_favourites": [
+      "BBCI_BI"
+    ],
+    "c9_never_consider": [
+      "CRDB_BI"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "BBCI_BI": 10,
+      "DTB_BI": 8
+    },
+    "d3_relevance": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "d4_popularity": "BBCI_BI",
+    "d5_committed": "DTB_BI",
+    "d7_nps": {
+      "BBCI_BI": 7,
+      "DTB_BI": 6
+    },
+    "e1_employment": "student",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_005",
+    "device_id": "sim_device_burundi_5",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-31T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "DTB_BI",
+    "c2_recognized_bank_ids": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c3_aware_banks": [
+      "DTB_BI",
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c4_ever_used": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c5_currently_using": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c6_main_bank": "DTB_BI",
+    "c6_often_used": "DTB_BI",
+    "c9_would_consider": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c9_favourites": [
+      "DTB_BI"
+    ],
+    "c9_never_consider": [
+      "ECO_BI"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "DTB_BI": 7,
+      "KCB_BI": 9
+    },
+    "d3_relevance": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "d4_popularity": "DTB_BI",
+    "d5_committed": "DTB_BI",
+    "d7_nps": {
+      "DTB_BI": 6,
+      "KCB_BI": 5
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_006",
+    "device_id": "sim_device_burundi_6",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-28T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "KCB_BI",
+    "c2_recognized_bank_ids": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c3_aware_banks": [
+      "KCB_BI",
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c4_ever_used": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c5_currently_using": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c6_main_bank": "KCB_BI",
+    "c6_often_used": "KCB_BI",
+    "c9_would_consider": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c9_favourites": [
+      "KCB_BI"
+    ],
+    "c9_never_consider": [
+      "BBCI_BI"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "KCB_BI": 8,
+      "CRDB_BI": 5
+    },
+    "d3_relevance": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "d4_popularity": "KCB_BI",
+    "d5_committed": "CRDB_BI",
+    "d7_nps": {
+      "KCB_BI": 5,
+      "CRDB_BI": 4
+    },
+    "e1_employment": "full_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_007",
+    "device_id": "sim_device_burundi_7",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-25T05:56:35.627Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "CRDB_BI",
+    "c2_recognized_bank_ids": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c3_aware_banks": [
+      "CRDB_BI",
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c4_ever_used": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c5_currently_using": [
+      "CRDB_BI"
+    ],
+    "c6_main_bank": "CRDB_BI",
+    "c6_often_used": "CRDB_BI",
+    "c9_would_consider": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c9_favourites": [
+      "CRDB_BI"
+    ],
+    "c9_never_consider": [
+      "DTB_BI"
+    ],
+    "c10_nps": 4,
+    "d2_future_intent": {
+      "CRDB_BI": 9,
+      "ECO_BI": 6
+    },
+    "d3_relevance": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "d4_popularity": "CRDB_BI",
+    "d5_committed": "ECO_BI",
+    "d7_nps": {
+      "CRDB_BI": 4,
+      "ECO_BI": 3
+    },
+    "e1_employment": "part_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_008",
+    "device_id": "sim_device_burundi_8",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-22T05:56:35.627Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "ECO_BI",
+    "c2_recognized_bank_ids": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c3_aware_banks": [
+      "ECO_BI",
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c4_ever_used": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c5_currently_using": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c6_main_bank": "ECO_BI",
+    "c6_often_used": "ECO_BI",
+    "c9_would_consider": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c9_favourites": [
+      "ECO_BI"
+    ],
+    "c9_never_consider": [
+      "KCB_BI"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "ECO_BI": 10,
+      "BBCI_BI": 7
+    },
+    "d3_relevance": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "d4_popularity": "ECO_BI",
+    "d5_committed": "BBCI_BI",
+    "d7_nps": {
+      "ECO_BI": 8,
+      "BBCI_BI": 7
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_009",
+    "device_id": "sim_device_burundi_9",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-19T05:56:35.627Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "BBCI_BI",
+    "c2_recognized_bank_ids": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c3_aware_banks": [
+      "BBCI_BI",
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c4_ever_used": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c5_currently_using": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c6_main_bank": "BBCI_BI",
+    "c6_often_used": "BBCI_BI",
+    "c9_would_consider": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c9_favourites": [
+      "BBCI_BI"
+    ],
+    "c9_never_consider": [
+      "CRDB_BI"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "BBCI_BI": 7,
+      "DTB_BI": 8
+    },
+    "d3_relevance": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "d4_popularity": "BBCI_BI",
+    "d5_committed": "BBCI_BI",
+    "d7_nps": {
+      "BBCI_BI": 9,
+      "DTB_BI": 8
+    },
+    "e1_employment": "student",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_010",
+    "device_id": "sim_device_burundi_10",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-16T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "DTB_BI",
+    "c2_recognized_bank_ids": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c3_aware_banks": [
+      "DTB_BI",
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c4_ever_used": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c5_currently_using": [
+      "DTB_BI"
+    ],
+    "c6_main_bank": "DTB_BI",
+    "c6_often_used": "DTB_BI",
+    "c9_would_consider": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c9_favourites": [
+      "DTB_BI"
+    ],
+    "c9_never_consider": [
+      "ECO_BI"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "DTB_BI": 8,
+      "KCB_BI": 9
+    },
+    "d3_relevance": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "d4_popularity": "DTB_BI",
+    "d5_committed": "KCB_BI",
+    "d7_nps": {
+      "DTB_BI": 7,
+      "KCB_BI": 6
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_011",
+    "device_id": "sim_device_burundi_11",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-13T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "KCB_BI",
+    "c2_recognized_bank_ids": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c3_aware_banks": [
+      "KCB_BI",
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c4_ever_used": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c5_currently_using": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c6_main_bank": "KCB_BI",
+    "c6_often_used": "KCB_BI",
+    "c9_would_consider": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c9_favourites": [
+      "KCB_BI"
+    ],
+    "c9_never_consider": [
+      "BBCI_BI"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "KCB_BI": 9,
+      "CRDB_BI": 5
+    },
+    "d3_relevance": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "d4_popularity": "KCB_BI",
+    "d5_committed": "CRDB_BI",
+    "d7_nps": {
+      "KCB_BI": 6,
+      "CRDB_BI": 5
+    },
+    "e1_employment": "full_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_012",
+    "device_id": "sim_device_burundi_12",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-10T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "CRDB_BI",
+    "c2_recognized_bank_ids": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c3_aware_banks": [
+      "CRDB_BI",
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c4_ever_used": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c5_currently_using": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c6_main_bank": "CRDB_BI",
+    "c6_often_used": "CRDB_BI",
+    "c9_would_consider": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c9_favourites": [
+      "CRDB_BI"
+    ],
+    "c9_never_consider": [
+      "DTB_BI"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "CRDB_BI": 10,
+      "ECO_BI": 6
+    },
+    "d3_relevance": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "d4_popularity": "CRDB_BI",
+    "d5_committed": "ECO_BI",
+    "d7_nps": {
+      "CRDB_BI": 10,
+      "ECO_BI": 9
+    },
+    "e1_employment": "part_time",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_013",
+    "device_id": "sim_device_burundi_13",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-07T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "ECO_BI",
+    "c2_recognized_bank_ids": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c3_aware_banks": [
+      "ECO_BI",
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c4_ever_used": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c5_currently_using": [
+      "ECO_BI"
+    ],
+    "c6_main_bank": "ECO_BI",
+    "c6_often_used": "ECO_BI",
+    "c9_would_consider": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c9_favourites": [
+      "ECO_BI"
+    ],
+    "c9_never_consider": [
+      "KCB_BI"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "ECO_BI": 7,
+      "BBCI_BI": 7
+    },
+    "d3_relevance": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "d4_popularity": "ECO_BI",
+    "d5_committed": "ECO_BI",
+    "d7_nps": {
+      "ECO_BI": 10,
+      "BBCI_BI": 9
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_014",
+    "device_id": "sim_device_burundi_14",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-04T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "BBCI_BI",
+    "c2_recognized_bank_ids": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c3_aware_banks": [
+      "BBCI_BI",
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c4_ever_used": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c5_currently_using": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c6_main_bank": "BBCI_BI",
+    "c6_often_used": "BBCI_BI",
+    "c9_would_consider": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c9_favourites": [
+      "BBCI_BI"
+    ],
+    "c9_never_consider": [
+      "CRDB_BI"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "BBCI_BI": 8,
+      "DTB_BI": 8
+    },
+    "d3_relevance": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "d4_popularity": "BBCI_BI",
+    "d5_committed": "DTB_BI",
+    "d7_nps": {
+      "BBCI_BI": 9,
+      "DTB_BI": 8
+    },
+    "e1_employment": "student",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_015",
+    "device_id": "sim_device_burundi_15",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2026-01-01T05:56:35.627Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "DTB_BI",
+    "c2_recognized_bank_ids": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c3_aware_banks": [
+      "DTB_BI",
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c4_ever_used": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c5_currently_using": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c6_main_bank": "DTB_BI",
+    "c6_often_used": "DTB_BI",
+    "c9_would_consider": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c9_favourites": [
+      "DTB_BI"
+    ],
+    "c9_never_consider": [
+      "ECO_BI"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "DTB_BI": 9,
+      "KCB_BI": 9
+    },
+    "d3_relevance": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "d4_popularity": "DTB_BI",
+    "d5_committed": "KCB_BI",
+    "d7_nps": {
+      "DTB_BI": 8,
+      "KCB_BI": 7
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_016",
+    "device_id": "sim_device_burundi_16",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-29T05:56:35.627Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "KCB_BI",
+    "c2_recognized_bank_ids": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c3_aware_banks": [
+      "KCB_BI",
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c4_ever_used": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c5_currently_using": [
+      "KCB_BI"
+    ],
+    "c6_main_bank": "KCB_BI",
+    "c6_often_used": "KCB_BI",
+    "c9_would_consider": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c9_favourites": [
+      "KCB_BI"
+    ],
+    "c9_never_consider": [
+      "BBCI_BI"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "KCB_BI": 10,
+      "CRDB_BI": 5
+    },
+    "d3_relevance": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "d4_popularity": "KCB_BI",
+    "d5_committed": "CRDB_BI",
+    "d7_nps": {
+      "KCB_BI": 7,
+      "CRDB_BI": 6
+    },
+    "e1_employment": "full_time",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_017",
+    "device_id": "sim_device_burundi_17",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-26T05:56:35.627Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "CRDB_BI",
+    "c2_recognized_bank_ids": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c3_aware_banks": [
+      "CRDB_BI",
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c4_ever_used": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c5_currently_using": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c6_main_bank": "CRDB_BI",
+    "c6_often_used": "CRDB_BI",
+    "c9_would_consider": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c9_favourites": [
+      "CRDB_BI"
+    ],
+    "c9_never_consider": [
+      "DTB_BI"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "CRDB_BI": 7,
+      "ECO_BI": 6
+    },
+    "d3_relevance": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "d4_popularity": "CRDB_BI",
+    "d5_committed": "CRDB_BI",
+    "d7_nps": {
+      "CRDB_BI": 6,
+      "ECO_BI": 5
+    },
+    "e1_employment": "part_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_018",
+    "device_id": "sim_device_burundi_18",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-23T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "ECO_BI",
+    "c2_recognized_bank_ids": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c3_aware_banks": [
+      "ECO_BI",
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c4_ever_used": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c5_currently_using": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c6_main_bank": "ECO_BI",
+    "c6_often_used": "ECO_BI",
+    "c9_would_consider": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c9_favourites": [
+      "ECO_BI"
+    ],
+    "c9_never_consider": [
+      "KCB_BI"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "ECO_BI": 8,
+      "BBCI_BI": 7
+    },
+    "d3_relevance": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "d4_popularity": "ECO_BI",
+    "d5_committed": "BBCI_BI",
+    "d7_nps": {
+      "ECO_BI": 5,
+      "BBCI_BI": 4
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_019",
+    "device_id": "sim_device_burundi_19",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-20T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "BBCI_BI",
+    "c2_recognized_bank_ids": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c3_aware_banks": [
+      "BBCI_BI",
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c4_ever_used": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c5_currently_using": [
+      "BBCI_BI"
+    ],
+    "c6_main_bank": "BBCI_BI",
+    "c6_often_used": "BBCI_BI",
+    "c9_would_consider": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c9_favourites": [
+      "BBCI_BI"
+    ],
+    "c9_never_consider": [
+      "CRDB_BI"
+    ],
+    "c10_nps": 4,
+    "d2_future_intent": {
+      "BBCI_BI": 9,
+      "DTB_BI": 8
+    },
+    "d3_relevance": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "d4_popularity": "BBCI_BI",
+    "d5_committed": "DTB_BI",
+    "d7_nps": {
+      "BBCI_BI": 4,
+      "DTB_BI": 3
+    },
+    "e1_employment": "student",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_020",
+    "device_id": "sim_device_burundi_20",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-17T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "DTB_BI",
+    "c2_recognized_bank_ids": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c3_aware_banks": [
+      "DTB_BI",
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c4_ever_used": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c5_currently_using": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c6_main_bank": "DTB_BI",
+    "c6_often_used": "DTB_BI",
+    "c9_would_consider": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c9_favourites": [
+      "DTB_BI"
+    ],
+    "c9_never_consider": [
+      "ECO_BI"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "DTB_BI": 10,
+      "KCB_BI": 9
+    },
+    "d3_relevance": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "d4_popularity": "DTB_BI",
+    "d5_committed": "KCB_BI",
+    "d7_nps": {
+      "DTB_BI": 8,
+      "KCB_BI": 7
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_021",
+    "device_id": "sim_device_burundi_21",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-14T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "male",
+    "c1_recognized_bank_id": "KCB_BI",
+    "c2_recognized_bank_ids": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c3_aware_banks": [
+      "KCB_BI",
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c4_ever_used": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c5_currently_using": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c6_main_bank": "KCB_BI",
+    "c6_often_used": "KCB_BI",
+    "c9_would_consider": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c9_favourites": [
+      "KCB_BI"
+    ],
+    "c9_never_consider": [
+      "BBCI_BI"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "KCB_BI": 7,
+      "CRDB_BI": 5
+    },
+    "d3_relevance": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "d4_popularity": "KCB_BI",
+    "d5_committed": "KCB_BI",
+    "d7_nps": {
+      "KCB_BI": 9,
+      "CRDB_BI": 8
+    },
+    "e1_employment": "full_time",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_022",
+    "device_id": "sim_device_burundi_22",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-11T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "female",
+    "c1_recognized_bank_id": "CRDB_BI",
+    "c2_recognized_bank_ids": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c3_aware_banks": [
+      "CRDB_BI",
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c4_ever_used": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c5_currently_using": [
+      "CRDB_BI"
+    ],
+    "c6_main_bank": "CRDB_BI",
+    "c6_often_used": "CRDB_BI",
+    "c9_would_consider": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c9_favourites": [
+      "CRDB_BI"
+    ],
+    "c9_never_consider": [
+      "DTB_BI"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "CRDB_BI": 8,
+      "ECO_BI": 6
+    },
+    "d3_relevance": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "d4_popularity": "CRDB_BI",
+    "d5_committed": "ECO_BI",
+    "d7_nps": {
+      "CRDB_BI": 7,
+      "ECO_BI": 6
+    },
+    "e1_employment": "part_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_023",
+    "device_id": "sim_device_burundi_23",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-08T05:56:35.627Z",
+    "duration_seconds": 210,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "male",
+    "c1_recognized_bank_id": "ECO_BI",
+    "c2_recognized_bank_ids": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c3_aware_banks": [
+      "ECO_BI",
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c4_ever_used": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c5_currently_using": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c6_main_bank": "ECO_BI",
+    "c6_often_used": "ECO_BI",
+    "c9_would_consider": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c9_favourites": [
+      "ECO_BI"
+    ],
+    "c9_never_consider": [
+      "KCB_BI"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "ECO_BI": 9,
+      "BBCI_BI": 7
+    },
+    "d3_relevance": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "d4_popularity": "ECO_BI",
+    "d5_committed": "BBCI_BI",
+    "d7_nps": {
+      "ECO_BI": 6,
+      "BBCI_BI": 5
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_024",
+    "device_id": "sim_device_burundi_24",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-05T05:56:35.627Z",
+    "duration_seconds": 225,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "female",
+    "c1_recognized_bank_id": "BBCI_BI",
+    "c2_recognized_bank_ids": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c3_aware_banks": [
+      "BBCI_BI",
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c4_ever_used": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c5_currently_using": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c6_main_bank": "BBCI_BI",
+    "c6_often_used": "BBCI_BI",
+    "c9_would_consider": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c9_favourites": [
+      "BBCI_BI"
+    ],
+    "c9_never_consider": [
+      "CRDB_BI"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "BBCI_BI": 10,
+      "DTB_BI": 8
+    },
+    "d3_relevance": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "d4_popularity": "BBCI_BI",
+    "d5_committed": "DTB_BI",
+    "d7_nps": {
+      "BBCI_BI": 10,
+      "DTB_BI": 9
+    },
+    "e1_employment": "student",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_025",
+    "device_id": "sim_device_burundi_25",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-12-02T05:56:35.627Z",
+    "duration_seconds": 120,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "male",
+    "c1_recognized_bank_id": "DTB_BI",
+    "c2_recognized_bank_ids": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c3_aware_banks": [
+      "DTB_BI",
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c4_ever_used": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c5_currently_using": [
+      "DTB_BI"
+    ],
+    "c6_main_bank": "DTB_BI",
+    "c6_often_used": "DTB_BI",
+    "c9_would_consider": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c9_favourites": [
+      "DTB_BI"
+    ],
+    "c9_never_consider": [
+      "ECO_BI"
+    ],
+    "c10_nps": 10,
+    "d2_future_intent": {
+      "DTB_BI": 7,
+      "KCB_BI": 9
+    },
+    "d3_relevance": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "d4_popularity": "DTB_BI",
+    "d5_committed": "DTB_BI",
+    "d7_nps": {
+      "DTB_BI": 10,
+      "KCB_BI": 9
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_026",
+    "device_id": "sim_device_burundi_26",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-11-29T05:56:35.627Z",
+    "duration_seconds": 135,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "18-24",
+    "gender": "female",
+    "c1_recognized_bank_id": "KCB_BI",
+    "c2_recognized_bank_ids": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c3_aware_banks": [
+      "KCB_BI",
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c4_ever_used": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c5_currently_using": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c6_main_bank": "KCB_BI",
+    "c6_often_used": "KCB_BI",
+    "c9_would_consider": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c9_favourites": [
+      "KCB_BI"
+    ],
+    "c9_never_consider": [
+      "BBCI_BI"
+    ],
+    "c10_nps": 9,
+    "d2_future_intent": {
+      "KCB_BI": 8,
+      "CRDB_BI": 5
+    },
+    "d3_relevance": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "d4_popularity": "KCB_BI",
+    "d5_committed": "CRDB_BI",
+    "d7_nps": {
+      "KCB_BI": 9,
+      "CRDB_BI": 8
+    },
+    "e1_employment": "full_time",
+    "e2_education": "university",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_027",
+    "device_id": "sim_device_burundi_27",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-11-26T05:56:35.627Z",
+    "duration_seconds": 150,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "25-34",
+    "gender": "male",
+    "c1_recognized_bank_id": "CRDB_BI",
+    "c2_recognized_bank_ids": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c3_aware_banks": [
+      "CRDB_BI",
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c4_ever_used": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c5_currently_using": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c6_main_bank": "CRDB_BI",
+    "c6_often_used": "CRDB_BI",
+    "c9_would_consider": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "c9_favourites": [
+      "CRDB_BI"
+    ],
+    "c9_never_consider": [
+      "DTB_BI"
+    ],
+    "c10_nps": 8,
+    "d2_future_intent": {
+      "CRDB_BI": 9,
+      "ECO_BI": 6
+    },
+    "d3_relevance": [
+      "CRDB_BI",
+      "ECO_BI"
+    ],
+    "d4_popularity": "CRDB_BI",
+    "d5_committed": "ECO_BI",
+    "d7_nps": {
+      "CRDB_BI": 8,
+      "ECO_BI": 7
+    },
+    "e1_employment": "part_time",
+    "e2_education": "postgraduate",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_028",
+    "device_id": "sim_device_burundi_28",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-11-23T05:56:35.627Z",
+    "duration_seconds": 165,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "35-44",
+    "gender": "female",
+    "c1_recognized_bank_id": "ECO_BI",
+    "c2_recognized_bank_ids": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c3_aware_banks": [
+      "ECO_BI",
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c4_ever_used": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c5_currently_using": [
+      "ECO_BI"
+    ],
+    "c6_main_bank": "ECO_BI",
+    "c6_often_used": "ECO_BI",
+    "c9_would_consider": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "c9_favourites": [
+      "ECO_BI"
+    ],
+    "c9_never_consider": [
+      "KCB_BI"
+    ],
+    "c10_nps": 7,
+    "d2_future_intent": {
+      "ECO_BI": 10,
+      "BBCI_BI": 7
+    },
+    "d3_relevance": [
+      "ECO_BI",
+      "BBCI_BI"
+    ],
+    "d4_popularity": "ECO_BI",
+    "d5_committed": "BBCI_BI",
+    "d7_nps": {
+      "ECO_BI": 7,
+      "BBCI_BI": 6
+    },
+    "e1_employment": "self_employed",
+    "e2_education": "primary",
+    "e3_gender": "female"
+  },
+  {
+    "response_id": "sample_burundi_029",
+    "device_id": "sim_device_burundi_29",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-11-20T05:56:35.627Z",
+    "duration_seconds": 180,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "45-54",
+    "gender": "male",
+    "c1_recognized_bank_id": "BBCI_BI",
+    "c2_recognized_bank_ids": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c3_aware_banks": [
+      "BBCI_BI",
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c4_ever_used": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c5_currently_using": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c6_main_bank": "BBCI_BI",
+    "c6_often_used": "BBCI_BI",
+    "c9_would_consider": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "c9_favourites": [
+      "BBCI_BI"
+    ],
+    "c9_never_consider": [
+      "CRDB_BI"
+    ],
+    "c10_nps": 6,
+    "d2_future_intent": {
+      "BBCI_BI": 7,
+      "DTB_BI": 8
+    },
+    "d3_relevance": [
+      "BBCI_BI",
+      "DTB_BI"
+    ],
+    "d4_popularity": "BBCI_BI",
+    "d5_committed": "BBCI_BI",
+    "d7_nps": {
+      "BBCI_BI": 6,
+      "DTB_BI": 5
+    },
+    "e1_employment": "student",
+    "e2_education": "secondary",
+    "e3_gender": "male"
+  },
+  {
+    "response_id": "sample_burundi_030",
+    "device_id": "sim_device_burundi_30",
+    "country": "burundi",
+    "selected_country": "burundi",
+    "timestamp": "2025-11-17T05:56:35.627Z",
+    "duration_seconds": 195,
+    "question_timings": {
+      "c1_top_of_mind": 12,
+      "c2_spontaneous": 20,
+      "c3_aware_banks": 15,
+      "c4_ever_used": 18,
+      "c5_currently_using": 18,
+      "c6_main_bank": 10,
+      "c10_nps": 10
+    },
+    "language_at_submission": "en",
+    "_status": "sample_seed_v1",
+    "consent": "yes",
+    "b1_recency": "this_month",
+    "b2_age": "55+",
+    "gender": "female",
+    "c1_recognized_bank_id": "DTB_BI",
+    "c2_recognized_bank_ids": [
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c3_aware_banks": [
+      "DTB_BI",
+      "KCB_BI",
+      "CRDB_BI"
+    ],
+    "c4_ever_used": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c5_currently_using": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c6_main_bank": "DTB_BI",
+    "c6_often_used": "DTB_BI",
+    "c9_would_consider": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "c9_favourites": [
+      "DTB_BI"
+    ],
+    "c9_never_consider": [
+      "ECO_BI"
+    ],
+    "c10_nps": 5,
+    "d2_future_intent": {
+      "DTB_BI": 8,
+      "KCB_BI": 9
+    },
+    "d3_relevance": [
+      "DTB_BI",
+      "KCB_BI"
+    ],
+    "d4_popularity": "DTB_BI",
+    "d5_committed": "KCB_BI",
+    "d7_nps": {
+      "DTB_BI": 5,
+      "KCB_BI": 4
+    },
+    "e1_employment": "unemployed",
+    "e2_education": "university",
+    "e3_gender": "female"
+  }
+]

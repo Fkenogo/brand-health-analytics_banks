@@ -14,9 +14,15 @@ export const saveResponse = (data: Partial<SurveyResponse>) => {
   const existing = getResponses();
   const newResponse: SurveyResponse = {
     response_id: `resp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    device_id: data.device_id || '',
+    country: data.country || data.selected_country || 'rwanda',
     timestamp: new Date().toISOString(),
+    duration_seconds: data.duration_seconds || 0,
+    question_timings: data.question_timings || {},
+    language_at_submission: data.language_at_submission || 'en',
+    _status: data._status || 'completed',
     ...data
-  } as SurveyResponse;
+  };
   
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing, newResponse]));
   return newResponse;
@@ -32,11 +38,11 @@ export const isSurveyCompleted = (deviceId: string): boolean => {
   return responses.some(r => r.device_id === deviceId && r._status === 'completed');
 };
 
-export const saveDraft = (step: number, formData: any) => {
+export const saveDraft = (step: number, formData: Partial<SurveyResponse>) => {
   localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, formData }));
 };
 
-export const getDraft = (): { step: number, formData: any } | null => {
+export const getDraft = (): { step: number, formData: Partial<SurveyResponse> } | null => {
   const data = localStorage.getItem(DRAFT_KEY);
   return data ? JSON.parse(data) : null;
 };
@@ -92,5 +98,4 @@ export const seedSampleData = () => {
   }
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(mockResponses));
-  console.log('Seeded 600 market responses (200 per country) into LocalStorage');
 };

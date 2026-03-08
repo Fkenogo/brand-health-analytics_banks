@@ -1,6 +1,7 @@
 import React from 'react';
 import { DashboardMetrics, CompetitorData } from '@/utils/api';
-import { Heart, TrendingUp, Users, Shield, AlertTriangle, Lightbulb, Star } from 'lucide-react';
+import { Heart, TrendingUp, AlertTriangle, Lightbulb, Shield, Star, Users } from 'lucide-react';
+import { LoyaltyBarChart } from '@/components/ui/charts/LoyaltyBarChart';
 import {
   Table,
   TableBody,
@@ -132,35 +133,12 @@ export const LoyaltyTab: React.FC<LoyaltyTabProps> = ({
 
       {/* Loyalty Pyramid Visualization */}
       <div className="glass-card p-6 rounded-2xl">
-        <h3 className="text-base font-bold text-foreground mb-6">Loyalty Pyramid</h3>
+        <h3 className="text-base font-bold text-foreground mb-6">Loyalty Segmentation Overview</h3>
         
-        <div className="flex flex-col items-center gap-2">
-          {segments.slice(0, 4).map((seg, idx) => {
-            const width = 30 + (idx * 18);
-            return (
-              <div 
-                key={seg.key}
-                className="relative transition-all duration-500 hover:scale-105 cursor-default"
-                style={{ width: `${width}%` }}
-              >
-                <div 
-                  className="h-14 rounded-lg flex items-center justify-between px-4"
-                  style={{ backgroundColor: seg.color }}
-                >
-                  <span className="text-sm font-bold text-white">{seg.label}</span>
-                  <span className="text-xl font-black text-white">{seg.value}%</span>
-                </div>
-              </div>
-            );
-          })}
-          
-          {/* Accessibles base */}
-          <div className="w-full mt-4 p-4 bg-secondary/50 rounded-lg text-center border-2 border-dashed border-border">
-            <span className="text-sm font-bold text-muted-foreground">
-              Accessibles (Unaware): {loyalty.accessibles}%
-            </span>
-          </div>
-        </div>
+        <LoyaltyBarChart 
+          data={segments.map(s => ({ name: s.label, value: s.value }))}
+          colors={segments.map(s => s.color)}
+        />
       </div>
 
       {/* Segment Details */}
