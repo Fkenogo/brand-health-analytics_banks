@@ -1,78 +1,211 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Bootstrap marker for first admin
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAnonymous() {
+      return request.auth == null;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && request.auth.token.role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function isSubscriber() {
+      return hasRole('subscriber');
+    }
+
+    function userDocPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function userProfile(uid) {
+      return get(userDocPath(uid)).data;
+    }
+
+    function hasUserProfile(uid) {
+      return exists(userDocPath(uid));
+    }
+
+    function isSelf(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isActiveSubscriber() {
+      return isSubscriber()
+        && request.auth.token.subscriber_state == 'active'
+        && hasUserProfile(request.auth.uid)
+        && userProfile(request.auth.uid).status == 'active';
+    }
+
+    function validCountry(value) {
+      return value is string && value in ['rwanda', 'uganda', 'burundi'];
+    }
+
+    function validResponseStatus(value) {
+      return value is string && value in ['completed', 'terminated'];
+    }
+
+    function responseCountryFromRequest() {
+      return request.resource.data.selected_country != null
+        ? request.resource.data.selected_country
+        : request.resource.data.country;
+    }
+
+    function responseCountryFromResource() {
+      return resource.data.selected_country != null
+        ? resource.data.selected_country
+        : resource.data.country;
+    }
+
+    function canSubscriberAccessCountry(country) {
+      return isActiveSubscriber()
+        && validCountry(country)
+        && userProfile(request.auth.uid).assignedCountries is list
+        && userProfile(request.auth.uid).assignedCountries.hasAny([country]);
+    }
+
+    function canReadResponseDoc() {
+      return isAdmin() || canSubscriberAccessCountry(responseCountryFromResource());
+    }
+
+    function allowedResponseKeys() {
+      return request.resource.data.keys().hasOnly([
+        'response_id', 'device_id', 'country', 'timestamp', 'duration_seconds', 'question_timings', 'language_at_submission', '_status',
+        'selected_country', 'consent', 'b1_recency', 'b2_age', 'c1_top_of_mind', 'c2_spontaneous', 'c3_aware_banks', 'c1_recognized_bank_id',
+        'c1_recognition_confidence', 'c2_recognized_bank_ids', 'c2_unrecognized_entries', 'c3_total_awareness', 'raw_input_q1',
+        'recognized_bank_id_q1', 'recognition_confidence_q1', 'raw_input_q2', 'recognized_bank_ids_q2', 'unrecognized_entries_q2',
+        'top_of_mind_bank_id', 'spontaneous_awareness_bank_ids', 'assisted_awareness_bank_ids', 'total_awareness_bank_ids', 'c4_ever_used',
+        'c5_currently_using', 'c6_main_bank', 'c6_often_used', 'c9_would_consider', 'c9_favourites', 'c9_interested_dont_know',
+        'c9_never_consider', 'c9_only_consider', 'c10_nps', 'd2_future_intent', 'd3_relevance', 'd4_popularity', 'd5_committed',
+        'd7_nps', 'e1_employment', 'e2_education', 'e3_gender', 'gender'
+      ]);
+    }
+
+    function requiredResponseFieldsValid() {
+      return request.resource.data.response_id is string
+        && request.resource.data.response_id.size() > 0
+        && request.resource.data.response_id.size() <= 128
+        && request.resource.data.device_id is string
+        && request.resource.data.device_id.size() > 0
+        && request.resource.data.device_id.size() <= 256
+        && request.resource.data.timestamp is string
+        && request.resource.data.timestamp.size() >= 10
+        && request.resource.data.timestamp.size() <= 40
+        && request.resource.data.duration_seconds is int
+        && request.resource.data.duration_seconds >= 0
+        && request.resource.data.duration_seconds <= 7200
+        && request.resource.data.question_timings is map
+        && request.resource.data.language_at_submission is string
+        && request.resource.data.language_at_submission in ['en', 'rw', 'fr']
+        && validResponseStatus(request.resource.data._status)
+        && validCountry(responseCountryFromRequest());
+    }
+
+    function optionalResponseFieldsValid() {
+      return (!request.resource.data.keys().hasAny(['c1_top_of_mind']) || (request.resource.data.c1_top_of_mind is string && request.resource.data.c1_top_of_mind.size() <= 160))
+        && (!request.resource.data.keys().hasAny(['c2_spontaneous']) || (request.resource.data.c2_spontaneous is string && request.resource.data.c2_spontaneous.size() <= 500))
+        && !request.resource.data.keys().hasAny([
+          'contactName', 'contactEmail', 'contactPhone', 'passwordHash', 'permissions',
+          'role', 'status', 'subscription_tier', 'subscription_addon_ai',
+          'ai_usage_count', 'ai_usage_reset_date'
+        ]);
+    }
+
+    function safePublicResponseCreate() {
+      return isAnonymous()
+        && request.resource.data.keys().size() <= 70
+        && allowedResponseKeys()
+        && requiredResponseFieldsValid()
+        && optionalResponseFieldsValid();
+    }
+
+    // Bootstrap marker for first admin creation flow.
     match /config/{docId} {
       allow read: if docId == 'bootstrap';
-      allow create: if docId == 'bootstrap' && !exists(/databases/$(database)/documents/config/bootstrap);
+      allow create: if docId == 'bootstrap'
+        && isAuthenticated()
+        && !exists(/databases/$(database)/documents/config/bootstrap)
+        && request.resource.data.keys().hasOnly(['createdAt', 'adminId', 'email'])
+        && request.resource.data.adminId is string
+        && request.resource.data.email is string
+        && request.resource.data.createdAt is string;
       allow update, delete: if false;
     }
 
-    // Allow invite lookup for onboarding before auth
-    match /invites/{inviteId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-
-    // Users collection: allow authenticated read/write (tighten later)
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null;
-      allow create: if request.auth != null ||
-        (request.resource.data.role == 'admin' &&
-         request.resource.data.bootstrap == true &&
-         !exists(/databases/$(database)/documents/config/bootstrap));
+      // Admin full read; users can only read their own profile doc.
+      allow get: if isAdmin() || isSelf(userId);
+      allow list: if isAdmin();
+
+      // Initial bootstrap admin user doc only.
+      allow create: if isAuthenticated()
+        && !exists(/databases/$(database)/documents/config/bootstrap)
+        && request.resource.data.role == 'admin'
+        && request.resource.data.bootstrap == true
+        && request.resource.data.id == request.auth.uid;
+
+      // Profile lifecycle and entitlement changes are backend/admin only.
+      allow update, delete: if isAdmin();
     }
 
-    // Survey responses: public create, authenticated read
+    match /invites/{inviteId} {
+      // No public token lookup from Firestore.
+      allow read, create, update, delete: if isAdmin();
+    }
+
     match /responses/{responseId} {
-      allow create: if true;
-      allow read: if request.auth != null;
-      allow update: if request.auth != null;
+      allow create: if safePublicResponseCreate();
+      allow get, list: if canReadResponseDoc();
+      allow update: if isAdmin();
       allow delete: if false;
     }
 
-    // Questionnaires: authenticated read/write
     match /questionnaires/{questionnaireId} {
-      allow read, write: if request.auth != null;
+      allow read, create, update, delete: if isAdmin();
     }
 
-    // Panelists: admin reads/management, public survey can create/update profile/contact
+    // Non-core feature temporarily locked down from client access.
     match /panelists/{panelistId} {
-      allow read: if request.auth != null;
-      allow create, update: if true;
-      allow delete: if request.auth != null;
+      allow read, create, update, delete: if false;
     }
 
-    // Raffle entries from survey completion contact capture
+    // Non-core feature temporarily locked down from client access.
     match /raffleEntries/{entryId} {
-      allow create: if true;
-      allow read, update, delete: if request.auth != null;
+      allow read, create, update, delete: if false;
     }
 
-    // Raffle campaign configuration and winners (admin module)
+    // Non-core feature temporarily locked down from client access.
     match /raffleCampaigns/{campaignId} {
-      allow read, write: if request.auth != null;
+      allow read, create, update, delete: if false;
     }
 
-    // Audit log: authenticated only
     match /audit/{auditId} {
-      allow read, write: if request.auth != null;
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
     }
 
-    // AI strategy advisor usage and cache
+    // AI Strategy Advisor temporarily locked down from client access.
     match /aiStrategyUsage/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, create, update, delete: if false;
     }
 
+    // AI Strategy Advisor temporarily locked down from client access.
     match /aiStrategyCache/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, create, update, delete: if false;
     }
 
+    // AI Strategy Advisor temporarily locked down from client access.
     match /aiStrategyBriefs/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, create, update, delete: if false;
     }
 
-    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }

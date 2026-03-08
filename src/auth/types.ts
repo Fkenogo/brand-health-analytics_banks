@@ -48,6 +48,11 @@ export interface User {
   subscription_addon_ai?: boolean;
   ai_usage_count?: number;
   ai_usage_reset_date?: string;
+  entitlements_version?: number;
+  authUid?: string;
+  claimsSyncPending?: boolean;
+  claimsLastSyncedAt?: string;
+  claimsLastSyncError?: string;
   deviceId?: string;
   lastDeviceSeen?: string;
   

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { inviteService, SubscriberInvite } from '@/services/inviteService';
-import { userService } from '@/services/userService';
+import { inviteService, PublicInviteView } from '@/services/inviteService';
 import { COUNTRY_CHOICES } from '@/constants';
 import { CountryCode } from '@/auth/types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -10,29 +9,48 @@ import { auth } from '@/lib/firebase';
 const SubscriberInvitePage: React.FC = () => {
   const { token } = useParams();
   const navigate = useNavigate();
-  const [invite, setInvite] = useState<SubscriberInvite | null>(null);
+  const [invite, setInvite] = useState<PublicInviteView | null>(null);
+  const [inviteReason, setInviteReason] = useState<'not_found' | 'expired' | 'used' | null>(null);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const load = async () => {
-      if (!token) return;
-      const data = await inviteService.getInviteByToken(token);
-      setInvite(data);
-      setCompanyName(data?.companyName || '');
-      setRequestedCountries(data?.countries || []);
-      setLoading(false);
+      if (!token) {
+        setInvite(null);
+        setInviteReason('not_found');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const data = await inviteService.getInviteByToken(token);
+        if (!data.valid || !data.invite) {
+          setInvite(null);
+          setInviteReason(data.reason || 'not_found');
+        } else {
+          setInvite(data.invite);
+          setInviteReason(null);
+          setCompanyName(data.invite.companyName || '');
+          setRequestedCountries(data.invite.countries || []);
+        }
+      } catch {
+        setInvite(null);
+        setInviteReason('not_found');
+      } finally {
+        setLoading(false);
+      }
     };
-    load();
+
+    void load();
   }, [token]);
 
-  const now = new Date();
-  const expired = invite ? new Date(invite.expiresAt).getTime() < now.getTime() : true;
-  const used = invite?.status === 'used';
   const [contactName, setContactName] = useState('');
-  const [companyName, setCompanyName] = useState(invite?.companyName || '');
+  const [companyName, setCompanyName] = useState('');
   const [phone, setPhone] = useState('');
-  const [requestedCountries, setRequestedCountries] = useState<CountryCode[]>(invite?.countries || []);
+  const [requestedCountries, setRequestedCountries] = useState<CountryCode[]>([]);
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitted' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -44,7 +62,7 @@ const SubscriberInvitePage: React.FC = () => {
     );
   }
 
-  if (!invite) {
+  if (!invite || inviteReason === 'not_found') {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-3xl border border-white/10 bg-slate-900/60 p-10 text-center">
@@ -55,7 +73,7 @@ const SubscriberInvitePage: React.FC = () => {
     );
   }
 
-  if (expired || invite.status === 'expired') {
+  if (inviteReason === 'expired') {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-3xl border border-white/10 bg-slate-900/60 p-10 text-center">
@@ -66,7 +84,7 @@ const SubscriberInvitePage: React.FC = () => {
     );
   }
 
-  if (used || status === 'submitted') {
+  if (inviteReason === 'used' || status === 'submitted') {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-3xl border border-white/10 bg-slate-900/60 p-10 text-center">
@@ -85,26 +103,47 @@ const SubscriberInvitePage: React.FC = () => {
     );
   }
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setStatus('idle');
+    setErrorMessage(null);
+
     if (!contactName || !phone || !password) {
       setStatus('error');
+      setErrorMessage('Please provide all required details and a password.');
       return;
     }
-    createUserWithEmailAndPassword(auth, invite.email, password)
-      .then(async (result) => {
-        await userService.createSubscriberProfile(result.user.uid, {
-          email: invite.email,
-          companyName,
-          assignedCountries: invite.countries,
-          requestedCountries,
-          contactName,
-          phone,
-        });
-        await inviteService.acceptInvite(invite, { contactName, phone, requestedCountries, companyName });
-        setStatus('submitted');
-      })
-      .catch(() => setStatus('error'));
+
+    if (!token) {
+      setStatus('error');
+      setErrorMessage('Invite token is missing.');
+      return;
+    }
+
+    try {
+      await createUserWithEmailAndPassword(auth, invite.email, password);
+      await inviteService.acceptInvite(token, {
+        contactName,
+        phone,
+        requestedCountries,
+        companyName,
+      });
+      if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true);
+      }
+      setStatus('submitted');
+    } catch (error) {
+      try {
+        if (auth.currentUser && auth.currentUser.email?.toLowerCase() === invite.email.toLowerCase()) {
+          await auth.currentUser.delete();
+        }
+      } catch {
+        // best-effort compensation; backend marks claimsSyncPending for recovery paths
+      }
+      const message = error instanceof Error ? error.message : 'Failed to complete onboarding.';
+      setStatus('error');
+      setErrorMessage(message);
+    }
   };
 
   return (
@@ -159,7 +198,7 @@ const SubscriberInvitePage: React.FC = () => {
           <div>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-400">Requested Countries</label>
             <div className="flex flex-wrap gap-2">
-              {COUNTRY_CHOICES.map(choice => {
+              {COUNTRY_CHOICES.map((choice) => {
                 const country = choice.value as CountryCode;
                 const checked = requestedCountries.includes(country);
                 return (
@@ -173,8 +212,8 @@ const SubscriberInvitePage: React.FC = () => {
                       type="checkbox"
                       checked={checked}
                       onChange={(event) => {
-                        setRequestedCountries(prev =>
-                          event.target.checked ? [...prev, country] : prev.filter(c => c !== country)
+                        setRequestedCountries((prev) =>
+                          event.target.checked ? [...prev, country] : prev.filter((c) => c !== country),
                         );
                       }}
                     />
@@ -188,7 +227,7 @@ const SubscriberInvitePage: React.FC = () => {
 
         {status === 'error' && (
           <div className="mt-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-            Please provide all required details and a password. If you already have an account, sign in instead.
+            {errorMessage || 'Failed to complete onboarding.'}
           </div>
         )}
 

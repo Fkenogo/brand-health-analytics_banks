@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run src/test/firestore.rules.test.ts\"",
     "ui:checklist": "node scripts/visual-regression-checklist.mjs",
     "seed:generate": "node scripts/generate-sample-responses.mjs",
     "seed:firestore": "node scripts/seed-responses-to-firestore.mjs",
@@ -76,6 +77,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",

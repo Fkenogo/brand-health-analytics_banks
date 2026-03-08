@@ -99,6 +99,11 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  const loadProfileByUid = async (uid: string): Promise<User | null> => {
+    if (!uid) return null;
+    return userService.getUserById(uid);
+  };
+
   // Initialize auth state from storage
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -108,8 +113,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           dispatch({ type: 'LOGOUT' });
           return;
         }
-        const email = firebaseUser.email || '';
-        const userDoc = await userService.getUserByEmail(email);
+        await firebaseUser.getIdTokenResult(true);
+        const userDoc = await loadProfileByUid(firebaseUser.uid);
         if (!userDoc) {
           authStorage.clear();
           dispatch({ type: 'LOGOUT' });
@@ -133,8 +138,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     dispatch({ type: 'LOGIN_START' });
 
     try {
-      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
-      const userDoc = await userService.getUserByEmail(credentials.email);
+      const result = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
+      await result.user.getIdTokenResult(true);
+      const userDoc = await loadProfileByUid(result.user.uid);
       if (!userDoc) {
         throw new Error('Account profile not found.');
       }
