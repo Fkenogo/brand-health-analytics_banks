@@ -515,7 +515,7 @@ const isCurrentBank = (response: SurveyResponse, bankId: string) => (response.c5
 const isEverBank = (response: SurveyResponse, bankId: string) => (response.c4_ever_used || []).includes(bankId);
 
 const isPreferredBank = (response: SurveyResponse, bankId: string) =>
-  response.c6_main_bank === bankId || response.c6_often_used === bankId;
+  response.preferred_bank === bankId;
 
 const getIntentForBank = (response: SurveyResponse, bankId: string) => {
   if (response.d2_future_intent && typeof response.d2_future_intent === 'object' && bankId in response.d2_future_intent) {
@@ -539,7 +539,7 @@ const loyaltySegment = (response: SurveyResponse, bankId: string): LoyaltyBucket
   const current = isCurrentBank(response, bankId);
   const ever = isEverBank(response, bankId);
   const preferred = isPreferredBank(response, bankId);
-  const committed = response.d5_committed === bankId;
+  const committed = response.committed_bank === bankId;
   const intent = getIntentForBank(response, bankId);
   const nps = getNpsForBank(response, bankId) ?? 0;
   const relevant = (response.d3_relevance || []).includes(bankId);
@@ -1428,13 +1428,13 @@ export const computeCompetitiveIntelligenceDiagnostics = (
 
   const prevByDevice = new Map(
     previousResponses
-      .filter((response) => response.device_id && response.c6_main_bank)
-      .map((response) => [response.device_id, response.c6_main_bank as string]),
+      .filter((response) => response.device_id && response.preferred_bank)
+      .map((response) => [response.device_id, response.preferred_bank as string]),
   );
   const currentByDevice = new Map(
     responses
-      .filter((response) => response.device_id && response.c6_main_bank)
-      .map((response) => [response.device_id, response.c6_main_bank as string]),
+      .filter((response) => response.device_id && response.preferred_bank)
+      .map((response) => [response.device_id, response.preferred_bank as string]),
   );
 
   const switchPairs: Array<{ from: string; to: string }> = [];
@@ -1928,7 +1928,7 @@ const cohortRowsForDimension = (
 ): DemographicCohortRow[] => {
   const keyFn = (response: SurveyResponse) => {
     if (dimension === 'age') return response.b2_age || 'unknown';
-    if (dimension === 'gender') return response.gender || response.e3_gender || 'unknown';
+    if (dimension === 'gender') return response.gender || 'unknown';
     if (dimension === 'employment') return response.e1_employment || 'unknown';
     return response.e2_education || 'unknown';
   };

@@ -1006,7 +1006,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           (response.c3_aware_banks || []).includes(bankId) ||
           (response.c4_ever_used || []).includes(bankId) ||
           (response.c5_currently_using || []).includes(bankId) ||
-          response.c6_main_bank === bankId,
+          response.preferred_bank === bankId,
       ),
     );
     exportToCSV(subset, `subscriber_competitive_${activeCountry}`);

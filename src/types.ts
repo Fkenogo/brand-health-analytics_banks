@@ -91,8 +91,13 @@ export interface SurveyResponse {
   total_awareness_bank_ids?: string[];
   c4_ever_used?: string[];
   c5_currently_using?: string[];
+  bank_count?: number;
   c6_main_bank?: string;
   c6_often_used?: string;
+  preferred_bank?: string;
+  preferred_bank_source?: 'auto_single_usage' | 'respondent_selected';
+  committed_bank?: string;
+  committed_bank_source?: 'auto_single_usage' | 'respondent_selected';
   c9_would_consider?: string[];
   c9_favourites?: string[];
   c9_interested_dont_know?: string[];

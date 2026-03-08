@@ -14,6 +14,11 @@ import { raffleEntryService } from '@/services/raffleEntryService';
 import { getDeviceFingerprint, respondentPanel, PANEL_CONFIG } from '@/auth/utils';
 import { useAuth } from '@/auth/context';
 import { hasPermission } from '@/auth/types';
+import {
+  isQuestionAnswered,
+  normalizeResponseForSubmission,
+  validateRequiredQuestions,
+} from '@/utils/survey/normalization';
 
 const SurveyPage: React.FC = () => {
   const { country, wave } = useParams();
@@ -33,6 +38,9 @@ const SurveyPage: React.FC = () => {
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [submissionPending, setSubmissionPending] = useState(false);
+  const [surveyStartedAtMs, setSurveyStartedAtMs] = useState<number>(() => Date.now());
   const [formData, setFormData] = useState<Partial<SurveyResponse>>(() => {
     const valid: CountryCode[] = ['rwanda', 'uganda', 'burundi'];
     const normalized = country?.toLowerCase();
@@ -63,6 +71,9 @@ const SurveyPage: React.FC = () => {
       setContactPhone('');
       setContactSubmitted(false);
       setContactError(null);
+      setSubmissionError(null);
+      setSubmissionPending(false);
+      setSurveyStartedAtMs(Date.now());
     }
   }, [country]);
 
@@ -112,6 +123,9 @@ const SurveyPage: React.FC = () => {
   const startSurvey = () => {
     setIsCompleted(false);
     setCurrentStep(0);
+    setSubmissionError(null);
+    setSubmissionPending(false);
+    setSurveyStartedAtMs(Date.now());
     setFormData(prev => ({
       response_id: crypto.randomUUID(),
       selected_country: prev.selected_country,
@@ -156,54 +170,71 @@ const SurveyPage: React.FC = () => {
     };
   }, [wave]);
 
-  const handleNext = () => {
+  const submitSurveyResponse = async (status: 'completed' | 'terminated', responseId: string): Promise<void> => {
+    if (!formData.selected_country) return;
+
+    const requiredValidation = validateRequiredQuestions(visibleQuestions, formData);
+    if (!requiredValidation.valid) {
+      setSubmissionError(`Please complete all required questions before submitting. Missing: ${requiredValidation.missingQuestionIds.join(', ')}`);
+      return;
+    }
+
+    const normalized = normalizeResponseForSubmission({
+      data: formData,
+      responseId,
+      deviceId,
+      language: lang,
+      status,
+      startedAtMs: surveyStartedAtMs,
+    });
+
+    if (!normalized.ok || !normalized.response) {
+      setSubmissionError(`Submission failed validation: ${normalized.errors.join(', ')}`);
+      return;
+    }
+
+    setSubmissionPending(true);
+    setSubmissionError(null);
+
+    try {
+      await responseService.addResponse(normalized.response);
+      saveResponse(normalized.response);
+      respondentPanel.recordSubmission(deviceId, formData.selected_country);
+      panelService.recordParticipation({
+        deviceId,
+        country: formData.selected_country,
+        responseId: normalized.response.response_id,
+        source: panelSource,
+      }).catch(() => {});
+
+      setIsCompleted(true);
+      if (status === 'completed') {
+        confetti({ particleCount: 150, spread: 70 });
+      }
+    } catch (error) {
+      setSubmissionError('We could not save your response. Please retry. Your survey is not submitted yet.');
+    } finally {
+      setSubmissionPending(false);
+    }
+  };
+
+  const handleNext = async () => {
     if (!formData.selected_country) return;
     if (!currentQuestion) return;
+    if (submissionPending) return;
 
     const responseId = formData.response_id || crypto.randomUUID();
 
     if (currentQuestion?.isTerminationPoint) {
-      const payload: SurveyResponse = {
-        ...formData as SurveyResponse,
-        device_id: deviceId,
-        language_at_submission: lang,
-        _status: 'terminated',
-        response_id: responseId,
-      };
-      saveResponse(payload);
-      responseService.addResponse(payload).catch(() => {});
-      respondentPanel.recordSubmission(deviceId, formData.selected_country);
-      panelService.recordParticipation({
-        deviceId,
-        country: formData.selected_country,
-        responseId: payload.response_id,
-        source: panelSource,
-      }).catch(() => {});
-      setIsCompleted(true);
+      await submitSurveyResponse('terminated', responseId);
       return;
     }
 
     if (currentStep < visibleQuestions.length - 1) {
+      setSubmissionError(null);
       setCurrentStep(s => s + 1);
     } else {
-      const payload: SurveyResponse = {
-        ...formData as SurveyResponse,
-        device_id: deviceId,
-        language_at_submission: lang,
-        _status: 'completed',
-        response_id: responseId,
-      };
-      saveResponse(payload);
-      responseService.addResponse(payload).catch(() => {});
-      respondentPanel.recordSubmission(deviceId, formData.selected_country);
-      panelService.recordParticipation({
-        deviceId,
-        country: formData.selected_country,
-        responseId: payload.response_id,
-        source: panelSource,
-      }).catch(() => {});
-      setIsCompleted(true);
-      confetti({ particleCount: 150, spread: 70 });
+      await submitSurveyResponse('completed', responseId);
     }
   };
 
@@ -264,7 +295,7 @@ const SurveyPage: React.FC = () => {
     }
   };
 
-  const isNextDisabled = currentQuestion?.required && !formData[currentQuestion.id];
+  const isNextDisabled = submissionPending || Boolean(currentQuestion?.required && !isQuestionAnswered(currentQuestion, formData));
 
   const formatNextAllowed = (date?: Date) => {
     if (!date) return 'in a few months';
@@ -457,6 +488,11 @@ const SurveyPage: React.FC = () => {
             />
           </div>
         )}
+        {submissionError && (
+          <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            {submissionError}
+          </div>
+        )}
       </main>
 
       <footer className="fixed bottom-0 inset-x-0 p-6 lg:p-8 glass-card border-t border-white/5">
@@ -474,7 +510,11 @@ const SurveyPage: React.FC = () => {
             className="flex-[2] py-4 lg:py-5 rounded-2xl lg:rounded-3xl bg-blue-600 font-black disabled:opacity-50 text-white transition-all hover:bg-blue-700"
             style={!isNextDisabled && theme ? { backgroundColor: theme.primary } : {}}
           >
-            {currentStep === visibleQuestions.length - 1 ? UI_STRINGS.complete[lang] : UI_STRINGS.continue[lang]}
+            {submissionPending
+              ? 'Submitting...'
+              : currentStep === visibleQuestions.length - 1
+                ? UI_STRINGS.complete[lang]
+                : UI_STRINGS.continue[lang]}
           </button>
         </div>
       </footer>

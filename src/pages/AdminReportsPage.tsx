@@ -94,8 +94,8 @@ const AdminReportsPage: React.FC = () => {
     response.c3_aware_banks?.includes(bankId) ||
     response.c4_ever_used?.includes(bankId) ||
     response.c5_currently_using?.includes(bankId) ||
-    response.c6_often_used === bankId ||
-    response.c6_main_bank === bankId ||
+    response.preferred_bank === bankId ||
+    response.committed_bank === bankId ||
     response.c9_would_consider?.includes(bankId) ||
     response.c9_favourites?.includes(bankId) ||
     response.c9_only_consider === bankId ||
@@ -425,4 +425,3 @@ const AdminReportsPage: React.FC = () => {
 };
 
 export default AdminReportsPage;
-

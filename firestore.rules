@@ -82,7 +82,8 @@ service cloud.firestore {
         'c1_recognition_confidence', 'c2_recognized_bank_ids', 'c2_unrecognized_entries', 'c3_total_awareness', 'raw_input_q1',
         'recognized_bank_id_q1', 'recognition_confidence_q1', 'raw_input_q2', 'recognized_bank_ids_q2', 'unrecognized_entries_q2',
         'top_of_mind_bank_id', 'spontaneous_awareness_bank_ids', 'assisted_awareness_bank_ids', 'total_awareness_bank_ids', 'c4_ever_used',
-        'c5_currently_using', 'c6_main_bank', 'c6_often_used', 'c9_would_consider', 'c9_favourites', 'c9_interested_dont_know',
+        'c5_currently_using', 'bank_count', 'c6_main_bank', 'c6_often_used', 'preferred_bank', 'preferred_bank_source',
+        'committed_bank', 'committed_bank_source', 'c9_would_consider', 'c9_favourites', 'c9_interested_dont_know',
         'c9_never_consider', 'c9_only_consider', 'c10_nps', 'd2_future_intent', 'd3_relevance', 'd4_popularity', 'd5_committed',
         'd7_nps', 'e1_employment', 'e2_education', 'e3_gender', 'gender'
       ]);

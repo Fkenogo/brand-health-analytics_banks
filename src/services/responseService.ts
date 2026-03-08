@@ -1,12 +1,13 @@
 import { addDoc, collection, doc, getDocs, query, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { SurveyResponse } from '@/types';
+import { normalizeResponseForAnalyticsRead } from '@/utils/survey/normalization';
 
 const RESPONSES_COLLECTION = 'responses';
 
 export const responseService = {
   addResponse: async (data: Partial<SurveyResponse>) => {
-    await addDoc(collection(db, RESPONSES_COLLECTION), {
+    return addDoc(collection(db, RESPONSES_COLLECTION), {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     });
@@ -14,7 +15,7 @@ export const responseService = {
   listResponses: async (): Promise<SurveyResponse[]> => {
     const snapshot = await getDocs(query(collection(db, RESPONSES_COLLECTION)));
     return snapshot.docs.map(docSnap => ({
-      ...(docSnap.data() as SurveyResponse),
+      ...normalizeResponseForAnalyticsRead(docSnap.data() as SurveyResponse),
       _docId: docSnap.id,
     }));
   },

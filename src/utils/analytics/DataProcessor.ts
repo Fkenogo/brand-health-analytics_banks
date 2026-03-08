@@ -31,8 +31,8 @@ export const normalizeResponse = (raw: SurveyResponse): AnalyticSurveyResponse =
     
     ever_used_brands: raw.c4_ever_used || [],
     currently_using_brands: raw.c5_currently_using || [],
-    main_bank: raw.c6_main_bank || null,
-    preferred_bank: raw.c9_favourites?.[0] || null, // Best proxy if c9_favourites is "Preferred"
+    main_bank: raw.preferred_bank || raw.c6_main_bank || null,
+    preferred_bank: raw.preferred_bank || null,
     
     consideration_set: raw.c9_would_consider || [],
     
@@ -42,7 +42,7 @@ export const normalizeResponse = (raw: SurveyResponse): AnalyticSurveyResponse =
     future_intent: raw.d2_future_intent ? Object.values(raw.d2_future_intent)[0] || 0 : 0, // Simplified
     relevance_brands: raw.d3_relevance || [],
     popularity_brand: raw.d4_popularity || null,
-    commitment_brand: raw.d5_committed || null,
+    commitment_brand: raw.committed_bank || raw.d5_committed || null,
   };
 };
 
