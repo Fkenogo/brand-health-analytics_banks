@@ -68,6 +68,7 @@ import { aiStrategyAdvisorService, compressText, strategyAdvisorLimits, type Str
 import {
   BankMetrics,
   DemographicSummary,
+  MultiBankCompetitionDiagnostics,
   SubscriberFilters,
   TimeWindow,
   TrendForecastDiagnostics,
@@ -84,6 +85,7 @@ import {
   computeDemographics,
   computeIntentSummary,
   computeLoyaltyDiagnostics,
+  computeMultiBankCompetitionDiagnostics,
   computeMomentumDiagnostics,
   computeTrendForecastDiagnostics,
   computeUsageDiagnostics,
@@ -701,6 +703,13 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   const usageDiagnostics: UsageDiagnostics | null = useMemo(
     () => (activeCountry && selectedBankId ? computeUsageDiagnostics(scopedResponses, activeCountry, selectedBankId) : null),
     [scopedResponses, activeCountry, selectedBankId],
+  );
+
+  const multiBankCompetition: MultiBankCompetitionDiagnostics | null = useMemo(
+    () => (selectedBankId
+      ? computeMultiBankCompetitionDiagnostics(scopedResponses, selectedBankId, compareBankId || null)
+      : null),
+    [scopedResponses, selectedBankId, compareBankId],
   );
 
   const previousMonthResponses = useMemo(() => {
@@ -1678,6 +1687,97 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         </table>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="mt-6 dashboard-section">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Multi-Bank Competition</h3>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Base: {multiBankCompetition?.multiBankBase || 0} respondents with 2+ active banks.
+                      {multiBankCompetition?.lowSample ? ' Sample is small; interpret with caution.' : ''}
+                    </p>
+                    {multiBankCompetition && multiBankCompetition.multiBankBase > 0 ? (
+                      <>
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{multiBankCompetition.selected.bankName}</p>
+                            <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                              <div>
+                                <p className="text-lg font-black text-white">{multiBankCompetition.selected.multiBankUsageShare}%</p>
+                                <p className="text-[10px] uppercase tracking-widest text-slate-500">Usage Share</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-black text-white">{multiBankCompetition.selected.multiBankPreferredShare}%</p>
+                                <p className="text-[10px] uppercase tracking-widest text-slate-500">Preferred Share</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-black text-white">{multiBankCompetition.selected.multiBankCommittedShare}%</p>
+                                <p className="text-[10px] uppercase tracking-widest text-slate-500">Committed Share</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                            {multiBankCompetition.compare ? (
+                              <>
+                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{multiBankCompetition.compare.bankName}</p>
+                                <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                                  <div>
+                                    <p className="text-lg font-black text-white">{multiBankCompetition.compare.multiBankUsageShare}%</p>
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Usage Share</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-lg font-black text-white">{multiBankCompetition.compare.multiBankPreferredShare}%</p>
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Preferred Share</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-lg font-black text-white">{multiBankCompetition.compare.multiBankCommittedShare}%</p>
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Committed Share</p>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-xs text-slate-500">Select a comparison brand to view side-by-side multi-bank shares.</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Second-Choice Bank Share</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Base: {multiBankCompetition.secondChoiceBase} multi-bank respondents using {selectedBankName} but preferring another bank.
+                          </p>
+                          <div className="mt-4 overflow-auto">
+                            <table className="w-full text-xs text-slate-300">
+                              <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                                <tr>
+                                  <th className="py-2 pr-2">Rank</th>
+                                  <th className="py-2 pr-2">Preferred Competitor</th>
+                                  <th className="py-2 pr-2">Respondents</th>
+                                  <th className="py-2">Share</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {multiBankCompetition.secondChoiceRows.length > 0 ? multiBankCompetition.secondChoiceRows.map((row, index) => (
+                                  <tr key={row.bankId} className="border-t border-white/5">
+                                    <td className="py-2 pr-2 font-semibold">{index + 1}</td>
+                                    <td className="py-2 pr-2">{row.bankName}</td>
+                                    <td className="py-2 pr-2">{row.count}</td>
+                                    <td className="py-2">{row.share}%</td>
+                                  </tr>
+                                )) : (
+                                  <tr>
+                                    <td colSpan={4} className="py-3 text-slate-500">No second-choice competitors in the current filter scope.</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-xs text-slate-500">
+                        Not enough multi-bank responses in the current filter scope to compute competitive shares.
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">

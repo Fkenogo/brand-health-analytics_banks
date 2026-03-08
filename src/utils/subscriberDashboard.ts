@@ -186,6 +186,33 @@ export interface UsageDiagnostics {
   opportunities: UsageOpportunity[];
 }
 
+export interface MultiBankShareMetrics {
+  bankId: string;
+  bankName: string;
+  usageCount: number;
+  preferredCount: number;
+  committedCount: number;
+  multiBankUsageShare: number;
+  multiBankPreferredShare: number;
+  multiBankCommittedShare: number;
+}
+
+export interface SecondChoiceShareRow {
+  bankId: string;
+  bankName: string;
+  count: number;
+  share: number;
+}
+
+export interface MultiBankCompetitionDiagnostics {
+  multiBankBase: number;
+  selected: MultiBankShareMetrics;
+  compare: MultiBankShareMetrics | null;
+  secondChoiceBase: number;
+  secondChoiceRows: SecondChoiceShareRow[];
+  lowSample: boolean;
+}
+
 export interface LoyaltySegmentProfile {
   segment: LoyaltyBucket;
   count: number;
@@ -513,6 +540,10 @@ const isSpontaneousBank = (response: SurveyResponse, bankId: string) =>
 
 const isCurrentBank = (response: SurveyResponse, bankId: string) => (response.c5_currently_using || []).includes(bankId);
 const isEverBank = (response: SurveyResponse, bankId: string) => (response.c4_ever_used || []).includes(bankId);
+const responseBankCount = (response: SurveyResponse) => {
+  if (typeof response.bank_count === 'number' && Number.isFinite(response.bank_count)) return response.bank_count;
+  return (response.c5_currently_using || []).length;
+};
 
 const isPreferredBank = (response: SurveyResponse, bankId: string) =>
   response.preferred_bank === bankId;
@@ -936,6 +967,73 @@ export const computeUsageDiagnostics = (
     usageMedian,
     retentionMedian,
     opportunities,
+  };
+};
+
+const computeMultiBankShareForBank = (
+  multiBankResponses: SurveyResponse[],
+  bankId: string,
+): MultiBankShareMetrics => {
+  const base = multiBankResponses.length;
+  const usageCount = multiBankResponses.filter((response) => (response.c5_currently_using || []).includes(bankId)).length;
+  const preferredCount = multiBankResponses.filter((response) => response.preferred_bank === bankId).length;
+  const committedCount = multiBankResponses.filter((response) => response.committed_bank === bankId).length;
+  const bank = BANKS.find((item) => item.id === bankId);
+
+  return {
+    bankId,
+    bankName: bank?.name || bankId,
+    usageCount,
+    preferredCount,
+    committedCount,
+    multiBankUsageShare: round(pct(usageCount, base)),
+    multiBankPreferredShare: round(pct(preferredCount, base)),
+    multiBankCommittedShare: round(pct(committedCount, base)),
+  };
+};
+
+export const computeMultiBankCompetitionDiagnostics = (
+  responses: SurveyResponse[],
+  selectedBankId: string,
+  compareBankId?: string | null,
+): MultiBankCompetitionDiagnostics => {
+  const multiBankResponses = responses.filter((response) => responseBankCount(response) > 1);
+  const multiBankBase = multiBankResponses.length;
+
+  const selected = computeMultiBankShareForBank(multiBankResponses, selectedBankId);
+  const compare = compareBankId ? computeMultiBankShareForBank(multiBankResponses, compareBankId) : null;
+
+  const secondChoicePool = multiBankResponses.filter((response) =>
+    (response.c5_currently_using || []).includes(selectedBankId)
+    && Boolean(response.preferred_bank)
+    && response.preferred_bank !== selectedBankId,
+  );
+
+  const secondChoiceMap = new Map<string, number>();
+  secondChoicePool.forEach((response) => {
+    const preferred = response.preferred_bank as string;
+    secondChoiceMap.set(preferred, (secondChoiceMap.get(preferred) || 0) + 1);
+  });
+
+  const secondChoiceRows = Array.from(secondChoiceMap.entries())
+    .map(([bankId, count]) => {
+      const bank = BANKS.find((item) => item.id === bankId);
+      return {
+        bankId,
+        bankName: bank?.name || bankId,
+        count,
+        share: round(pct(count, secondChoicePool.length)),
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    multiBankBase,
+    selected,
+    compare,
+    secondChoiceBase: secondChoicePool.length,
+    secondChoiceRows,
+    lowSample: multiBankBase > 0 && multiBankBase < 15,
   };
 };
 
