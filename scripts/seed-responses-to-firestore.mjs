@@ -2,19 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { initializeApp } from 'firebase/app';
 import { addDoc, collection, getFirestore } from 'firebase/firestore';
+import { firebaseConfig } from './firebase-config.mjs';
 
 const DEFAULT_INPUT = path.join(process.cwd(), 'testing', 'sample-responses.seed.json');
 const DEFAULT_MANIFEST = path.join(process.cwd(), 'testing', 'sample-responses.seed.manifest.json');
-
-const firebaseConfig = {
-  apiKey: 'AIzaSyBK2d5ds_wQuTVBgquPoDnFd_LXLIoF_dU',
-  authDomain: 'brand-health-analytics.firebaseapp.com',
-  projectId: 'brand-health-analytics',
-  storageBucket: 'brand-health-analytics.firebasestorage.app',
-  messagingSenderId: '581759118685',
-  appId: '1:581759118685:web:e24265fcea207636624cb4',
-  measurementId: 'G-1R4LEXBTEW',
-};
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);

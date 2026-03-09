@@ -47,7 +47,7 @@ const compact = <T extends Record<string, unknown>>(obj: T): T => {
 export const panelService = {
   buildPanelistId,
   buildRecruitmentLink: (country: CountryCode) => {
-    return `${window.location.origin}/survey/${country}?source=external`;
+    return `${window.location.origin}/survey/start/${country}?source=external`;
   },
   recordParticipation: async (input: {
     deviceId: string;

@@ -3,14 +3,22 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 
+const requireEnv = (name: string): string => {
+  const value = import.meta.env[name];
+  if (!value || typeof value !== 'string') {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+};
+
 const firebaseConfig = {
-  apiKey: 'AIzaSyBK2d5ds_wQuTVBgquPoDnFd_LXLIoF_dU',
-  authDomain: 'brand-health-analytics.firebaseapp.com',
-  projectId: 'brand-health-analytics',
-  storageBucket: 'brand-health-analytics.firebasestorage.app',
-  messagingSenderId: '581759118685',
-  appId: '1:581759118685:web:e24265fcea207636624cb4',
-  measurementId: 'G-1R4LEXBTEW',
+  apiKey: requireEnv('VITE_FIREBASE_API_KEY'),
+  authDomain: requireEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: requireEnv('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: requireEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: requireEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: requireEnv('VITE_FIREBASE_APP_ID'),
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || undefined,
 };
 
 const app = initializeApp(firebaseConfig);

@@ -1,15 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { collection, getDocs, getFirestore, query, where } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: 'AIzaSyBK2d5ds_wQuTVBgquPoDnFd_LXLIoF_dU',
-  authDomain: 'brand-health-analytics.firebaseapp.com',
-  projectId: 'brand-health-analytics',
-  storageBucket: 'brand-health-analytics.firebasestorage.app',
-  messagingSenderId: '581759118685',
-  appId: '1:581759118685:web:e24265fcea207636624cb4',
-  measurementId: 'G-1R4LEXBTEW',
-};
+import { firebaseConfig } from './firebase-config.mjs';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);

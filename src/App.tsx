@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
@@ -13,6 +13,7 @@ import Login from '@/pages/Login';
 import NotFound from '@/pages/NotFound';
 import { Loader2 } from 'lucide-react';
 import PublicLandingPage from '@/pages/PublicLandingPage';
+import SurveyLandingPage from '@/pages/SurveyLandingPage';
 import Signup from '@/pages/Signup';
 import AdminLogin from '@/pages/AdminLogin';
 import SubscriberInvitePage from '@/pages/SubscriberInvitePage';
@@ -77,6 +78,12 @@ const AdminSurveyGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   return <Navigate to="/" replace />;
 };
 
+const LegacySurveyRedirect: React.FC = () => {
+  const { country, wave } = useParams<{ country: string; wave?: string }>();
+  const target = wave ? `/survey/start/${country}/${wave}` : `/survey/start/${country}`;
+  return <Navigate to={target} replace />;
+};
+
 const AppRoutes: React.FC = () => (
   <Routes>
     <Route
@@ -89,7 +96,15 @@ const AppRoutes: React.FC = () => (
     />
 
     <Route
-      path="/survey/:country"
+      path="/survey"
+      element={
+        <PublicSurveyGate>
+          <SurveyLandingPage />
+        </PublicSurveyGate>
+      }
+    />
+    <Route
+      path="/survey/start"
       element={
         <PublicSurveyGate>
           <SurveyPage />
@@ -97,13 +112,23 @@ const AppRoutes: React.FC = () => (
       }
     />
     <Route
-      path="/survey/:country/:wave"
+      path="/survey/start/:country"
       element={
         <PublicSurveyGate>
           <SurveyPage />
         </PublicSurveyGate>
       }
     />
+    <Route
+      path="/survey/start/:country/:wave"
+      element={
+        <PublicSurveyGate>
+          <SurveyPage />
+        </PublicSurveyGate>
+      }
+    />
+    <Route path="/survey/:country" element={<LegacySurveyRedirect />} />
+    <Route path="/survey/:country/:wave" element={<LegacySurveyRedirect />} />
     <Route
       path="/admin/survey/:country"
       element={
@@ -288,7 +313,6 @@ const AppRoutes: React.FC = () => (
       }
     />
 
-    <Route path="/survey" element={<Navigate to="/" replace />} />
     <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
     <Route path="/subscriber/dashboard" element={<Navigate to="/dashboard" replace />} />
 

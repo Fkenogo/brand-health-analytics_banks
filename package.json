@@ -19,6 +19,7 @@
     "seed:verify": "node scripts/verify-seed-responses.mjs",
     "seed:cleanup": "node scripts/cleanup-seed-responses.mjs",
     "seed:cleanup:dry-run": "node scripts/cleanup-seed-responses.mjs --dry-run",
+    "secrets:scan": "node scripts/scan-secrets.mjs",
     "functions:install": "npm --prefix functions install",
     "functions:deploy": "npm --prefix functions run deploy"
   },
