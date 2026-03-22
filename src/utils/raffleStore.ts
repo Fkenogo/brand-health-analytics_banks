@@ -54,7 +54,7 @@ export const raffleStore = {
     const raffle = raffles[index];
     const responses = getResponses().filter(response => {
       const timestamp = new Date(response.timestamp);
-      return response.selected_country === raffle.country &&
+      return (response.country || response.selected_country) === raffle.country &&
         timestamp >= new Date(raffle.startDate) &&
         timestamp <= new Date(raffle.endDate) &&
         response._status === 'completed';

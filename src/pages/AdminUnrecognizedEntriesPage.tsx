@@ -50,7 +50,7 @@ const AdminUnrecognizedEntriesPage: React.FC = () => {
   const aggregates = useMemo(() => {
     const map = new Map<string, EntryAggregate>();
     responses.forEach(response => {
-      const country = response.selected_country || response.country || 'unknown';
+      const country = response.country || response.selected_country || 'unknown';
 
       if (!response.c1_recognized_bank_id && response.c1_top_of_mind) {
         const entry = normalizeEntry(response.c1_top_of_mind);

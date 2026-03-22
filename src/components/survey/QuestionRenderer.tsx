@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Question, Language, SurveyResponse, CountryCode } from '@/types';
 import { UI_STRINGS, RATING_DESCRIPTORS } from '@/constants';
-import { AlertTriangle, Check, CheckCircle2, ChevronDown, Loader2, Lock, XCircle } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, Lock, XCircle } from 'lucide-react';
 import { parseSpontaneousBanks, processAwarenessData, recognizeTopOfMindBank, type RecognitionResult, type SpontaneousResult } from '@/utils/bankRecognition';
 
 interface QuestionRendererProps {
@@ -27,9 +27,23 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
 }) => {
   const choices = question.filterChoices ? question.filterChoices(formData) : question.choices || [];
   const country = (formData.selected_country || 'rwanda') as CountryCode;
-  const [topResult, setTopResult] = useState<RecognitionResult | null>(null);
-  const [spontResult, setSpontResult] = useState<SpontaneousResult | null>(null);
-  const [recognitionLoading, setRecognitionLoading] = useState(false);
+  const topResult = useMemo<RecognitionResult | null>(() => {
+    if (question.id !== 'c1_top_of_mind') return null;
+    return recognizeTopOfMindBank(String(value || ''), country);
+  }, [question.id, value, country]);
+
+  const spontResult = useMemo<SpontaneousResult | null>(() => {
+    if (question.id !== 'c2_spontaneous') return null;
+    const topBank = recognizeTopOfMindBank(String(formData.c1_top_of_mind || ''), country);
+    return parseSpontaneousBanks(String(value || ''), country, {
+      excludeBankIds: topBank.bankId ? [topBank.bankId] : [],
+    });
+  }, [question.id, value, formData.c1_top_of_mind, country]);
+
+  const capturedTopBank = useMemo<RecognitionResult | null>(() => {
+    if (question.id !== 'c2_spontaneous') return null;
+    return recognizeTopOfMindBank(String(formData.c1_top_of_mind || ''), country);
+  }, [question.id, formData.c1_top_of_mind, country]);
 
   const updateAwarenessMeta = React.useCallback((topInput: string, spontInput: string, assistedSelections: string[]) => {
     const data = processAwarenessData(topInput, spontInput, assistedSelections, country);
@@ -55,31 +69,14 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   useEffect(() => {
     if (question.id !== 'c1_top_of_mind') return;
     const input = String(value || '');
-    setRecognitionLoading(true);
-    const timeout = setTimeout(() => {
-      const result = recognizeTopOfMindBank(input, country);
-      setTopResult(result);
-      setRecognitionLoading(false);
-      updateAwarenessMeta(input, String(formData.c2_spontaneous || ''), Array.isArray(formData.c3_aware_banks) ? formData.c3_aware_banks : []);
-    }, 300);
-    return () => clearTimeout(timeout);
+    updateAwarenessMeta(input, String(formData.c2_spontaneous || ''), Array.isArray(formData.c3_aware_banks) ? formData.c3_aware_banks : []);
   }, [question.id, value, country, formData.c2_spontaneous, formData.c3_aware_banks, updateAwarenessMeta]);
 
   useEffect(() => {
     if (question.id !== 'c2_spontaneous') return;
     const input = String(value || '');
-    setRecognitionLoading(true);
-    const timeout = setTimeout(() => {
-      const topBank = recognizeTopOfMindBank(String(formData.c1_top_of_mind || ''), country);
-      const result = parseSpontaneousBanks(input, country, {
-        excludeBankIds: topBank.bankId ? [topBank.bankId] : [],
-      });
-      setSpontResult(result);
-      setRecognitionLoading(false);
-      updateAwarenessMeta(String(formData.c1_top_of_mind || ''), input, Array.isArray(formData.c3_aware_banks) ? formData.c3_aware_banks : []);
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [question.id, value, country, formData.c1_top_of_mind, formData.c3_aware_banks]);
+    updateAwarenessMeta(String(formData.c1_top_of_mind || ''), input, Array.isArray(formData.c3_aware_banks) ? formData.c3_aware_banks : []);
+  }, [question.id, value, country, formData.c1_top_of_mind, formData.c3_aware_banks, updateAwarenessMeta]);
 
   const lockedBanks = useMemo(() => {
     const top = recognizeTopOfMindBank(String(formData.c1_top_of_mind || ''), country);
@@ -333,12 +330,12 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
               style={!isHighContrast && themeColor ? { borderColor: `${themeColor}40` } : {}}
             />
             <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 text-sm text-slate-300">
-              {recognitionLoading ? (
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Loader2 size={16} className="animate-spin" />
-                  Recognizing bank names…
-                </div>
-              ) : question.id === 'c1_top_of_mind' ? (
+              {question.id === 'c1_top_of_mind' ? (
+                !String(value || '').trim() ? (
+                  <div className="text-slate-400">
+                    Type one bank name and it will be recognized immediately.
+                  </div>
+                ) : (
                 topResult?.recognized ? (
                   <div className="flex items-center gap-2 text-emerald-400">
                     <CheckCircle2 size={16} />
@@ -349,13 +346,25 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
                     <AlertTriangle size={16} />
                     Not recognized yet. Suggestions: {topResult?.suggestions?.join(', ') || 'None'}
                   </div>
-                )
+                ))
               ) : spontResult ? (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <CheckCircle2 size={16} />
-                    Recognized: {spontResult.recognized_banks.length}
-                  </div>
+                  {capturedTopBank?.recognized && (
+                    <div className="flex items-center gap-2 text-blue-300">
+                      <Lock size={16} />
+                      Already captured from Q1: {capturedTopBank.standardName || capturedTopBank.input}
+                    </div>
+                  )}
+                  {String(value || '').trim() ? (
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <CheckCircle2 size={16} />
+                      Recognized in this answer: {spontResult.recognized_banks.length}
+                    </div>
+                  ) : (
+                    <div className="text-slate-400">
+                      Enter additional bank names separated by commas or new lines.
+                    </div>
+                  )}
                   {spontResult.excluded_entries && spontResult.excluded_entries.length > 0 && (
                     <div className="flex items-center gap-2 text-blue-300">
                       <Lock size={16} />

@@ -1,0 +1,32 @@
+{
+  "displayName": "BrandEdge entitlement command failures",
+  "documentation": {
+    "content": "Subscriber entitlement commands are failing. Check admin claims, callable health, and validation conflicts.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "BrandEdge entitlement command failures threshold",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/brandedge_entitlement_command_failures\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 5,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "enabled": true,
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

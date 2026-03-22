@@ -1,12 +1,72 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
+const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const crypto = require('node:crypto');
+const {
+  normalizeCountryList,
+  normalizeSubscriberState,
+  buildClaimsPayload,
+  isAdminAuth,
+  computeClaimsSyncPlan,
+  buildStatusUpdate,
+  buildTierUpdate,
+  buildAiAddonUpdate,
+  buildCountriesUpdate,
+} = require('./subscriberEntitlements');
+const { isCanonicalAdminProfile, canBootstrapAdminClaims } = require('./adminClaims');
+const {
+  listPlans,
+  initializeDefaultPlans,
+  upsertPlan,
+  deletePlan,
+} = require('./subscriptionPlans');
+const {
+  buildSurveyAbuseAssessment,
+  buildSurveyContextMetadata,
+  buildSubmissionMonitoringMetadata,
+  shouldEnforcePublicSurveyAppCheck,
+} = require('./publicSurvey');
+const {
+  buildNextEligibleAt,
+  buildPanelistId,
+  buildRaffleEntryId,
+  mergeFollowUpOptIns,
+  normalizePublicFollowUpInput,
+} = require('./publicFollowUp');
+const {
+  scanLegacyUserRecords,
+  buildCanonicalUserPatch,
+} = require('./userIdentityMigration');
+const {
+  AGGREGATE_SCHEMA_VERSION,
+  SUPPORTED_METRICS,
+  SUPPORTED_FILTERS,
+  SUPPORTED_MODULES,
+  SUPPORTED_COMPARE_METRICS,
+  normalizeCountry,
+  responseCountry,
+  responseDateBucket,
+  toDateBucket,
+  toMonthBucket,
+  buildDailyAggregateFromResponses,
+  mergeAggregateDocs,
+  buildOverviewSnapshot,
+  dateBucketRangeForWindow,
+  previousMonthRange,
+  monthKeyLabel,
+} = require('./analyticsAggregation');
+const {
+  CANONICAL_BANKS_BY_COUNTRY,
+  normalizeBankDefinitions,
+  mergeBankDefinitions,
+} = require('./dashboardAggregateConfig');
 
 admin.initializeApp();
 
 const db = admin.firestore();
+const ENFORCE_PUBLIC_SURVEY_APPCHECK = shouldEnforcePublicSurveyAppCheck();
 
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 
@@ -18,8 +78,6 @@ const DEFAULT_GEMINI_MODELS = [
 ];
 
 const MAX_RESPONSE_WORDS = 800;
-const ALLOWED_COUNTRIES = new Set(['rwanda', 'uganda', 'burundi']);
-const CLAIM_SYNC_FIELDS = ['role', 'status', 'assignedCountries', 'subscription_tier', 'subscription_addon_ai'];
 
 const toWordLimitedText = (text, maxWords) => {
   const words = String(text || '').trim().split(/\s+/).filter(Boolean);
@@ -111,36 +169,39 @@ const callGeminiModel = async ({ apiKey, model, payload, systemPrompt }) => {
   return ensureRequiredSections(text);
 };
 
-const normalizeCountryList = (value) => {
-  if (!Array.isArray(value)) return [];
-  return [...new Set(value
-    .map((item) => String(item || '').toLowerCase().trim())
-    .filter((item) => ALLOWED_COUNTRIES.has(item)))];
-};
-
-const normalizeSubscriberState = (status) => {
-  const normalized = String(status || '').toLowerCase().trim();
-  if (['pending', 'active', 'suspended', 'rejected'].includes(normalized)) return normalized;
-  return 'pending';
-};
-
-const buildClaimsPayload = (userData) => {
-  const role = userData?.role === 'admin' ? 'admin' : 'subscriber';
-  const subscriberState = role === 'admin' ? 'active' : normalizeSubscriberState(userData?.status);
-  const entitlementsVersionRaw = Number(userData?.entitlements_version);
-  const entitlementsVersion = Number.isInteger(entitlementsVersionRaw) && entitlementsVersionRaw > 0
-    ? entitlementsVersionRaw
-    : 1;
-
-  return {
-    role,
-    subscriber_state: subscriberState,
-    entitlements_version: entitlementsVersion,
-  };
-};
-
 const isAdminCaller = (auth) => {
-  return Boolean(auth?.token?.role === 'admin');
+  return isAdminAuth(auth);
+};
+
+const writeAuditEvent = async ({
+  action,
+  actorUid,
+  actorEmail,
+  targetUid,
+  details,
+}) => {
+  const payload = {
+    action,
+    actorUid,
+    timestamp: new Date().toISOString(),
+  };
+
+  const normalizedActorEmail = actorEmail ? String(actorEmail).trim() : '';
+  if (normalizedActorEmail) payload.actorEmail = normalizedActorEmail;
+
+  const normalizedTargetId = targetUid ? String(targetUid).trim() : '';
+  if (normalizedTargetId) payload.targetId = normalizedTargetId;
+
+  if (details && typeof details === 'object') {
+    payload.details = details;
+  }
+
+  await db.collection('audit').add(payload);
+};
+
+const normalizeEntitlementsVersion = (value) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 };
 
 const getInviteByToken = async (token) => {
@@ -171,6 +232,634 @@ const syncClaimsForUser = async (uid, userData) => {
   return { synced: true, claims };
 };
 
+const toLoggableError = (error) => ({
+  code: String(error?.code || 'unknown'),
+  message: String(error?.message || error || 'Unknown error'),
+});
+
+const classifyOpsError = (error) => {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  if (code.includes('permission-denied')) return 'permission_denied';
+  if (code.includes('unauthenticated')) return 'auth_required';
+  if (code.includes('invalid-argument')) return 'validation_failure';
+  if (code.includes('failed-precondition')) return 'failed_precondition';
+  if (code.includes('not-found')) return 'not_found';
+  if (code.includes('already-exists')) return 'already_exists';
+  if (code.includes('resource-exhausted')) return 'resource_exhausted';
+  if (message.includes('requires manual review')) return 'migration_conflict';
+  return 'internal';
+};
+
+const logInfo = (event, details) => logger.info(event, { event, ...details });
+const logWarn = (event, details) => logger.warn(event, { event, ...details });
+const logError = (event, details) => logger.error(event, { event, ...details });
+const RESPONSE_ANALYTICS_COLLECTION = 'responseAnalyticsDaily';
+const RESPONSE_ANALYTICS_STATUS_COLLECTION = 'responseAnalyticsStatus';
+
+const toIsoString = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  if (typeof value?.toDate === 'function') {
+    const converted = value.toDate();
+    return converted instanceof Date && !Number.isNaN(converted.getTime()) ? converted.toISOString() : null;
+  }
+  if (typeof value === 'object' && Number.isFinite(value.seconds)) {
+    const converted = new Date(Number(value.seconds) * 1000);
+    return Number.isNaN(converted.getTime()) ? null : converted.toISOString();
+  }
+  if (typeof value === 'object' && Number.isFinite(value._seconds)) {
+    const converted = new Date(Number(value._seconds) * 1000);
+    return Number.isNaN(converted.getTime()) ? null : converted.toISOString();
+  }
+  const converted = new Date(String(value || ''));
+  return Number.isNaN(converted.getTime()) ? null : converted.toISOString();
+};
+
+const getBanksForCountry = async (country) => {
+  const normalizedCountry = normalizeCountry(country);
+  if (!normalizedCountry) return [];
+
+  const snapshot = await db.collection('questionnaires').where('country', '==', normalizedCountry).limit(1).get();
+  const questionnaire = snapshot.docs[0]?.data() || {};
+  const questionnaireBanks = normalizeBankDefinitions(questionnaire.banks);
+
+  const configSnapshot = await db.collection('config').doc('banks').get();
+  const configData = configSnapshot.exists ? configSnapshot.data() || {} : {};
+  const configBanks = normalizeBankDefinitions(configData[normalizedCountry]);
+  const canonicalBanks = normalizeBankDefinitions(CANONICAL_BANKS_BY_COUNTRY[normalizedCountry]);
+
+  return mergeBankDefinitions(questionnaireBanks, configBanks, canonicalBanks);
+};
+
+const analyticsDocId = (country, dateBucket) => `${country}__${dateBucket}`;
+const analyticsStatusRef = (country) => db.collection(RESPONSE_ANALYTICS_STATUS_COLLECTION).doc(country);
+const buildAggregateContract = () => ({
+  aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+  supportedMetrics: SUPPORTED_METRICS,
+  supportedFilters: SUPPORTED_FILTERS,
+  supportedModules: SUPPORTED_MODULES,
+  supportedCompareMetrics: SUPPORTED_COMPARE_METRICS,
+});
+
+const listResponsesForCountryDateBucket = async ({ country, dateBucket, includeLegacyFallback = false }) => {
+  const selectedCountryQuery = db.collection('responses')
+    .where('selected_country', '==', country)
+    .where('analytics_date_bucket', '==', dateBucket);
+  const legacyCountryQuery = db.collection('responses')
+    .where('country', '==', country)
+    .where('analytics_date_bucket', '==', dateBucket);
+
+  const [selectedCountrySnapshot, legacyCountrySnapshot] = await Promise.all([
+    selectedCountryQuery.get(),
+    legacyCountryQuery.get(),
+  ]);
+
+  const seen = new Set();
+  const rows = [];
+  [selectedCountrySnapshot, legacyCountrySnapshot].forEach((snapshot) => {
+    snapshot.docs.forEach((docSnap) => {
+      if (seen.has(docSnap.id)) return;
+      seen.add(docSnap.id);
+      rows.push(docSnap.data() || {});
+    });
+  });
+
+  if (includeLegacyFallback) {
+    const [selectedCountryFallbackSnapshot, legacyCountryFallbackSnapshot] = await Promise.all([
+      db.collection('responses').where('selected_country', '==', country).get(),
+      db.collection('responses').where('country', '==', country).get(),
+    ]);
+
+    [selectedCountryFallbackSnapshot, legacyCountryFallbackSnapshot].forEach((snapshot) => {
+      snapshot.docs.forEach((docSnap) => {
+        if (seen.has(docSnap.id)) return;
+        const data = docSnap.data() || {};
+        const storedBucket = String(data.analytics_date_bucket || '').trim();
+        if (storedBucket) return;
+        if (responseDateBucket(data) !== dateBucket) return;
+        seen.add(docSnap.id);
+        rows.push(data);
+      });
+    });
+  }
+
+  return rows;
+};
+
+const listAnalyticsBucketsForCountry = async (country) => {
+  const [selectedCountrySnapshot, legacyCountrySnapshot] = await Promise.all([
+    db.collection('responses').where('selected_country', '==', country).get(),
+    db.collection('responses').where('country', '==', country).get(),
+  ]);
+
+  const seen = new Set();
+  const buckets = new Set();
+  [selectedCountrySnapshot, legacyCountrySnapshot].forEach((snapshot) => {
+    snapshot.docs.forEach((docSnap) => {
+      if (seen.has(docSnap.id)) return;
+      seen.add(docSnap.id);
+      const data = docSnap.data() || {};
+      const dateBucket = responseDateBucket(data);
+      if (dateBucket) buckets.add(dateBucket);
+    });
+  });
+
+  return Array.from(buckets.values()).sort((left, right) => left.localeCompare(right));
+};
+
+const rebuildAnalyticsBucket = async ({ country, dateBucket, includeLegacyFallback = false }) => {
+  const normalizedCountry = normalizeCountry(country);
+  if (!normalizedCountry || !dateBucket) return false;
+
+  const banks = await getBanksForCountry(normalizedCountry);
+  const bankIds = banks.map((bank) => bank.id);
+  const responses = await listResponsesForCountryDateBucket({
+    country: normalizedCountry,
+    dateBucket,
+    includeLegacyFallback,
+  });
+  const aggregate = buildDailyAggregateFromResponses({
+    country: normalizedCountry,
+    dateBucket,
+    responses,
+    bankIds,
+  });
+
+  await db.collection(RESPONSE_ANALYTICS_COLLECTION).doc(analyticsDocId(normalizedCountry, dateBucket)).set({
+    ...aggregate,
+    ...buildAggregateContract(),
+    bankNames: Object.fromEntries(banks.map((bank) => [bank.id, bank.name])),
+    generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    rebuiltAt: admin.firestore.FieldValue.serverTimestamp(),
+    sourceResponseCount: responses.length,
+    rebuildStatus: 'ready',
+    source: 'response_daily_materialized_view',
+  }, { merge: false });
+  return true;
+};
+
+const queryAnalyticsBuckets = (country, startBucket, endBucket) => {
+  const startKey = analyticsDocId(country, startBucket || '0000-00-00');
+  const endKey = analyticsDocId(country, endBucket);
+  return db.collection(RESPONSE_ANALYTICS_COLLECTION)
+    .where(admin.firestore.FieldPath.documentId(), '>=', startKey)
+    .where(admin.firestore.FieldPath.documentId(), '<=', endKey);
+};
+
+const summarizeOverviewForCountry = async ({ country, bankId, timeWindow }) => {
+  const normalizedCountry = normalizeCountry(country);
+  if (!normalizedCountry) {
+    throw new HttpsError('invalid-argument', 'A valid country is required.');
+  }
+  if (!bankId) {
+    throw new HttpsError('invalid-argument', 'bankId is required.');
+  }
+
+  const banks = await getBanksForCountry(normalizedCountry);
+  const bankIds = banks.map((bank) => bank.id);
+  const bankNames = Object.fromEntries(banks.map((bank) => [bank.id, bank.name]));
+  if (!bankIds.includes(bankId)) {
+    throw new HttpsError('failed-precondition', 'Selected bank is not available for this country.');
+  }
+
+  const statusSnap = await analyticsStatusRef(normalizedCountry).get();
+  const statusData = statusSnap.exists ? statusSnap.data() || {} : {};
+  if (String(statusData.rebuildStatus || '') !== 'ready' || statusData.coverageComplete !== true) {
+    throw new HttpsError('failed-precondition', 'Overview aggregates are not ready for this country yet.');
+  }
+
+  const currentWindow = dateBucketRangeForWindow(timeWindow);
+  const currentSnapshot = await queryAnalyticsBuckets(normalizedCountry, currentWindow.startBucket, currentWindow.endBucket).get();
+  const currentDocs = currentSnapshot.docs.map((docSnap) => docSnap.data() || {});
+  const currentMerged = mergeAggregateDocs(currentDocs);
+  const currentOverview = buildOverviewSnapshot({
+    aggregate: currentMerged,
+    bankIds,
+    bankNames,
+    selectedBankId: bankId,
+  });
+
+  const monthRanges = previousMonthRange();
+  const [currentMonthSnapshot, previousMonthSnapshot, trendSnapshot] = await Promise.all([
+    queryAnalyticsBuckets(normalizedCountry, monthRanges.currentMonthStartBucket, currentWindow.endBucket).get(),
+    queryAnalyticsBuckets(normalizedCountry, monthRanges.previousMonthStartBucket, monthRanges.previousMonthEndBucket).get(),
+    queryAnalyticsBuckets(normalizedCountry, (() => {
+        const start = new Date();
+        start.setUTCDate(1);
+        start.setUTCMonth(start.getUTCMonth() - 5);
+        return start.toISOString().slice(0, 10);
+      })(), currentWindow.endBucket).get(),
+  ]);
+
+  const currentMonthOverview = buildOverviewSnapshot({
+    aggregate: mergeAggregateDocs(currentMonthSnapshot.docs.map((docSnap) => docSnap.data() || {})),
+    bankIds,
+    bankNames,
+    selectedBankId: bankId,
+  });
+  const previousMonthOverview = buildOverviewSnapshot({
+    aggregate: mergeAggregateDocs(previousMonthSnapshot.docs.map((docSnap) => docSnap.data() || {})),
+    bankIds,
+    bankNames,
+    selectedBankId: bankId,
+  });
+
+  const currentMonthMetrics = currentMonthOverview.selectedMetrics;
+  const previousMonthMetrics = previousMonthOverview.selectedMetrics;
+  const monthOverMonth = {
+    current: currentMonthMetrics,
+    previous: previousMonthMetrics,
+    deltas: {
+      awareness: currentMonthMetrics && previousMonthMetrics ? currentMonthMetrics.aware - previousMonthMetrics.aware : null,
+      topOfMind: currentMonthMetrics && previousMonthMetrics ? currentMonthMetrics.topOfMind - previousMonthMetrics.topOfMind : null,
+      spontaneous: currentMonthMetrics && previousMonthMetrics ? currentMonthMetrics.spontaneous - previousMonthMetrics.spontaneous : null,
+      quality: currentMonthMetrics && previousMonthMetrics ? currentMonthMetrics.awarenessQuality - previousMonthMetrics.awarenessQuality : null,
+      usage: currentMonthMetrics && previousMonthMetrics ? currentMonthMetrics.currentUsing - previousMonthMetrics.currentUsing : null,
+    },
+  };
+
+  const trendGroups = new Map();
+  trendSnapshot.docs.forEach((docSnap) => {
+    const data = docSnap.data() || {};
+    const monthKey = toMonthBucket(data.dateBucket);
+    if (!monthKey) return;
+    const existing = trendGroups.get(monthKey) || [];
+    existing.push(data);
+    trendGroups.set(monthKey, existing);
+  });
+
+  const monthlyTrend = Array.from(trendGroups.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(-6)
+    .map(([monthKey, docs]) => {
+      const snapshot = buildOverviewSnapshot({
+        aggregate: mergeAggregateDocs(docs),
+        bankIds,
+        bankNames,
+        selectedBankId: bankId,
+      });
+      const marketShare = snapshot.marketRows.find((row) => row.bankId === bankId)?.marketShare || 0;
+      return {
+        monthKey,
+        month: monthKeyLabel(monthKey),
+        awareness: snapshot.selectedMetrics?.aware || 0,
+        topOfMind: snapshot.selectedMetrics?.topOfMind || 0,
+        spontaneous: snapshot.selectedMetrics?.spontaneous || 0,
+        usage: snapshot.selectedMetrics?.currentUsing || 0,
+        nps: snapshot.selectedMetrics?.nps || 0,
+        brandEdgeScore: snapshot.selectedMetrics?.brandEdgeScore || 0,
+        marketShare,
+      };
+    });
+
+  const previousMovementMap = new Map(
+    previousMonthOverview.marketRows.map((row, index) => [row.bankId, index + 1]),
+  );
+  const marketRows = currentOverview.marketRows.map((row, index) => {
+    const previousRank = previousMovementMap.get(row.bankId);
+    return {
+      ...row,
+      rank: index + 1,
+      movement: previousRank ? previousRank - (index + 1) : null,
+    };
+  });
+
+  return {
+    country: normalizedCountry,
+    bankId,
+    timeWindow,
+    generatedAt: new Date().toISOString(),
+    contract: buildAggregateContract(),
+    integrity: {
+      rebuildStatus: 'ready',
+      coverageComplete: true,
+      rebuiltAt: toIsoString(statusData.lastSuccessfulRebuildAt || statusData.rebuildCompletedAt),
+    },
+    sampleSize: currentOverview.sampleSize,
+    statusCounts: currentOverview.statusCounts,
+    flagCounts: currentOverview.flagCounts,
+    selectedMetrics: currentOverview.selectedMetrics,
+    marketRows,
+    monthOverMonth,
+    monthlyTrend,
+  };
+};
+
+const listDashboardResponsesForCountry = async (country) => {
+  const [selectedCountrySnapshot, legacyCountrySnapshot] = await Promise.all([
+    db.collection('responses').where('selected_country', '==', country).get(),
+    db.collection('responses').where('country', '==', country).get(),
+  ]);
+
+  const seenDocIds = new Set();
+  const rows = [];
+
+  [selectedCountrySnapshot, legacyCountrySnapshot].forEach((snapshot) => {
+    snapshot.forEach((docSnap) => {
+      if (seenDocIds.has(docSnap.id)) return;
+      seenDocIds.add(docSnap.id);
+      rows.push({
+        ...docSnap.data(),
+        _docId: docSnap.id,
+      });
+    });
+  });
+
+  return rows;
+};
+
+exports.submitPublicSurveyResponse = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 50,
+  timeoutSeconds: 30,
+  enforceAppCheck: ENFORCE_PUBLIC_SURVEY_APPCHECK,
+}, async (request) => {
+  const response = request.data?.response;
+  const trapField = String(request.data?.trapField || '');
+
+  if (!response || typeof response !== 'object' || Array.isArray(response)) {
+    throw new HttpsError('invalid-argument', 'A normalized survey response payload is required.');
+  }
+
+  const responseId = String(response.response_id || '').trim();
+  const deviceId = String(response.device_id || '').trim();
+  const selectedCountry = String(response.country || response.selected_country || '').trim().toLowerCase();
+  const status = String(response._status || '').trim();
+
+  if (!responseId || !deviceId || !selectedCountry || !['completed', 'terminated'].includes(status)) {
+    throw new HttpsError('invalid-argument', 'Survey payload is incomplete.');
+  }
+
+  const existingSnapshot = await db.collection('responses')
+    .where('device_id', '==', deviceId)
+    .limit(25)
+    .get();
+
+  const existingResponses = existingSnapshot.docs.map((docSnap) => docSnap.data());
+  const nowIso = new Date().toISOString();
+  const userAgent = String(request.rawRequest?.headers?.['user-agent'] || '');
+  const isAdminSurveyTester = isAdminAuth(request.auth);
+  const contextMetadata = buildSurveyContextMetadata({
+    response,
+    headers: request.rawRequest?.headers || {},
+    nowIso,
+  });
+  const assessment = buildSurveyAbuseAssessment({
+    response,
+    existingResponses,
+    trapField,
+    nowIso,
+    appCheckVerified: Boolean(request.app),
+    userAgent,
+    bypassCooldown: isAdminSurveyTester,
+  });
+  const monitoringMetadata = buildSubmissionMonitoringMetadata(isAdminSurveyTester);
+
+  if (ENFORCE_PUBLIC_SURVEY_APPCHECK && !request.app) {
+    logWarn('public_survey_missing_app_check', {
+      responseId,
+      selectedCountry,
+    });
+  }
+
+  if (assessment.rejection?.code === 'cooldown_active') {
+    logWarn('public_survey_submission_rejected', {
+      category: 'cooldown_active',
+      responseId,
+      selectedCountry,
+      appCheckVerified: Boolean(request.app),
+    });
+    throw new HttpsError('failed-precondition', assessment.rejection.message, {
+      code: assessment.rejection.code,
+      nextAllowedAt: assessment.rejection.nextAllowedAt,
+    });
+  }
+
+  if (assessment.rejection) {
+    logWarn('public_survey_submission_rejected', {
+      category: assessment.rejection.code || 'abuse_detected',
+      responseId,
+      selectedCountry,
+      appCheckVerified: Boolean(request.app),
+    });
+    throw new HttpsError('invalid-argument', assessment.rejection.message, {
+      code: assessment.rejection.code,
+    });
+  }
+
+  const payload = {
+    ...response,
+    ...contextMetadata,
+    ...monitoringMetadata,
+    submitted_at: admin.firestore.FieldValue.serverTimestamp(),
+    analytics_date_bucket: toDateBucket(response.timestamp || nowIso),
+    app_check_verified: Boolean(request.app),
+    suspicious_submission_flag: assessment.suspiciousSignals.suspicious_submission_flag,
+    repeat_submission_flag: assessment.suspiciousSignals.repeat_submission_flag,
+    completion_speed_flag: assessment.suspiciousSignals.completion_speed_flag,
+    duplicate_payload_flag: assessment.suspiciousSignals.duplicate_payload_flag,
+    metadata_missing_flag: assessment.suspiciousSignals.metadata_missing_flag,
+    submission_hash: assessment.submissionHash,
+    _source: 'public_callable',
+    timestamp: response.timestamp || nowIso,
+  };
+
+  await db.collection('responses').add(payload);
+
+  if (
+    payload.suspicious_submission_flag
+    || payload.repeat_submission_flag
+    || payload.completion_speed_flag
+    || payload.duplicate_payload_flag
+    || payload.metadata_missing_flag
+  ) {
+    logWarn('public_survey_submission_flagged', {
+      responseId,
+      selectedCountry,
+      appCheckVerified: payload.app_check_verified,
+      flags: {
+        suspicious_submission_flag: payload.suspicious_submission_flag,
+        repeat_submission_flag: payload.repeat_submission_flag,
+        completion_speed_flag: payload.completion_speed_flag,
+        duplicate_payload_flag: payload.duplicate_payload_flag,
+        metadata_missing_flag: payload.metadata_missing_flag,
+      },
+    });
+  } else {
+    logInfo('public_survey_submission_accepted', {
+      responseId,
+      selectedCountry,
+      appCheckVerified: payload.app_check_verified,
+      status,
+      adminSurveyTester: isAdminSurveyTester,
+    });
+  }
+
+  return {
+    ok: true,
+    responseId,
+    flags: {
+      suspicious_submission_flag: payload.suspicious_submission_flag,
+      repeat_submission_flag: payload.repeat_submission_flag,
+      completion_speed_flag: payload.completion_speed_flag,
+      duplicate_payload_flag: payload.duplicate_payload_flag,
+      app_check_verified: payload.app_check_verified,
+    },
+  };
+});
+
+exports.submitPublicFollowUpContact = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 30,
+  timeoutSeconds: 30,
+  enforceAppCheck: ENFORCE_PUBLIC_SURVEY_APPCHECK,
+}, async (request) => {
+  const normalized = normalizePublicFollowUpInput(request.data || {});
+  if (!normalized.ok) {
+    throw new HttpsError('invalid-argument', normalized.message, { code: normalized.code });
+  }
+
+  const {
+    joinPanel,
+    enterRaffle,
+    country,
+    deviceId,
+    responseId,
+    contactName,
+    contactEmail,
+    contactPhone,
+    source,
+    language,
+  } = normalized.value;
+  const nowIso = new Date().toISOString();
+  const followUpMonitoringMetadata = buildSubmissionMonitoringMetadata(isAdminAuth(request.auth));
+
+  if (ENFORCE_PUBLIC_SURVEY_APPCHECK && !request.app) {
+    logWarn('public_follow_up_missing_app_check', {
+      country,
+      responseId,
+      joinPanel,
+      enterRaffle,
+    });
+  }
+
+  if (joinPanel) {
+    const panelistId = buildPanelistId(deviceId, country);
+    const panelistRef = db.collection('panelists').doc(panelistId);
+    await db.runTransaction(async (tx) => {
+      const existingSnap = await tx.get(panelistRef);
+      const existing = existingSnap.exists ? existingSnap.data() || {} : {};
+      const previousCount = Number(existing.participationCount || 0);
+      const previousResponseId = String(existing.lastResponseId || '').trim();
+      const isDuplicateResponseSave = previousResponseId === responseId;
+      const mergedOptIns = mergeFollowUpOptIns(existing, {
+        panelOptIn: true,
+        raffleOptIn: enterRaffle,
+      });
+      const lastParticipationAt = isDuplicateResponseSave
+        ? String(existing.lastParticipationAt || nowIso)
+        : nowIso;
+      const nextEligibleAt = isDuplicateResponseSave
+        ? String(existing.nextEligibleAt || buildNextEligibleAt(nowIso))
+        : buildNextEligibleAt(nowIso);
+
+      tx.set(panelistRef, {
+        panelistId,
+        deviceId,
+        country,
+        contactName,
+        contactEmail,
+        contactPhone,
+        source,
+        status: 'active',
+        lastParticipationAt,
+        nextEligibleAt,
+        participationCount: existingSnap.exists ? (isDuplicateResponseSave ? previousCount || 1 : previousCount + 1) : 1,
+        lastResponseId: responseId,
+        raffleOptIn: mergedOptIns.raffleOptIn,
+        panelOptIn: mergedOptIns.panelOptIn,
+        language_at_submission: language,
+        ...followUpMonitoringMetadata,
+        createdAt: existing.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: nowIso,
+        _source: 'public_follow_up_callable',
+      }, { merge: true });
+    });
+
+    const raffleEntryId = buildRaffleEntryId({ responseId, deviceId, country });
+    const existingRaffleSnap = await db.collection('raffleEntries').doc(raffleEntryId).get();
+    if (existingRaffleSnap.exists) {
+      const mergedOptIns = mergeFollowUpOptIns(existingRaffleSnap.data() || {}, {
+        panelOptIn: true,
+        raffleOptIn: enterRaffle,
+      });
+      await db.collection('raffleEntries').doc(raffleEntryId).set({
+        contactName,
+        contactEmail,
+        contactPhone,
+        source,
+        panelOptIn: mergedOptIns.panelOptIn,
+        raffleOptIn: mergedOptIns.raffleOptIn,
+        language_at_submission: language,
+        ...followUpMonitoringMetadata,
+        _source: 'public_follow_up_callable',
+      }, { merge: true });
+    }
+  }
+
+  if (enterRaffle) {
+    const raffleEntryId = buildRaffleEntryId({ responseId, deviceId, country });
+    const raffleRef = db.collection('raffleEntries').doc(raffleEntryId);
+    await db.runTransaction(async (tx) => {
+      const existingSnap = await tx.get(raffleRef);
+      const existing = existingSnap.exists ? existingSnap.data() || {} : {};
+      const mergedOptIns = mergeFollowUpOptIns(existing, {
+        panelOptIn: joinPanel,
+        raffleOptIn: true,
+      });
+
+      tx.set(raffleRef, {
+        entryId: raffleEntryId,
+        responseId,
+        deviceId,
+        country,
+        contactName,
+        contactEmail,
+        contactPhone,
+        source,
+        raffleOptIn: mergedOptIns.raffleOptIn,
+        panelOptIn: mergedOptIns.panelOptIn,
+        language_at_submission: language,
+        ...followUpMonitoringMetadata,
+        createdAt: existing.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+        createdAtIso: existing.createdAtIso || nowIso,
+        _source: 'public_follow_up_callable',
+      }, { merge: true });
+    });
+  }
+
+  logInfo('public_follow_up_contact_saved', {
+    country,
+    responseId,
+    joinPanel,
+    enterRaffle,
+    appCheckVerified: Boolean(request.app),
+  });
+
+  return {
+    ok: true,
+    saved: {
+      panel: joinPanel,
+      raffle: enterRaffle,
+      responseId,
+    },
+  };
+});
+
 exports.syncUserClaimsOnProfileWrite = onDocumentWritten({
   region: 'us-central1',
   document: 'users/{uid}',
@@ -187,20 +876,16 @@ exports.syncUserClaimsOnProfileWrite = onDocumentWritten({
     return;
   }
 
-  const entitlementsChanged = CLAIM_SYNC_FIELDS.some((field) => JSON.stringify(beforeData?.[field]) !== JSON.stringify(afterData?.[field]));
-  const previousVersion = Number(beforeData?.entitlements_version || 0);
-  const currentVersion = Number(afterData?.entitlements_version || 0);
+  const syncPlan = computeClaimsSyncPlan(beforeData, afterData);
 
-  if (entitlementsChanged) {
-    const nextVersion = Math.max(previousVersion, currentVersion, 0) + 1;
-    if (nextVersion !== currentVersion) {
+  if (syncPlan.shouldBumpVersion) {
       await event.data.after.ref.set({
-        entitlements_version: nextVersion,
-        claimsSyncPending: false,
-        claimsLastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+        entitlements_version: syncPlan.nextVersion,
+        claimsSyncPending: true,
+        claimsLastSyncError: admin.firestore.FieldValue.delete(),
+        claimsLastSyncRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
       return;
-    }
   }
 
   const syncResult = await syncClaimsForUser(uid, afterData);
@@ -258,6 +943,85 @@ exports.adminCreateDraftSubscriber = onCall({
 
   await db.collection('users').doc(id).set(user);
   return { user };
+});
+
+exports.createFreeSubscriberSelfServe = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 30,
+  timeoutSeconds: 30,
+}, async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const uid = request.auth.uid;
+  const email = String(request.auth.token.email || '').trim().toLowerCase();
+  const requestedCountry = normalizeCountryList([request.data?.requestedCountry])[0];
+  const contactName = String(request.data?.contactName || '').trim();
+  const companyName = String(request.data?.companyName || '').trim();
+
+  if (!email || !email.includes('@')) {
+    throw new HttpsError('failed-precondition', 'A verified account email is required.');
+  }
+  if (!requestedCountry) {
+    throw new HttpsError('invalid-argument', 'A valid requested country is required.');
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const existingSnap = await userRef.get();
+  const existingUser = existingSnap.exists ? existingSnap.data() : null;
+
+  if (existingUser?.role === 'admin') {
+    throw new HttpsError('failed-precondition', 'Admin accounts cannot enter the free self-serve signup flow.');
+  }
+
+  const now = new Date().toISOString();
+  const nextUser = {
+    id: uid,
+    email,
+    role: 'subscriber',
+    status: 'active',
+    createdAt: existingUser?.createdAt || now,
+    contactName: contactName || String(existingUser?.contactName || request.auth.token.name || ''),
+    companyName: companyName || String(existingUser?.companyName || request.auth.token.name || email.split('@')[0]),
+    requestedCountries: [requestedCountry],
+    assignedCountries: [requestedCountry],
+    emailVerified: Boolean(request.auth.token.email_verified),
+    permissions: existingUser?.permissions || [],
+    subscription_tier: 'free',
+    subscription_addon_ai: false,
+    ai_usage_count: Number(existingUser?.ai_usage_count || 0),
+    ai_usage_reset_date: existingUser?.ai_usage_reset_date || now,
+    entitlements_version: normalizeEntitlementsVersion(existingUser?.entitlements_version || 1),
+    claimsSyncPending: false,
+    claimsLastSyncError: admin.firestore.FieldValue.delete(),
+    claimsLastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await userRef.set(nextUser, { merge: true });
+  await syncClaimsForUser(uid, nextUser);
+
+  await writeAuditEvent({
+    action: existingUser ? 'free_access_self_serve_updated' : 'free_access_self_serve_created',
+    actorUid: uid,
+    actorEmail: email,
+    targetUid: uid,
+    details: {
+      requestedCountry,
+      subscription_tier: 'free',
+      status: 'active',
+    },
+  });
+
+  return {
+    ok: true,
+    user: {
+      ...nextUser,
+      claimsLastSyncedAt: now,
+    },
+    token_refresh_required: true,
+  };
 });
 
 exports.adminCreateInvite = onCall({
@@ -385,139 +1149,298 @@ exports.acceptInvite = onCall({
   maxInstances: 20,
   timeoutSeconds: 30,
 }, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'You must be signed in to accept an invite.');
-  }
-
-  const token = String(request.data?.token || '').trim();
-  const contactName = String(request.data?.contactName || '').trim();
-  const phone = String(request.data?.phone || '').trim();
-  const companyName = String(request.data?.companyName || '').trim();
-  const requestedCountries = normalizeCountryList(request.data?.requestedCountries || []);
-
-  if (!token) {
-    throw new HttpsError('invalid-argument', 'Invite token is required.');
-  }
-
-  if (!contactName || !phone) {
-    throw new HttpsError('invalid-argument', 'Contact name and phone are required.');
-  }
-
-  const authEmail = String(request.auth.token.email || '').trim().toLowerCase();
-  if (!authEmail) {
-    throw new HttpsError('failed-precondition', 'Authenticated email is missing.');
-  }
-
-  const inviteMatch = await getInviteByToken(token);
-  if (!inviteMatch) {
-    throw new HttpsError('not-found', 'Invite not found.');
-  }
-
-  const inviteData = inviteMatch.data;
-  const inviteEmail = String(inviteData.email || '').trim().toLowerCase();
-  if (inviteEmail !== authEmail) {
-    throw new HttpsError('permission-denied', 'Invite email does not match authenticated account.');
-  }
-
-  const uid = request.auth.uid;
-  const userRef = db.collection('users').doc(uid);
-  const inviteRef = inviteMatch.ref;
-  const draftRef = inviteData.userId && inviteData.userId !== uid ? db.collection('users').doc(String(inviteData.userId)) : null;
-
-  const now = new Date().toISOString();
-
-  await db.runTransaction(async (tx) => {
-    const latestInviteSnap = await tx.get(inviteRef);
-    if (!latestInviteSnap.exists) {
-      throw new HttpsError('not-found', 'Invite no longer exists.');
-    }
-
-    const latestInvite = latestInviteSnap.data() || {};
-    if (String(latestInvite.status || '') === 'used') {
-      throw new HttpsError('already-exists', 'Invite has already been used.');
-    }
-
-    if (String(latestInvite.status || '') === 'expired' || isInviteExpired(latestInvite)) {
-      tx.set(inviteRef, { status: 'expired' }, { merge: true });
-      throw new HttpsError('failed-precondition', 'Invite has expired.');
-    }
-
-    const assignedCountries = normalizeCountryList(latestInvite.countries || []);
-
-    const existingUserSnap = await tx.get(userRef);
-    const existingUser = existingUserSnap.exists ? existingUserSnap.data() : null;
-    const nextEntitlementsVersion = Math.max(Number(existingUser?.entitlements_version || 0), 0) + 1;
-
-    tx.set(userRef, {
-      id: uid,
-      authUid: uid,
-      email: inviteEmail,
-      role: 'subscriber',
-      status: 'pending',
-      createdAt: existingUser?.createdAt || now,
-      updatedAt: now,
-      companyName: companyName || String(latestInvite.companyName || inviteEmail),
-      assignedCountries,
-      requestedCountries: requestedCountries.length ? requestedCountries : assignedCountries,
-      contactName,
-      phone,
-      emailVerified: Boolean(request.auth.token.email_verified),
-      permissions: existingUser?.permissions || [],
-      subscription_tier: existingUser?.subscription_tier || 'free',
-      subscription_addon_ai: Boolean(existingUser?.subscription_addon_ai || false),
-      ai_usage_count: Number(existingUser?.ai_usage_count || 0),
-      ai_usage_reset_date: existingUser?.ai_usage_reset_date || now,
-      entitlements_version: nextEntitlementsVersion,
-      claimsSyncPending: true,
-      acceptedInviteId: inviteRef.id,
-    }, { merge: true });
-
-    tx.set(inviteRef, {
-      status: 'used',
-      usedAt: now,
-      acceptedUid: uid,
-      requestedCountries: requestedCountries.length ? requestedCountries : assignedCountries,
-      companyName: companyName || String(latestInvite.companyName || inviteEmail),
-      contactName,
-      phone,
-    }, { merge: true });
-
-    if (draftRef) {
-      const draftSnap = await tx.get(draftRef);
-      if (draftSnap.exists) {
-        tx.set(draftRef, {
-          migratedToUid: uid,
-          migratedAt: now,
-        }, { merge: true });
-      }
-    }
-  });
-
-  let claimsSynced = false;
+  let uid = request.auth?.uid || null;
+  let inviteId = null;
   try {
-    const finalUserSnap = await userRef.get();
-    const finalUserData = finalUserSnap.data() || {};
-    await syncClaimsForUser(uid, finalUserData);
-    claimsSynced = true;
-    await userRef.set({
-      claimsSyncPending: false,
-      claimsLastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
-      claimsLastSyncError: admin.firestore.FieldValue.delete(),
-    }, { merge: true });
-  } catch (error) {
-    await userRef.set({
-      claimsSyncPending: true,
-      claimsLastSyncError: String(error?.message || error),
-      claimsLastSyncAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-  }
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'You must be signed in to accept an invite.');
+    }
 
-  return {
-    ok: true,
-    subscriber_state: 'pending',
-    claims_synced: claimsSynced,
-  };
+    const token = String(request.data?.token || '').trim();
+    const contactName = String(request.data?.contactName || '').trim();
+    const phone = String(request.data?.phone || '').trim();
+    const companyName = String(request.data?.companyName || '').trim();
+    const requestedCountries = normalizeCountryList(request.data?.requestedCountries || []);
+
+    if (!token) {
+      throw new HttpsError('invalid-argument', 'Invite token is required.');
+    }
+
+    if (!contactName || !phone) {
+      throw new HttpsError('invalid-argument', 'Contact name and phone are required.');
+    }
+
+    const authEmail = String(request.auth.token.email || '').trim().toLowerCase();
+    if (!authEmail) {
+      throw new HttpsError('failed-precondition', 'Authenticated email is missing.');
+    }
+
+    const inviteMatch = await getInviteByToken(token);
+    if (!inviteMatch) {
+      throw new HttpsError('not-found', 'Invite not found.');
+    }
+
+    inviteId = inviteMatch.ref.id;
+    const inviteData = inviteMatch.data;
+    const inviteEmail = String(inviteData.email || '').trim().toLowerCase();
+    if (inviteEmail !== authEmail) {
+      throw new HttpsError('permission-denied', 'Invite email does not match authenticated account.');
+    }
+
+    uid = request.auth.uid;
+    const userRef = db.collection('users').doc(uid);
+    const inviteRef = inviteMatch.ref;
+    const draftRef = inviteData.userId && inviteData.userId !== uid ? db.collection('users').doc(String(inviteData.userId)) : null;
+
+    const now = new Date().toISOString();
+
+    await db.runTransaction(async (tx) => {
+      const latestInviteSnap = await tx.get(inviteRef);
+      if (!latestInviteSnap.exists) {
+        throw new HttpsError('not-found', 'Invite no longer exists.');
+      }
+
+      const latestInvite = latestInviteSnap.data() || {};
+      if (String(latestInvite.status || '') === 'used') {
+        throw new HttpsError('already-exists', 'Invite has already been used.');
+      }
+
+      if (String(latestInvite.status || '') === 'expired' || isInviteExpired(latestInvite)) {
+        tx.set(inviteRef, { status: 'expired' }, { merge: true });
+        throw new HttpsError('failed-precondition', 'Invite has expired.');
+      }
+
+      const assignedCountries = normalizeCountryList(latestInvite.countries || []);
+
+      const existingUserSnap = await tx.get(userRef);
+      const existingUser = existingUserSnap.exists ? existingUserSnap.data() : null;
+      const nextEntitlementsVersion = Math.max(Number(existingUser?.entitlements_version || 0), 0) + 1;
+
+      tx.set(userRef, {
+        id: uid,
+        authUid: uid,
+        email: inviteEmail,
+        role: 'subscriber',
+        status: 'pending',
+        createdAt: existingUser?.createdAt || now,
+        updatedAt: now,
+        companyName: companyName || String(latestInvite.companyName || inviteEmail),
+        assignedCountries,
+        requestedCountries: requestedCountries.length ? requestedCountries : assignedCountries,
+        contactName,
+        phone,
+        emailVerified: Boolean(request.auth.token.email_verified),
+        permissions: existingUser?.permissions || [],
+        subscription_tier: existingUser?.subscription_tier || 'free',
+        subscription_addon_ai: Boolean(existingUser?.subscription_addon_ai || false),
+        ai_usage_count: Number(existingUser?.ai_usage_count || 0),
+        ai_usage_reset_date: existingUser?.ai_usage_reset_date || now,
+        entitlements_version: nextEntitlementsVersion,
+        claimsSyncPending: true,
+        acceptedInviteId: inviteRef.id,
+      }, { merge: true });
+
+      tx.set(inviteRef, {
+        status: 'used',
+        usedAt: now,
+        acceptedUid: uid,
+        requestedCountries: requestedCountries.length ? requestedCountries : assignedCountries,
+        companyName: companyName || String(latestInvite.companyName || inviteEmail),
+        contactName,
+        phone,
+      }, { merge: true });
+
+      if (draftRef) {
+        const draftSnap = await tx.get(draftRef);
+        if (draftSnap.exists) {
+          tx.set(draftRef, {
+            migratedToUid: uid,
+            migratedAt: now,
+          }, { merge: true });
+        }
+      }
+    });
+
+    let claimsSynced = false;
+    try {
+      const finalUserSnap = await userRef.get();
+      const finalUserData = finalUserSnap.data() || {};
+      await syncClaimsForUser(uid, finalUserData);
+      claimsSynced = true;
+      await userRef.set({
+        claimsSyncPending: false,
+        claimsLastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+        claimsLastSyncError: admin.firestore.FieldValue.delete(),
+      }, { merge: true });
+    } catch (error) {
+      logWarn('invite_accept_claims_sync_deferred', {
+        uid,
+        inviteId,
+        category: classifyOpsError(error),
+        error: toLoggableError(error),
+      });
+      await userRef.set({
+        claimsSyncPending: true,
+        claimsLastSyncError: String(error?.message || error),
+        claimsLastSyncAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    logInfo('invite_accept_succeeded', {
+      uid,
+      inviteId,
+      requestedCountriesCount: requestedCountries.length,
+      claimsSynced,
+    });
+
+    return {
+      ok: true,
+      subscriber_state: 'pending',
+      claims_synced: claimsSynced,
+    };
+  } catch (error) {
+    logWarn('invite_accept_failed', {
+      uid,
+      inviteId,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
 });
+
+const applySubscriberCommand = async ({
+  request,
+  commandName,
+  action,
+  buildChange,
+}) => {
+  try {
+    if (!request.auth || !isAdminCaller(request.auth)) {
+      throw new HttpsError('permission-denied', 'Admin access is required.');
+    }
+
+    const uid = String(request.data?.uid || '').trim();
+    if (!uid) {
+      throw new HttpsError('invalid-argument', 'uid is required.');
+    }
+
+    const userRef = db.collection('users').doc(uid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'Subscriber not found.');
+    }
+
+    const beforeData = userSnap.data() || {};
+    if (String(beforeData.role || '') !== 'subscriber') {
+      throw new HttpsError('failed-precondition', `${commandName} can only target subscriber users.`);
+    }
+
+    let change;
+    try {
+      change = buildChange(beforeData);
+    } catch (error) {
+      const message = String(error?.message || '');
+      if (message === 'invalid_status' || message === 'invalid_tier') {
+        throw new HttpsError('invalid-argument', message);
+      }
+      if (message === 'ai_requires_standard_tier') {
+        throw new HttpsError('failed-precondition', 'AI add-on requires Standard tier.');
+      }
+      throw error;
+    }
+
+    const updates = {
+      ...change.updates,
+      updatedAt: new Date().toISOString(),
+      claimsSyncPending: true,
+      claimsLastSyncError: admin.firestore.FieldValue.delete(),
+    };
+
+    await userRef.set(updates, { merge: true });
+    await writeAuditEvent({
+      action,
+      actorUid: request.auth.uid,
+      actorEmail: request.auth.token.email,
+      targetUid: uid,
+      details: {
+        command: commandName,
+        ...change.audit,
+      },
+    });
+
+    logInfo('subscriber_entitlement_command_succeeded', {
+      commandName,
+      actorUid: request.auth.uid,
+      targetUid: uid,
+      category: 'entitlement_change',
+    });
+
+    return {
+      ok: true,
+      uid,
+      claims_sync_pending: true,
+      token_refresh_required: true,
+    };
+  } catch (error) {
+    logWarn('subscriber_entitlement_command_failed', {
+      commandName,
+      actorUid: request.auth?.uid || null,
+      targetUid: String(request.data?.uid || '').trim() || null,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+};
+
+exports.updateSubscriberStatus = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => applySubscriberCommand({
+  request,
+  commandName: 'updateSubscriberStatus',
+  action: 'subscriber_status_updated',
+  buildChange: (beforeData) => buildStatusUpdate(beforeData, request.data?.status),
+}));
+
+exports.updateSubscriberTier = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => applySubscriberCommand({
+  request,
+  commandName: 'updateSubscriberTier',
+  action: 'subscriber_tier_updated',
+  buildChange: (beforeData) => buildTierUpdate(beforeData, request.data?.subscription_tier),
+}));
+
+exports.updateSubscriberCountries = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => applySubscriberCommand({
+  request,
+  commandName: 'updateSubscriberCountries',
+  action: 'subscriber_countries_updated',
+  buildChange: (beforeData) => buildCountriesUpdate(beforeData, request.data?.assignedCountries),
+}));
+
+exports.updateSubscriberAiAddon = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => applySubscriberCommand({
+  request,
+  commandName: 'updateSubscriberAiAddon',
+  action: 'subscriber_ai_addon_updated',
+  buildChange: (beforeData) => buildAiAddonUpdate(beforeData, request.data?.subscription_addon_ai),
+}));
 
 exports.logAuditEvent = onCall({
   region: 'us-central1',
@@ -534,17 +1457,872 @@ exports.logAuditEvent = onCall({
     throw new HttpsError('invalid-argument', 'action is required.');
   }
 
-  const payload = {
+  await writeAuditEvent({
     action,
-    actorEmail: request.data?.actorEmail ? String(request.data.actorEmail).trim() : undefined,
-    targetId: request.data?.targetId ? String(request.data.targetId).trim() : undefined,
-    details: request.data?.details && typeof request.data.details === 'object' ? request.data.details : undefined,
-    timestamp: new Date().toISOString(),
     actorUid: request.auth.uid,
-  };
-
-  await db.collection('audit').add(payload);
+    actorEmail: request.data?.actorEmail,
+    targetUid: request.data?.targetId,
+    details: request.data?.details,
+  });
   return { ok: true };
+});
+
+exports.repairMyAdminClaims = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication is required.');
+    }
+
+    const userRef = db.collection('users').doc(request.auth.uid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'Canonical user profile not found.');
+    }
+
+    const userData = userSnap.data() || {};
+    if (!isCanonicalAdminProfile(userData)) {
+      throw new HttpsError('permission-denied', 'Only canonical admin profiles can repair admin claims.');
+    }
+
+    const effectiveUserData = {
+      ...userData,
+      entitlements_version: normalizeEntitlementsVersion(userData.entitlements_version),
+    };
+
+    await syncClaimsForUser(request.auth.uid, effectiveUserData);
+    await userRef.set({
+      entitlements_version: effectiveUserData.entitlements_version,
+      claimsSyncPending: false,
+      claimsLastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      claimsLastSyncError: admin.firestore.FieldValue.delete(),
+    }, { merge: true });
+
+    await writeAuditEvent({
+      action: 'admin_claims_repaired',
+      actorUid: request.auth.uid,
+      actorEmail: request.auth.token.email,
+      targetUid: request.auth.uid,
+      details: {
+        role: userData.role,
+        entitlements_version: effectiveUserData.entitlements_version,
+      },
+    });
+
+    logInfo('admin_claim_repair_succeeded', {
+      uid: request.auth.uid,
+      entitlementsVersion: effectiveUserData.entitlements_version,
+    });
+
+    return {
+      ok: true,
+      uid: request.auth.uid,
+      role: 'admin',
+      token_refresh_required: true,
+    };
+  } catch (error) {
+    logWarn('admin_claim_repair_failed', {
+      uid: request.auth?.uid || null,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+exports.bootstrapAdminClaims = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication is required.');
+    }
+
+    const [userSnap, bootstrapSnap] = await Promise.all([
+      db.collection('users').doc(request.auth.uid).get(),
+      db.collection('config').doc('bootstrap').get(),
+    ]);
+
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'Canonical user profile not found.');
+    }
+    if (!bootstrapSnap.exists) {
+      throw new HttpsError('failed-precondition', 'Bootstrap admin marker not found.');
+    }
+
+    const userData = userSnap.data() || {};
+    const bootstrapData = bootstrapSnap.data() || {};
+
+    if (!canBootstrapAdminClaims({ auth: request.auth, userData, bootstrapData })) {
+      throw new HttpsError('permission-denied', 'Caller is not allowed to bootstrap admin claims.');
+    }
+
+    const claims = buildClaimsPayload(userData);
+    await admin.auth().setCustomUserClaims(request.auth.uid, claims);
+    await userSnap.ref.set({
+      claimsSyncPending: false,
+      claimsLastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      claimsLastSyncError: admin.firestore.FieldValue.delete(),
+    }, { merge: true });
+
+    await writeAuditEvent({
+      action: 'admin_claims_bootstrapped',
+      actorUid: request.auth.uid,
+      actorEmail: request.auth.token.email,
+      targetUid: request.auth.uid,
+      details: {
+        bootstrapAdminId: bootstrapData.adminId || null,
+        bootstrapEmail: bootstrapData.email || null,
+      },
+    });
+
+    logInfo('admin_claim_bootstrap_succeeded', {
+      uid: request.auth.uid,
+      bootstrapAdminId: bootstrapData.adminId || null,
+    });
+
+    return {
+      ok: true,
+      uid: request.auth.uid,
+      role: 'admin',
+      token_refresh_required: true,
+    };
+  } catch (error) {
+    logWarn('admin_claim_bootstrap_failed', {
+      uid: request.auth?.uid || null,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+exports.syncUserClaimsNow = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth || !isAdminCaller(request.auth)) {
+      throw new HttpsError('permission-denied', 'Admin access is required.');
+    }
+
+    const uid = String(request.data?.uid || '').trim();
+    if (!uid) {
+      throw new HttpsError('invalid-argument', 'uid is required.');
+    }
+
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'Canonical user profile not found.');
+    }
+
+    const userData = userSnap.data() || {};
+    const effectiveUserData = {
+      ...userData,
+      entitlements_version: normalizeEntitlementsVersion(userData.entitlements_version),
+    };
+
+    const syncResult = await syncClaimsForUser(uid, effectiveUserData);
+    if (!syncResult.synced && syncResult.skipped) {
+      throw new HttpsError('failed-precondition', 'Target auth user does not exist.');
+    }
+
+    await userSnap.ref.set({
+      entitlements_version: effectiveUserData.entitlements_version,
+      claimsSyncPending: false,
+      claimsLastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      claimsLastSyncError: admin.firestore.FieldValue.delete(),
+    }, { merge: true });
+
+    await writeAuditEvent({
+      action: 'user_claims_synced_now',
+      actorUid: request.auth.uid,
+      actorEmail: request.auth.token.email,
+      targetUid: uid,
+      details: {
+        role: userData.role || null,
+        entitlements_version: effectiveUserData.entitlements_version,
+      },
+    });
+
+    logInfo('user_claim_sync_succeeded', {
+      actorUid: request.auth.uid,
+      targetUid: uid,
+    });
+
+    return {
+      ok: true,
+      uid,
+      token_refresh_required: true,
+    };
+  } catch (error) {
+    logWarn('user_claim_sync_failed', {
+      actorUid: request.auth?.uid || null,
+      targetUid: String(request.data?.uid || '').trim() || null,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+exports.listSubscriptionPlansAdmin = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth || !isAdminCaller(request.auth)) {
+      throw new HttpsError('permission-denied', 'Admin access is required.');
+    }
+
+    const plans = await listPlans(db);
+    logInfo('subscription_plan_list_succeeded', {
+      actorUid: request.auth.uid,
+      planCount: plans.length,
+    });
+    return { plans };
+  } catch (error) {
+    logWarn('subscription_plan_list_failed', {
+      actorUid: request.auth?.uid || null,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+exports.initializeDefaultSubscriptionPlans = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth || !isAdminCaller(request.auth)) {
+      throw new HttpsError('permission-denied', 'Admin access is required.');
+    }
+
+    const result = await initializeDefaultPlans(db);
+    await writeAuditEvent({
+      action: 'subscription_plan_defaults_seeded',
+      actorUid: request.auth.uid,
+      actorEmail: request.auth.token.email,
+      details: {
+        initialized: result.initialized,
+        count: result.plans.length,
+        planIds: result.plans.map((plan) => plan.id),
+      },
+    });
+
+    logInfo('subscription_plan_initialize_succeeded', {
+      actorUid: request.auth.uid,
+      initialized: result.initialized,
+      planCount: result.plans.length,
+    });
+
+    return result;
+  } catch (error) {
+    logWarn('subscription_plan_initialize_failed', {
+      actorUid: request.auth?.uid || null,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+exports.saveSubscriptionPlan = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth || !isAdminCaller(request.auth)) {
+      throw new HttpsError('permission-denied', 'Admin access is required.');
+    }
+
+    const plan = request.data?.plan;
+    const planId = String(plan?.id || '').trim();
+    if (!plan || typeof plan !== 'object' || !planId) {
+      throw new HttpsError('invalid-argument', 'A valid subscription plan payload is required.');
+    }
+
+    const previousSnap = await db.collection('subscriptionPlans').doc(planId).get();
+    const previousPlan = previousSnap.exists ? previousSnap.data() : null;
+    const savedPlan = await upsertPlan(db, plan);
+
+    await writeAuditEvent({
+      action: previousPlan ? 'subscription_plan_updated' : 'subscription_plan_created',
+      actorUid: request.auth.uid,
+      actorEmail: request.auth.token.email,
+      targetUid: planId,
+      details: {
+        before: previousPlan,
+        after: savedPlan,
+      },
+    });
+
+    logInfo('subscription_plan_save_succeeded', {
+      actorUid: request.auth.uid,
+      planId,
+      operation: previousPlan ? 'update' : 'create',
+    });
+
+    return { ok: true, plan: savedPlan };
+  } catch (error) {
+    logWarn('subscription_plan_save_failed', {
+      actorUid: request.auth?.uid || null,
+      planId: String(request.data?.plan?.id || '').trim() || null,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+exports.deleteSubscriptionPlan = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth || !isAdminCaller(request.auth)) {
+      throw new HttpsError('permission-denied', 'Admin access is required.');
+    }
+
+    const planId = String(request.data?.planId || '').trim();
+    if (!planId) {
+      throw new HttpsError('invalid-argument', 'planId is required.');
+    }
+
+    const previousSnap = await db.collection('subscriptionPlans').doc(planId).get();
+    if (!previousSnap.exists) {
+      throw new HttpsError('not-found', 'Subscription plan not found.');
+    }
+
+    const previousPlan = previousSnap.data();
+    await deletePlan(db, planId);
+
+    await writeAuditEvent({
+      action: 'subscription_plan_deleted',
+      actorUid: request.auth.uid,
+      actorEmail: request.auth.token.email,
+      targetUid: planId,
+      details: {
+        before: previousPlan,
+      },
+    });
+
+    logInfo('subscription_plan_delete_succeeded', {
+      actorUid: request.auth.uid,
+      planId,
+    });
+
+    return { ok: true, planId };
+  } catch (error) {
+    logWarn('subscription_plan_delete_failed', {
+      actorUid: request.auth?.uid || null,
+      planId: String(request.data?.planId || '').trim() || null,
+      category: classifyOpsError(error),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+const migrateLegacyUserRecordInternal = async ({ legacyDocId, actorUid, actorEmail }) => {
+  const legacyRef = db.collection('users').doc(legacyDocId);
+  const legacySnap = await legacyRef.get();
+  if (!legacySnap.exists) {
+    throw new HttpsError('not-found', 'Legacy user record not found.');
+  }
+
+  const legacyData = legacySnap.data() || {};
+  const canonicalUid = String(legacyData.authUid || '').trim();
+  if (!canonicalUid || canonicalUid === legacyDocId) {
+    throw new HttpsError('failed-precondition', 'This record does not have a separate canonical UID target.');
+  }
+
+  const canonicalRef = db.collection('users').doc(canonicalUid);
+  const canonicalSnap = await canonicalRef.get();
+  const canonicalData = canonicalSnap.exists ? canonicalSnap.data() || {} : null;
+
+  if (
+    canonicalData
+    && legacyData.email
+    && canonicalData.email
+    && String(legacyData.email).trim().toLowerCase() !== String(canonicalData.email).trim().toLowerCase()
+  ) {
+    logWarn('legacy_user_migration_conflict', {
+      actorUid,
+      legacyDocId,
+      canonicalUid,
+      category: 'migration_conflict',
+    });
+    throw new HttpsError('failed-precondition', 'Canonical UID target exists with a different email and requires manual review.');
+  }
+
+  const nowIso = new Date().toISOString();
+
+  await db.runTransaction(async (tx) => {
+    const legacyCheck = await tx.get(legacyRef);
+    if (!legacyCheck.exists) {
+      throw new HttpsError('not-found', 'Legacy user record no longer exists.');
+    }
+
+    const freshLegacyData = legacyCheck.data() || {};
+    const targetRef = db.collection('users').doc(canonicalUid);
+    const canonicalCheck = await tx.get(targetRef);
+    const existingCanonical = canonicalCheck.exists ? canonicalCheck.data() || {} : null;
+
+    if (
+      existingCanonical
+      && freshLegacyData.email
+      && existingCanonical.email
+      && String(freshLegacyData.email).trim().toLowerCase() !== String(existingCanonical.email).trim().toLowerCase()
+    ) {
+      logWarn('legacy_user_migration_conflict', {
+        actorUid,
+        legacyDocId,
+        canonicalUid,
+        category: 'migration_conflict',
+      });
+      throw new HttpsError('failed-precondition', 'Canonical UID target changed and now requires manual review.');
+    }
+
+    const targetPatch = buildCanonicalUserPatch({
+      legacyDocId,
+      legacyData: freshLegacyData,
+      canonicalUid,
+      nowIso,
+      existingCanonicalData: existingCanonical,
+    });
+
+    tx.set(targetRef, targetPatch, { merge: true });
+    tx.set(legacyRef, {
+      migratedToUid: canonicalUid,
+      migratedAt: nowIso,
+      legacyMigrationStatus: existingCanonical ? 'shadowed' : 'migrated',
+      legacyCanonicalUid: canonicalUid,
+      claimsSyncPending: false,
+    }, { merge: true });
+  });
+
+  await writeAuditEvent({
+    action: 'legacy_user_record_migrated',
+    actorUid,
+    actorEmail,
+    targetUid: canonicalUid,
+    details: {
+      legacyDocId,
+      canonicalUid,
+    },
+  });
+
+  logInfo('legacy_user_migration_succeeded', {
+    actorUid,
+    legacyDocId,
+    canonicalUid,
+    migrationStatus: canonicalData ? 'shadowed' : 'migrated',
+  });
+
+  return {
+    legacyDocId,
+    canonicalUid,
+    migrationStatus: canonicalData ? 'shadowed' : 'migrated',
+  };
+};
+
+exports.scanLegacyUserRecords = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  if (!request.auth || !isAdminCaller(request.auth)) {
+    throw new HttpsError('permission-denied', 'Admin access is required.');
+  }
+
+  const snapshot = await db.collection('users').get();
+  const records = snapshot.docs.map((docSnap) => ({
+    docId: docSnap.id,
+    data: docSnap.data() || {},
+  }));
+
+  return {
+    ok: true,
+    ...scanLegacyUserRecords(records),
+  };
+});
+
+exports.migrateLegacyUserRecord = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  if (!request.auth || !isAdminCaller(request.auth)) {
+    throw new HttpsError('permission-denied', 'Admin access is required.');
+  }
+
+  const legacyDocId = String(request.data?.legacyDocId || '').trim();
+  if (!legacyDocId) {
+    throw new HttpsError('invalid-argument', 'legacyDocId is required.');
+  }
+
+  const result = await migrateLegacyUserRecordInternal({
+    legacyDocId,
+    actorUid: request.auth.uid,
+    actorEmail: request.auth.token.email,
+  });
+
+  return { ok: true, ...result };
+});
+
+exports.migrateSafeLegacyUserRecords = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 60,
+}, async (request) => {
+  if (!request.auth || !isAdminCaller(request.auth)) {
+    throw new HttpsError('permission-denied', 'Admin access is required.');
+  }
+
+  const snapshot = await db.collection('users').get();
+  const report = scanLegacyUserRecords(snapshot.docs.map((docSnap) => ({
+    docId: docSnap.id,
+    data: docSnap.data() || {},
+  })));
+
+  const safeRecords = report.records.filter((record) => record.safeToMigrate);
+  const migrated = [];
+
+  for (const record of safeRecords) {
+    const result = await migrateLegacyUserRecordInternal({
+      legacyDocId: record.docId,
+      actorUid: request.auth.uid,
+      actorEmail: request.auth.token.email,
+    });
+    migrated.push(result);
+  }
+
+  await writeAuditEvent({
+    action: 'legacy_user_records_batch_migrated',
+    actorUid: request.auth.uid,
+    actorEmail: request.auth.token.email,
+    details: {
+      migratedCount: migrated.length,
+      migratedLegacyDocIds: migrated.map((item) => item.legacyDocId),
+    },
+  });
+
+  return {
+    ok: true,
+    migrated,
+    migratedCount: migrated.length,
+    skippedCount: report.records.length - migrated.length,
+  };
+});
+
+exports.aggregateResponseAnalyticsOnWrite = onDocumentWritten({
+  region: 'us-central1',
+  document: 'responses/{responseId}',
+}, async (event) => {
+  const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
+  const afterData = event.data?.after?.exists ? event.data.after.data() : null;
+  const targets = new Map();
+
+  [
+    { country: responseCountry(beforeData), dateBucket: responseDateBucket(beforeData) },
+    { country: responseCountry(afterData), dateBucket: responseDateBucket(afterData) },
+  ].forEach((target) => {
+    if (!target.country || !target.dateBucket) return;
+    targets.set(`${target.country}__${target.dateBucket}`, target);
+  });
+
+  if (targets.size === 0) return;
+
+  await Promise.all(Array.from(targets.values()).map(async (target) => {
+    try {
+      await rebuildAnalyticsBucket(target);
+      await analyticsStatusRef(target.country).set({
+        country: target.country,
+        aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+        supportedMetrics: SUPPORTED_METRICS,
+        supportedFilters: SUPPORTED_FILTERS,
+        supportedModules: SUPPORTED_MODULES,
+        supportedCompareMetrics: SUPPORTED_COMPARE_METRICS,
+        lastIncrementalRefreshAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    } catch (error) {
+      logError('response_analytics_aggregate_failed', {
+        category: classifyOpsError(error),
+        country: target.country,
+        dateBucket: target.dateBucket,
+        error: toLoggableError(error),
+      });
+      throw error;
+    }
+  }));
+});
+
+exports.getDashboardOverviewAggregate = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentication is required.');
+    }
+
+    const country = normalizeCountry(request.data?.country);
+    const bankId = String(request.data?.bankId || '').trim();
+    const timeWindow = ['30d', '90d', '12m', 'all'].includes(String(request.data?.timeWindow || ''))
+      ? String(request.data?.timeWindow)
+      : 'all';
+
+    if (!country || !bankId) {
+      throw new HttpsError('invalid-argument', 'country and bankId are required.');
+    }
+
+    if (isAdminCaller(request.auth)) {
+      return { ok: true, aggregate: await summarizeOverviewForCountry({ country, bankId, timeWindow }) };
+    }
+
+    const callerRole = String(request.auth.token.role || '').trim();
+    if (callerRole !== 'subscriber') {
+      throw new HttpsError('permission-denied', 'Subscriber access is required.');
+    }
+
+    const userSnap = await db.collection('users').doc(request.auth.uid).get();
+    const userData = userSnap.exists ? userSnap.data() || {} : {};
+    const assignedCountries = normalizeCountryList(userData.assignedCountries || []);
+    if (!assignedCountries.includes(country)) {
+      throw new HttpsError('permission-denied', 'You do not have access to this country.');
+    }
+
+    return { ok: true, aggregate: await summarizeOverviewForCountry({ country, bankId, timeWindow }) };
+  } catch (error) {
+    logWarn('dashboard_overview_aggregate_failed', {
+      actorUid: request.auth?.uid || null,
+      category: classifyOpsError(error),
+      country: normalizeCountry(request.data?.country),
+      bankId: String(request.data?.bankId || '').trim() || null,
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+exports.listDashboardResponses = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 20,
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentication is required.');
+    }
+
+    const country = normalizeCountry(request.data?.country);
+    if (!country) {
+      throw new HttpsError('invalid-argument', 'country is required.');
+    }
+
+    if (isAdminCaller(request.auth)) {
+      return { ok: true, responses: await listDashboardResponsesForCountry(country) };
+    }
+
+    const callerRole = String(request.auth.token.role || '').trim();
+    if (callerRole !== 'subscriber') {
+      throw new HttpsError('permission-denied', 'Subscriber access is required.');
+    }
+
+    const userSnap = await db.collection('users').doc(request.auth.uid).get();
+    const userData = userSnap.exists ? userSnap.data() || {} : {};
+    const assignedCountries = normalizeCountryList(userData.assignedCountries || []);
+    if (!assignedCountries.includes(country)) {
+      throw new HttpsError('permission-denied', 'You do not have access to this country.');
+    }
+
+    return { ok: true, responses: await listDashboardResponsesForCountry(country) };
+  } catch (error) {
+    logWarn('dashboard_response_list_failed', {
+      actorUid: request.auth?.uid || null,
+      category: classifyOpsError(error),
+      country: normalizeCountry(request.data?.country),
+      error: toLoggableError(error),
+    });
+    throw error;
+  }
+});
+
+exports.rebuildDashboardAggregates = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 5,
+  timeoutSeconds: 60,
+}, async (request) => {
+  if (!request.auth || !isAdminCaller(request.auth)) {
+    throw new HttpsError('permission-denied', 'Admin access is required.');
+  }
+
+  const requestedCountry = normalizeCountry(request.data?.country);
+  if (!requestedCountry) {
+    throw new HttpsError('invalid-argument', 'country is required for bounded aggregate rebuilds.');
+  }
+
+  const rawCursor = String(request.data?.cursor || '').trim();
+  const parsedCursor = Number.parseInt(rawCursor || '0', 10);
+  const cursor = Number.isFinite(parsedCursor) && parsedCursor >= 0 ? parsedCursor : 0;
+  const requestedMaxBuckets = Number(request.data?.maxBuckets || 20);
+  const maxBuckets = Number.isFinite(requestedMaxBuckets)
+    ? Math.max(1, Math.min(25, Math.trunc(requestedMaxBuckets)))
+    : 20;
+
+  const allBuckets = await listAnalyticsBucketsForCountry(requestedCountry);
+  const bucketSlice = allBuckets.slice(cursor, cursor + maxBuckets);
+
+  await analyticsStatusRef(requestedCountry).set({
+    country: requestedCountry,
+    aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+    supportedMetrics: SUPPORTED_METRICS,
+    supportedFilters: SUPPORTED_FILTERS,
+    supportedModules: SUPPORTED_MODULES,
+    supportedCompareMetrics: SUPPORTED_COMPARE_METRICS,
+    rebuildStatus: 'rebuilding',
+    coverageComplete: false,
+    rebuildStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+    rebuiltBucketCount: cursor,
+    totalBuckets: allBuckets.length,
+    source: 'admin_rebuild',
+  }, { merge: true });
+
+  let rebuilt = 0;
+  for (const dateBucket of bucketSlice) {
+    await rebuildAnalyticsBucket({ country: requestedCountry, dateBucket, includeLegacyFallback: true });
+    rebuilt += 1;
+  }
+
+  const nextCursor = cursor + rebuilt;
+  const hasMore = nextCursor < allBuckets.length;
+
+  await analyticsStatusRef(requestedCountry).set({
+    country: requestedCountry,
+    aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+    supportedMetrics: SUPPORTED_METRICS,
+    supportedFilters: SUPPORTED_FILTERS,
+    supportedModules: SUPPORTED_MODULES,
+    supportedCompareMetrics: SUPPORTED_COMPARE_METRICS,
+    rebuildStatus: hasMore ? 'rebuilding' : 'ready',
+    coverageComplete: !hasMore,
+    rebuiltBucketCount: nextCursor,
+    totalBuckets: allBuckets.length,
+    lastRebuildChunkAt: admin.firestore.FieldValue.serverTimestamp(),
+    rebuildCompletedAt: hasMore ? admin.firestore.FieldValue.delete() : admin.firestore.FieldValue.serverTimestamp(),
+    lastSuccessfulRebuildAt: hasMore ? admin.firestore.FieldValue.delete() : admin.firestore.FieldValue.serverTimestamp(),
+    source: 'admin_rebuild',
+  }, { merge: true });
+
+  await writeAuditEvent({
+    action: 'dashboard_aggregates_rebuilt',
+    actorUid: request.auth.uid,
+    actorEmail: request.auth.token.email,
+    details: {
+      country: requestedCountry,
+      cursor,
+      maxBuckets,
+      rebuiltBuckets: rebuilt,
+      totalBuckets: allBuckets.length,
+      hasMore,
+    },
+  });
+
+  return {
+    ok: true,
+    country: requestedCountry,
+    rebuiltBuckets: rebuilt,
+    totalBuckets: allBuckets.length,
+    nextCursor: hasMore ? String(nextCursor) : null,
+    hasMore,
+    remainingBuckets: Math.max(allBuckets.length - nextCursor, 0),
+  };
+});
+
+const deleteCollectionDocs = async (collectionName) => {
+  let deleted = 0;
+  while (true) {
+    const snapshot = await db.collection(collectionName).limit(200).get();
+    if (snapshot.empty) break;
+
+    const batch = db.batch();
+    snapshot.docs.forEach((docSnap) => {
+      batch.delete(docSnap.ref);
+    });
+    await batch.commit();
+    deleted += snapshot.size;
+  }
+  return deleted;
+};
+
+exports.resetSurveyAnalyticsData = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 2,
+  timeoutSeconds: 120,
+}, async (request) => {
+  if (!request.auth || !isAdminCaller(request.auth)) {
+    throw new HttpsError('permission-denied', 'Admin access is required.');
+  }
+
+  const confirmation = String(request.data?.confirmText || '').trim();
+  if (confirmation !== 'RESET SURVEY DATA') {
+    throw new HttpsError('failed-precondition', 'Explicit confirmation text is required.');
+  }
+
+  const clearResponses = Boolean(request.data?.clearResponses);
+  const clearAggregates = Boolean(request.data?.clearAggregates);
+  if (!clearResponses && !clearAggregates) {
+    throw new HttpsError('invalid-argument', 'At least one reset target must be selected.');
+  }
+
+  const deletedResponses = clearResponses ? await deleteCollectionDocs('responses') : 0;
+  const deletedAggregates = clearAggregates ? await deleteCollectionDocs(RESPONSE_ANALYTICS_COLLECTION) : 0;
+
+  await writeAuditEvent({
+    action: 'survey_analytics_data_reset',
+    actorUid: request.auth.uid,
+    actorEmail: request.auth.token.email,
+    details: {
+      clearResponses,
+      clearAggregates,
+      deletedResponses,
+      deletedAggregates,
+    },
+  });
+
+  return {
+    ok: true,
+    deletedResponses,
+    deletedAggregates,
+  };
 });
 
 exports.aiStrategyAdvisor = onCall({

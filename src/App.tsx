@@ -7,6 +7,7 @@ import { Toaster as Sonner } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/auth/context';
 import { RequireAuth } from '@/auth/guards/RequireAuth';
 import { RequireRole } from '@/auth/guards/RequireRole';
+import { RequireAdminAccess } from '@/auth/guards/RequireAdminAccess';
 import { getRoleHomePath } from '@/auth/routing';
 import SurveyPage from '@/pages/SurveyPage';
 import Login from '@/pages/Login';
@@ -14,9 +15,14 @@ import NotFound from '@/pages/NotFound';
 import { Loader2 } from 'lucide-react';
 import PublicLandingPage from '@/pages/PublicLandingPage';
 import SurveyLandingPage from '@/pages/SurveyLandingPage';
+import MethodologyPage from '@/pages/MethodologyPage';
+import CoveragePage from '@/pages/CoveragePage';
+import DemoDashboardPage from '@/pages/DemoDashboardPage';
 import Signup from '@/pages/Signup';
 import AdminLogin from '@/pages/AdminLogin';
 import SubscriberInvitePage from '@/pages/SubscriberInvitePage';
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage from '@/pages/ResetPasswordPage';
 
 const SubscriberDashboardPage = lazy(() => import('@/pages/SubscriberDashboardPage'));
 const AdminUsersPage = lazy(() => import('@/pages/AdminUsersPage'));
@@ -30,8 +36,10 @@ const SubscriberPendingPage = lazy(() => import('@/pages/SubscriberPendingPage')
 const AdminAliasesPage = lazy(() => import('@/pages/AdminAliasesPage'));
 const AdminRafflesPage = lazy(() => import('@/pages/AdminRafflesPage'));
 const AdminSubscriberViewPage = lazy(() => import('@/pages/AdminSubscriberViewPage'));
+const AdminSubscriptionManagementPage = lazy(() => import('@/pages/AdminSubscriptionManagementPage'));
 
 const queryClient = new QueryClient();
+const VALID_SURVEY_COUNTRIES = new Set(['rwanda', 'uganda', 'burundi']);
 
 const LoadingScreen: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -42,10 +50,14 @@ const LoadingScreen: React.FC = () => (
   </div>
 );
 
+const canUseAdminSurveyMode = (state: ReturnType<typeof useAuth>['state']) =>
+  state.isAuthenticated
+  && Boolean(state.user)
+  && state.user?.role === 'admin'
+  && state.user?.hasAdminClaim === true;
+
 const RoleRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state } = useAuth();
-
-  if (state.isLoading) return <LoadingScreen />;
 
   if (!state.isAuthenticated || !state.user) {
     return <>{children}</>;
@@ -57,7 +69,9 @@ const RoleRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const PublicSurveyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state } = useAuth();
 
-  if (state.isLoading) return <LoadingScreen />;
+  if (canUseAdminSurveyMode(state)) {
+    return <>{children}</>;
+  }
 
   if (state.isAuthenticated && state.user) {
     return <Navigate to={getRoleHomePath(state.user.role)} replace />;
@@ -71,7 +85,7 @@ const AdminSurveyGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (state.isLoading) return <LoadingScreen />;
 
-  if (state.isAuthenticated && state.user && state.user.role === 'admin') {
+  if (canUseAdminSurveyMode(state)) {
     return <>{children}</>;
   }
 
@@ -80,11 +94,26 @@ const AdminSurveyGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 const LegacySurveyRedirect: React.FC = () => {
   const { country, wave } = useParams<{ country: string; wave?: string }>();
+  const normalizedCountry = String(country || '').toLowerCase();
+  if (!VALID_SURVEY_COUNTRIES.has(normalizedCountry)) {
+    return <Navigate to="/survey" replace />;
+  }
   const target = wave ? `/survey/start/${country}/${wave}` : `/survey/start/${country}`;
   return <Navigate to={target} replace />;
 };
 
-const AppRoutes: React.FC = () => (
+const ValidatedSurveyStartRoute: React.FC = () => {
+  const { country } = useParams<{ country?: string }>();
+  const normalizedCountry = String(country || '').toLowerCase();
+
+  if (country && !VALID_SURVEY_COUNTRIES.has(normalizedCountry)) {
+    return <Navigate to="/survey" replace />;
+  }
+
+  return <SurveyPage />;
+};
+
+export const AppRoutes: React.FC = () => (
   <Routes>
     <Route
       path="/"
@@ -94,6 +123,10 @@ const AppRoutes: React.FC = () => (
         </RoleRedirect>
       }
     />
+    <Route path="/insights" element={<Navigate to="/#insights" replace />} />
+    <Route path="/methodology" element={<MethodologyPage />} />
+    <Route path="/coverage" element={<CoveragePage />} />
+    <Route path="/demo" element={<DemoDashboardPage />} />
 
     <Route
       path="/survey"
@@ -107,7 +140,7 @@ const AppRoutes: React.FC = () => (
       path="/survey/start"
       element={
         <PublicSurveyGate>
-          <SurveyPage />
+          <Navigate to="/survey" replace />
         </PublicSurveyGate>
       }
     />
@@ -115,7 +148,7 @@ const AppRoutes: React.FC = () => (
       path="/survey/start/:country"
       element={
         <PublicSurveyGate>
-          <SurveyPage />
+          <ValidatedSurveyStartRoute />
         </PublicSurveyGate>
       }
     />
@@ -123,12 +156,20 @@ const AppRoutes: React.FC = () => (
       path="/survey/start/:country/:wave"
       element={
         <PublicSurveyGate>
-          <SurveyPage />
+          <ValidatedSurveyStartRoute />
         </PublicSurveyGate>
       }
     />
     <Route path="/survey/:country" element={<LegacySurveyRedirect />} />
     <Route path="/survey/:country/:wave" element={<LegacySurveyRedirect />} />
+    <Route
+      path="/admin/survey"
+      element={
+        <AdminSurveyGate>
+          <Navigate to="/survey" replace />
+        </AdminSurveyGate>
+      }
+    />
     <Route
       path="/admin/survey/:country"
       element={
@@ -147,6 +188,9 @@ const AppRoutes: React.FC = () => (
     />
 
     <Route path="/login" element={<Login />} />
+    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <Route path="/get-started" element={<Signup />} />
     <Route path="/signup" element={<Signup />} />
     <Route path="/admin/login" element={<AdminLogin />} />
     <Route path="/invite/:token" element={<SubscriberInvitePage />} />
@@ -155,11 +199,11 @@ const AppRoutes: React.FC = () => (
       path="/admin"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminSubscriberViewPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />
@@ -167,11 +211,11 @@ const AppRoutes: React.FC = () => (
       path="/admin/users"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminUsersPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />
@@ -179,11 +223,11 @@ const AppRoutes: React.FC = () => (
       path="/admin/unrecognized"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminUnrecognizedEntriesPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />
@@ -191,11 +235,23 @@ const AppRoutes: React.FC = () => (
       path="/admin/subscribers"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminSubscribersPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
+        </RequireAuth>
+      }
+    />
+    <Route
+      path="/admin/subscriptions"
+      element={
+        <RequireAuth redirectTo="/admin/login">
+          <RequireAdminAccess>
+            <Suspense fallback={<LoadingScreen />}>
+              <AdminSubscriptionManagementPage />
+            </Suspense>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />
@@ -203,11 +259,11 @@ const AppRoutes: React.FC = () => (
       path="/admin/questionnaires"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminQuestionnairesPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />
@@ -215,11 +271,11 @@ const AppRoutes: React.FC = () => (
       path="/admin/panels"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminPanelsPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />
@@ -227,11 +283,11 @@ const AppRoutes: React.FC = () => (
       path="/admin/reports"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminReportsPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />
@@ -239,11 +295,11 @@ const AppRoutes: React.FC = () => (
       path="/admin/aliases"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminAliasesPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />
@@ -251,11 +307,11 @@ const AppRoutes: React.FC = () => (
       path="/admin/raffles"
       element={
         <RequireAuth redirectTo="/admin/login">
-          <RequireRole allowedRoles={['admin']}>
+          <RequireAdminAccess>
             <Suspense fallback={<LoadingScreen />}>
               <AdminRafflesPage />
             </Suspense>
-          </RequireRole>
+          </RequireAdminAccess>
         </RequireAuth>
       }
     />

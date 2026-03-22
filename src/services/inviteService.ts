@@ -1,4 +1,4 @@
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
 import { CountryCode } from '@/auth/types';
@@ -49,8 +49,8 @@ const acceptInviteCallable = httpsCallable<
 >(functions, 'acceptInvite');
 
 export const inviteService = {
-  listInvites: async (): Promise<SubscriberInvite[]> => {
-    const snapshot = await getDocs(collection(db, INVITES_COLLECTION));
+  listInvites: async (limitCount = 100): Promise<SubscriberInvite[]> => {
+    const snapshot = await getDocs(query(collection(db, INVITES_COLLECTION), orderBy('createdAt', 'desc'), limit(limitCount)));
     return snapshot.docs.map((docSnap) => docSnap.data() as SubscriberInvite);
   },
 

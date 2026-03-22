@@ -1,0 +1,32 @@
+{
+  "displayName": "BrandEdge invite acceptance failures",
+  "documentation": {
+    "content": "Invite acceptance is failing repeatedly. Check invite expiry, auth email matching, and claims sync.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "BrandEdge invite acceptance failures threshold",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/brandedge_invite_accept_failures\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 5,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "enabled": true,
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

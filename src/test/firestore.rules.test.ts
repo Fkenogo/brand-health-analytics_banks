@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 
 const PROJECT_ID = 'brand-health-analytics';
 
@@ -97,6 +97,40 @@ describe('firestore.rules hardening', () => {
         userId: 'sub-1',
         email: 'sub1@example.com',
       });
+
+      await setDoc(doc(db, 'subscriptionPlans', 'standard'), {
+        id: 'standard',
+        publicName: 'Standard',
+        positioningLine: 'Full operating view for subscriber teams',
+        benefits: ['Exports enabled'],
+        isActive: true,
+        sortOrder: 20,
+        featured: true,
+        ctaLabel: 'Request Standard Access',
+        ctaTarget: '/signup',
+        entitlementMapping: { tier: 'standard', aiAddon: false },
+        pricing: {
+          monthly: { USD: 499, BIF: 2951086, RWF: 732933, UGX: 1850791 },
+          annual: { USD: 5240, BIF: 30986403, RWF: 7695797, UGX: 19433306 },
+        },
+      });
+
+      await setDoc(doc(db, 'subscriptionPlans', 'internal-premium'), {
+        id: 'internal-premium',
+        publicName: 'Premium',
+        positioningLine: 'Internal draft premium plan',
+        benefits: ['AI support'],
+        isActive: false,
+        sortOrder: 30,
+        featured: false,
+        ctaLabel: 'Discuss Premium Access',
+        ctaTarget: '/signup',
+        entitlementMapping: { tier: 'standard', aiAddon: true },
+        pricing: {
+          monthly: { USD: 699, BIF: 4133886, RWF: 1025133, UGX: 2592391 },
+          annual: { USD: 7340, BIF: 43405803, RWF: 10763897, UGX: 27220106 },
+        },
+      });
     });
   });
 
@@ -121,6 +155,63 @@ describe('firestore.rules hardening', () => {
         email: 'sub1@example.com',
       }),
     );
+
+    await assertSucceeds(
+      setDoc(doc(db, 'subscriptionPlans', 'plan-admin-created'), {
+        id: 'plan-admin-created',
+        publicName: 'Plan Admin Created',
+        positioningLine: 'Admin-only write path',
+        benefits: ['One benefit'],
+        isActive: true,
+        sortOrder: 40,
+        featured: false,
+        ctaLabel: 'Request Access',
+        ctaTarget: '/signup',
+        entitlementMapping: { tier: 'standard', aiAddon: false },
+        pricing: {
+          monthly: { USD: 100, BIF: 591400, RWF: 146700, UGX: 370900 },
+          annual: { USD: 1050, BIF: 6209700, RWF: 1540350, UGX: 3894450 },
+        },
+      }),
+    );
+  });
+
+  it('allows public reads of active subscription plans', async () => {
+    const anon = testEnv.unauthenticatedContext();
+    const db = anon.firestore();
+
+    await assertSucceeds(getDoc(doc(db, 'subscriptionPlans', 'standard')));
+  });
+
+  it('denies public reads of inactive subscription plans', async () => {
+    const anon = testEnv.unauthenticatedContext();
+    const db = anon.firestore();
+
+    await assertFails(getDoc(doc(db, 'subscriptionPlans', 'internal-premium')));
+  });
+
+  it('denies subscriber writes to subscription plans', async () => {
+    const subscriber = testEnv.authenticatedContext('sub-1', {
+      role: 'subscriber',
+      subscriber_state: 'active',
+    });
+    const db = subscriber.firestore();
+
+    await assertFails(
+      setDoc(doc(db, 'subscriptionPlans', 'standard'), {
+        id: 'standard',
+        publicName: 'Tampered',
+        isActive: true,
+      }),
+    );
+  });
+
+  it('returns only active plans to public list queries', async () => {
+    const anon = testEnv.unauthenticatedContext();
+    const db = anon.firestore();
+    const snapshot = await getDocs(query(collection(db, 'subscriptionPlans'), where('isActive', '==', true)));
+
+    expect(snapshot.docs.map((docSnap) => docSnap.id)).toEqual(['standard']);
   });
 
   it('allows active subscriber to read responses in assigned countries', async () => {
@@ -143,11 +234,11 @@ describe('firestore.rules hardening', () => {
     await assertFails(getDoc(doc(db, 'responses', 'resp-ug-1')));
   });
 
-  it('allows public anonymous valid response create', async () => {
+  it('denies public anonymous response create because survey submit is backend-only', async () => {
     const anon = testEnv.unauthenticatedContext();
     const db = anon.firestore();
 
-    await assertSucceeds(setDoc(doc(db, 'responses', 'resp-public-ok'), validPublicResponse));
+    await assertFails(setDoc(doc(db, 'responses', 'resp-public-ok'), validPublicResponse));
   });
 
   it('denies public invalid response create with forbidden field', async () => {

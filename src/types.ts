@@ -1,6 +1,47 @@
 /* Define supported country codes */
 export type CountryCode = 'rwanda' | 'uganda' | 'burundi';
 
+export type AnalyticsBaseType =
+  | 'total_responses'
+  | 'aware_respondents'
+  | 'ever_used_respondents'
+  | 'current_users'
+  | 'preferred_users'
+  | 'market_total'
+  | 'multi_bank_users'
+  | 'segment_population'
+  | 'time_series_window';
+export type AnalyticsMetricSource = 'aggregate' | 'raw' | 'hybrid';
+export type AnalyticsMetricReliability = 'high' | 'medium' | 'low' | 'unknown';
+
+export interface AnalyticsMetricCompare {
+  bankId?: string | null;
+  bankName?: string | null;
+  value: number | null;
+  count?: number | null;
+  base_n?: number | null;
+  base_type: AnalyticsBaseType | null;
+  source: AnalyticsMetricSource;
+  delta: number | null;
+  delta_pct: number | null;
+  valid: boolean;
+  notes?: string[] | null;
+}
+
+export interface AnalyticsMetricValue {
+  value: number | null;
+  count?: number | null;
+  base_n?: number | null;
+  base_type: AnalyticsBaseType | null;
+  source: AnalyticsMetricSource;
+  metric_family?: string | null;
+  compare_supported?: boolean;
+  compare?: AnalyticsMetricCompare | null;
+  reliability?: AnalyticsMetricReliability;
+  notes?: string[] | null;
+  scope_signature?: string | null;
+}
+
 export type Language = 'en' | 'rw' | 'fr';
 
 export interface Localized {
@@ -53,6 +94,7 @@ export interface Question {
   filterChoices?: (data: SurveyResponse) => Choice[];
   repeatFor?: 'all_country_banks' | 'c3_aware_banks' | 'c4_ever_used';
   isTerminationPoint?: boolean;
+  isPreambleStep?: boolean;
 }
 
 export interface SurveyResponse {
@@ -66,6 +108,21 @@ export interface SurveyResponse {
   question_timings: Record<string, number>;
   language_at_submission: Language;
   _status?: string;
+  submitted_at?: unknown;
+  submitted_at_iso?: string;
+  analytics_date_bucket?: string;
+  request_country?: CountryCode | null;
+  country_mismatch_flag?: boolean;
+  app_check_verified?: boolean;
+  suspicious_submission_flag?: boolean;
+  repeat_submission_flag?: boolean;
+  completion_speed_flag?: boolean;
+  duplicate_payload_flag?: boolean;
+  metadata_missing_flag?: boolean;
+  submission_hash?: string;
+  admin_test_submission?: boolean;
+  submission_mode?: 'public_pilot' | 'admin_test';
+  _source?: string;
   // Dynamic survey fields
   selected_country?: CountryCode;
   consent?: 'yes' | 'no';

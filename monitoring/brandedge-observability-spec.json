@@ -1,0 +1,104 @@
+{
+  "metrics": [
+    {
+      "name": "brandedge_admin_claim_failures",
+      "description": "Count of failed admin claim repair/bootstrap/sync operations.",
+      "filter": "jsonPayload.event=(\"admin_claim_repair_failed\" OR \"admin_claim_bootstrap_failed\" OR \"user_claim_sync_failed\")"
+    },
+    {
+      "name": "brandedge_subscription_plan_failures",
+      "description": "Count of failed subscription plan backend operations.",
+      "filter": "jsonPayload.event=(\"subscription_plan_list_failed\" OR \"subscription_plan_initialize_failed\" OR \"subscription_plan_save_failed\" OR \"subscription_plan_delete_failed\")"
+    },
+    {
+      "name": "brandedge_entitlement_command_failures",
+      "description": "Count of failed subscriber entitlement commands.",
+      "filter": "jsonPayload.event=\"subscriber_entitlement_command_failed\""
+    },
+    {
+      "name": "brandedge_invite_accept_failures",
+      "description": "Count of failed invite acceptance attempts.",
+      "filter": "jsonPayload.event=\"invite_accept_failed\""
+    },
+    {
+      "name": "brandedge_survey_submission_rejections",
+      "description": "Count of rejected public survey submissions.",
+      "filter": "jsonPayload.event=\"public_survey_submission_rejected\""
+    },
+    {
+      "name": "brandedge_survey_submission_flags",
+      "description": "Count of accepted but suspicious public survey submissions.",
+      "filter": "jsonPayload.event=\"public_survey_submission_flagged\""
+    },
+    {
+      "name": "brandedge_identity_migration_conflicts",
+      "description": "Count of legacy identity migration conflicts requiring manual review.",
+      "filter": "jsonPayload.event=\"legacy_user_migration_conflict\""
+    }
+  ],
+  "alerts": [
+    {
+      "name": "brandedge-admin-claim-failures",
+      "displayName": "BrandEdge admin claim failures",
+      "metric": "brandedge_admin_claim_failures",
+      "resourceType": "cloud_run_revision",
+      "threshold": 3,
+      "duration": "300s",
+      "documentation": "Admin claim repair/bootstrap has failed repeatedly. Check canonical users/{uid} records, Cloud Functions deployment, and custom claim writes."
+    },
+    {
+      "name": "brandedge-subscription-plan-failures",
+      "displayName": "BrandEdge subscription plan failures",
+      "metric": "brandedge_subscription_plan_failures",
+      "resourceType": "cloud_run_revision",
+      "threshold": 3,
+      "duration": "300s",
+      "documentation": "Subscription plan management backend is failing. Check callable deployment, permissions, and plan validation paths."
+    },
+    {
+      "name": "brandedge-entitlement-command-failures",
+      "displayName": "BrandEdge entitlement command failures",
+      "metric": "brandedge_entitlement_command_failures",
+      "resourceType": "cloud_run_revision",
+      "threshold": 5,
+      "duration": "300s",
+      "documentation": "Subscriber entitlement commands are failing. Check admin claims, callable health, and validation conflicts."
+    },
+    {
+      "name": "brandedge-invite-accept-failures",
+      "displayName": "BrandEdge invite acceptance failures",
+      "metric": "brandedge_invite_accept_failures",
+      "resourceType": "cloud_run_revision",
+      "threshold": 5,
+      "duration": "300s",
+      "documentation": "Invite acceptance is failing repeatedly. Check invite expiry, auth email matching, and claims sync."
+    },
+    {
+      "name": "brandedge-survey-rejections-spike",
+      "displayName": "BrandEdge survey rejection spike",
+      "metric": "brandedge_survey_submission_rejections",
+      "resourceType": "cloud_run_revision",
+      "threshold": 15,
+      "duration": "300s",
+      "documentation": "Public survey rejection volume spiked. Review App Check, cooldown rules, and abuse patterns."
+    },
+    {
+      "name": "brandedge-survey-flagged-spike",
+      "displayName": "BrandEdge suspicious survey submission spike",
+      "metric": "brandedge_survey_submission_flags",
+      "resourceType": "cloud_run_revision",
+      "threshold": 20,
+      "duration": "600s",
+      "documentation": "Suspicious survey submissions increased. Review flagged response patterns and abuse controls."
+    },
+    {
+      "name": "brandedge-identity-migration-conflicts",
+      "displayName": "BrandEdge legacy identity migration conflicts",
+      "metric": "brandedge_identity_migration_conflicts",
+      "resourceType": "cloud_run_revision",
+      "threshold": 1,
+      "duration": "60s",
+      "documentation": "A legacy user migration hit a conflict. Review duplicate email or UID mismatch cases in Admin Users."
+    }
+  ]
+}

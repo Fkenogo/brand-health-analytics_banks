@@ -1,0 +1,32 @@
+{
+  "displayName": "BrandEdge suspicious survey submission spike",
+  "documentation": {
+    "content": "Suspicious survey submissions increased. Review flagged response patterns and abuse controls.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "BrandEdge suspicious survey submission spike threshold",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/brandedge_survey_submission_flags\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 20,
+        "duration": "600s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "enabled": true,
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

@@ -172,9 +172,14 @@ const buildAnalyticsSafeResponse = (source: Partial<SurveyResponse>): Partial<Su
   }, {});
 };
 
+export const resolveResponseCountry = (
+  response: Partial<SurveyResponse>,
+  fallback: CountryCode = 'rwanda',
+): CountryCode => coerceCountry(response.country || response.selected_country, fallback);
+
 export const normalizeResponseForSubmission = (input: NormalizeInput): NormalizeOutput => {
   const nowIso = input.nowIso || new Date().toISOString();
-  const selectedCountry = coerceCountry(input.data.selected_country || input.data.country, 'rwanda');
+  const selectedCountry = resolveResponseCountry(input.data, 'rwanda');
   const currentlyUsing = asStringArray(input.data.c5_currently_using);
   const bankCount = currentlyUsing.length;
 
@@ -256,7 +261,7 @@ export const normalizeResponseForSubmission = (input: NormalizeInput): Normalize
 };
 
 export const normalizeResponseForAnalyticsRead = (response: SurveyResponse): SurveyResponse => {
-  const selectedCountry = coerceCountry(response.selected_country || response.country, 'rwanda');
+  const selectedCountry = resolveResponseCountry(response, 'rwanda');
   const currentlyUsing = asStringArray(response.c5_currently_using);
   const bankCount = Number.isInteger(response.bank_count)
     ? Number(response.bank_count)

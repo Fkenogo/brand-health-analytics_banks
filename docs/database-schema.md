@@ -72,6 +72,13 @@ erDiagram
     string country
     string timestamp
     string _status
+    string language_at_submission
+    string submitted_at_iso
+    string request_country
+    bool country_mismatch_flag
+    string submission_mode
+    bool admin_test_submission
+    string _source
     string c1_top_of_mind
     string c1_recognized_bank_id
     string[] c2_recognized_bank_ids
@@ -93,6 +100,12 @@ erDiagram
     string deviceId
     string country
     string source
+    string language_at_submission
+    string submission_mode
+    bool admin_test_submission
+    bool raffleOptIn
+    bool panelOptIn
+    string _source
     string status
     number participationCount
     string lastParticipationAt
@@ -121,6 +134,12 @@ erDiagram
     string deviceId
     string country
     string source
+    string language_at_submission
+    string submission_mode
+    bool admin_test_submission
+    bool raffleOptIn
+    bool panelOptIn
+    string _source
     string contactName
     string contactEmail
     string contactPhone
@@ -192,6 +211,8 @@ erDiagram
 - `invites.userId` points to `users.id`
 - `raffleEntries.responseId` references `responses.response_id` (not Firestore doc id)
 - `panelists.lastResponseId` references `responses.response_id`
+- `responses.submission_mode` distinguishes `public_pilot` vs `admin_test`
+- `raffleEntries.submission_mode` and `panelists.submission_mode` mirror the same monitoring split
 - AI usage legacy path also stores per-user/per-month document key (`{userId}_{month}`)
 
 ## Nested Objects / Computed Fields
@@ -213,7 +234,7 @@ erDiagram
 - immutable `createdBy`/`updatedBy` on admin-mutated collections
 - `version`/`schemaVersion` on response payloads
 - normalized `userUid` foreign key on all user-owned docs
-- explicit `submittedAt` server timestamp for responses (currently client ISO)
+- explicit `submittedAt` server timestamp for responses (partially covered by `submitted_at`, but reads still often use ISO helpers)
 
 ## Inconsistent Naming
 - `gender` vs `e3_gender`

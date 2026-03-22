@@ -1,4 +1,4 @@
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
 
@@ -21,8 +21,8 @@ export const auditService = {
   log: async (event: Omit<AuditEvent, 'id' | 'timestamp'>) => {
     await logAuditCallable(event);
   },
-  list: async (): Promise<AuditEvent[]> => {
-    const q = query(collection(db, AUDIT_COLLECTION), orderBy('timestamp', 'desc'));
+  list: async (limitCount = 200): Promise<AuditEvent[]> => {
+    const q = query(collection(db, AUDIT_COLLECTION), orderBy('timestamp', 'desc'), limit(limitCount));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...(docSnap.data() as AuditEvent) }));
   },

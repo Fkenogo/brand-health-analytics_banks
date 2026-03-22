@@ -1,0 +1,32 @@
+{
+  "displayName": "BrandEdge admin claim failures",
+  "documentation": {
+    "content": "Admin claim repair/bootstrap has failed repeatedly. Check canonical users/{uid} records, Cloud Functions deployment, and custom claim writes.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "BrandEdge admin claim failures threshold",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/brandedge_admin_claim_failures\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 3,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "enabled": true,
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

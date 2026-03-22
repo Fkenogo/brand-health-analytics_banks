@@ -1,0 +1,32 @@
+{
+  "displayName": "BrandEdge legacy identity migration conflicts",
+  "documentation": {
+    "content": "A legacy user migration hit a conflict. Review duplicate email or UID mismatch cases in Admin Users.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "BrandEdge legacy identity migration conflicts threshold",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/brandedge_identity_migration_conflicts\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 1,
+        "duration": "60s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "enabled": true,
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

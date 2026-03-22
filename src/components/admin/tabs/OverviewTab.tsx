@@ -37,7 +37,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
   // Calculate demographics from responses
   const calculateDemographics = () => {
-    const responses = getResponses().filter(r => r.selected_country === activeCountry);
+    const responses = getResponses().filter(r => (r.country || r.selected_country) === activeCountry);
     const total = responses.length || 1;
     
     // Age distribution

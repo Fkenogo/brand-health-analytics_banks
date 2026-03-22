@@ -1,5 +1,11 @@
-import { BANKS } from '@/constants';
-import { CountryCode, SurveyResponse } from '@/types';
+import { ANALYTICS_BASE_TYPES, BANKS } from '@/constants';
+import {
+  AnalyticsMetricCompare,
+  AnalyticsMetricReliability,
+  AnalyticsMetricValue,
+  CountryCode,
+  SurveyResponse,
+} from '@/types';
 
 export type TimeWindow = 'all' | '30d' | '90d' | '12m';
 export type LoyaltyBucket = 'Committed' | 'Favors' | 'Potential' | 'Accessibles' | 'Rejectors';
@@ -66,9 +72,11 @@ export interface IntentSummary {
 
 export interface TrendPoint {
   month: string;
-  awareness: number;
-  usage: number;
-  nps: number;
+  awareness: number | null;
+  topOfMind?: number;
+  spontaneous?: number;
+  usage: number | null;
+  nps: number | null;
 }
 
 export interface CompetitiveRow {
@@ -186,6 +194,99 @@ export interface UsageDiagnostics {
   opportunities: UsageOpportunity[];
 }
 
+export type UsageToplineMetricKey =
+  | 'everUsed'
+  | 'currentUsage'
+  | 'preferred'
+  | 'consideration'
+  | 'trialRate'
+  | 'retention'
+  | 'churn'
+  | 'preferenceCapture';
+
+export interface UsageToplineMetric extends AnalyticsMetricValue {
+  key: UsageToplineMetricKey;
+  label: string;
+  count: number;
+}
+
+export type UsageToplineMetrics = Record<UsageToplineMetricKey, UsageToplineMetric>;
+
+export const getMetricReliability = (baseN?: number | null): AnalyticsMetricReliability => {
+  if (!Number.isFinite(baseN as number) || Number(baseN) <= 0) return 'unknown';
+  if (Number(baseN) >= 30) return 'high';
+  if (Number(baseN) >= 10) return 'medium';
+  return 'low';
+};
+
+export const validateCompareCompatibility = (
+  primary: AnalyticsMetricValue | null | undefined,
+  compare: AnalyticsMetricValue | null | undefined,
+): { valid: boolean; reasons: string[] } => {
+  const reasons: string[] = [];
+  if (!primary || !compare) reasons.push('missing_metric');
+  if (primary?.value === null || primary?.value === undefined || compare?.value === null || compare?.value === undefined) {
+    reasons.push('missing_value');
+  }
+  if (primary?.base_type !== compare?.base_type) reasons.push('base_type_mismatch');
+  if ((primary?.metric_family || null) !== (compare?.metric_family || null)) reasons.push('metric_family_mismatch');
+  if ((primary?.scope_signature || null) !== (compare?.scope_signature || null)) reasons.push('scope_mismatch');
+  return { valid: reasons.length === 0, reasons };
+};
+
+export const createCompareMetric = (
+  primary: AnalyticsMetricValue,
+  compare: AnalyticsMetricValue | null | undefined,
+  extras?: Pick<AnalyticsMetricCompare, 'bankId' | 'bankName'>,
+): AnalyticsMetricCompare | null => {
+  if (!compare) return null;
+  const compatibility = validateCompareCompatibility(primary, compare);
+  const compareValue = compare.value;
+  const primaryValue = primary.value;
+  const delta = primaryValue === null || compareValue === null ? null : Number((primaryValue - compareValue).toFixed(1));
+  const deltaPct = delta === null || compareValue === 0 || compareValue === null
+    ? null
+    : Number(((delta / Math.abs(compareValue)) * 100).toFixed(1));
+  return {
+    bankId: extras?.bankId ?? null,
+    bankName: extras?.bankName ?? null,
+    value: compareValue,
+    count: compare.count ?? null,
+    base_n: compare.base_n ?? null,
+    base_type: compare.base_type ?? null,
+    source: compare.source,
+    delta: compatibility.valid ? delta : null,
+    delta_pct: compatibility.valid ? deltaPct : null,
+    valid: compatibility.valid,
+    notes: compatibility.valid ? compare.notes ?? null : compatibility.reasons,
+  };
+};
+
+export const createMetric = (input: {
+  value: number | null;
+  count?: number | null;
+  base_n?: number | null;
+  base_type: AnalyticsMetricValue['base_type'];
+  source: AnalyticsMetricValue['source'];
+  metric_family?: string | null;
+  compare_supported?: boolean;
+  compare?: AnalyticsMetricCompare | null;
+  notes?: string[] | null;
+  scope_signature?: string | null;
+}): AnalyticsMetricValue => ({
+  value: input.value,
+  count: input.count ?? null,
+  base_n: input.base_n ?? null,
+  base_type: input.base_type ?? null,
+  source: input.source,
+  metric_family: input.metric_family ?? null,
+  compare_supported: input.compare_supported ?? false,
+  compare: input.compare ?? null,
+  reliability: getMetricReliability(input.base_n),
+  notes: input.notes ?? null,
+  scope_signature: input.scope_signature ?? null,
+});
+
 export interface MultiBankShareMetrics {
   bankId: string;
   bankName: string;
@@ -288,13 +389,14 @@ export interface MomentumPriorityRow {
 
 export interface MomentumTrendPoint {
   month: string;
-  score: number;
+  score: number | null;
   delta: number | null;
+  sample: number;
 }
 
 export interface MomentumForecastPoint {
   month: string;
-  projectedScore: number;
+  projectedScore: number | null;
 }
 
 export interface CompetitiveMomentumRow {
@@ -316,14 +418,18 @@ export interface MomentumDiagnostics {
   sensitivity: MomentumSensitivityRow[];
   priorities: MomentumPriorityRow[];
   trends: MomentumTrendPoint[];
-  velocity: number;
+  velocity: number | null;
   velocityLabel: 'Accelerating' | 'Steady growth' | 'Decelerating';
   forecast: MomentumForecastPoint[];
-  volatilityCv: number;
+  volatilityCv: number | null;
   volatilityLabel: 'Low volatility' | 'Moderate volatility' | 'High volatility';
   competitiveRows: CompetitiveMomentumRow[];
   selectedRank: number;
   gapToLeader: number;
+  validTrendPeriods: number;
+  missingTrendPeriods: number;
+  forecastEligible: boolean;
+  notes: string[];
 }
 
 export interface MarketShareRow {
@@ -438,9 +544,10 @@ export interface CompetitiveIntelligenceDiagnostics {
 
 export interface TrendMonthlyPoint {
   month: string;
-  awareness: number;
-  usage: number;
-  nps: number;
+  awareness: number | null;
+  usage: number | null;
+  nps: number | null;
+  sample: number;
 }
 
 export interface TrendForecastDiagnostics {
@@ -452,10 +559,10 @@ export interface TrendForecastDiagnostics {
     qoqPct: number | null;
     yoyPp: number | null;
     yoyPct: number | null;
-    ytdAverage: number;
+    ytdAverage: number | null;
   };
   growth: {
-    averageGrowthPct: number;
+    averageGrowthPct: number | null;
     cagrPct: number | null;
     exponentialSignal: boolean;
   };
@@ -473,6 +580,8 @@ export interface TrendForecastDiagnostics {
     weakestMonth: string | null;
   };
   forecast: {
+    eligible: boolean;
+    reasons: string[];
     smaNext: number | null;
     wmaNext: number | null;
     regressionNext: number | null;
@@ -483,18 +592,61 @@ export interface TrendForecastDiagnostics {
     confidenceHigh: number | null;
   };
   signal: {
-    slope: number;
+    slope: number | null;
     isSignificantSignal: boolean;
     diagnosis: string;
   };
   highlights: string[];
+  validPeriods: number;
+  missingPeriods: number;
 }
 
 const round = (value: number) => Math.round(value);
 const pct = (num: number, den: number) => (den > 0 ? (num / den) * 100 : 0);
+const isFiniteNumber = (value: number | null | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
+const averageOrNull = (values: Array<number | null | undefined>) => {
+  const valid = values.filter(isFiniteNumber);
+  if (valid.length === 0) return null;
+  return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+};
+const sumOrNull = (values: Array<number | null | undefined>) => {
+  const valid = values.filter(isFiniteNumber);
+  if (valid.length === 0) return null;
+  return valid.reduce((sum, value) => sum + value, 0);
+};
+const deltaPp = (current: number | null | undefined, previous: number | null | undefined) => {
+  if (!isFiniteNumber(current) || !isFiniteNumber(previous)) return null;
+  return Number((current - previous).toFixed(1));
+};
+const deltaPct = (current: number | null | undefined, previous: number | null | undefined) => {
+  if (!isFiniteNumber(current) || !isFiniteNumber(previous) || previous === 0) return null;
+  return Number((((current - previous) / previous) * 100).toFixed(1));
+};
+const quarterAverage = (values: Array<number | null | undefined>) => {
+  if (values.length !== 3 || values.some((value) => !isFiniteNumber(value))) return null;
+  return values.reduce((sum, value) => sum + (value as number), 0) / 3;
+};
+const monthWindows = (months: number, now = new Date()) => {
+  const windows: Array<{ start: number; end: number; month: string; monthIndex: number }> = [];
+  for (let i = months - 1; i >= 0; i -= 1) {
+    const startDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const endDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+    windows.push({
+      start: startDate.getTime(),
+      end: endDate.getTime(),
+      month: MONTH_NAMES[startDate.getMonth()],
+      monthIndex: startDate.getMonth(),
+    });
+  }
+  return windows;
+};
+const validSeriesPoints = (values: Array<number | null | undefined>) =>
+  values
+    .map((value, idx) => (isFiniteNumber(value) ? { x: idx + 1, y: value } : null))
+    .filter((point): point is { x: number; y: number } => point !== null);
 
 const responseCountry = (response: SurveyResponse): CountryCode | null =>
-  (response.selected_country || response.country || null) as CountryCode | null;
+  (response.country || response.selected_country || null) as CountryCode | null;
 
 const parseTimestamp = (value?: string): number | null => {
   if (!value) return null;
@@ -970,6 +1122,147 @@ export const computeUsageDiagnostics = (
   };
 };
 
+const buildUsageMetric = (
+  key: UsageToplineMetricKey,
+  label: string,
+  value: number,
+  count: number,
+  base_n: number,
+  base_type: UsageToplineMetric['base_type'],
+  compare?: AnalyticsMetricCompare,
+): UsageToplineMetric => ({
+  key,
+  label,
+  ...createMetric({
+    value,
+    count,
+    base_n,
+    base_type,
+    source: 'raw',
+    metric_family: 'usage_topline',
+    compare_supported: Boolean(compare),
+    compare: compare ?? null,
+  }),
+});
+
+export const buildUsageToplineMetricsFromRaw = (
+  selectedMetrics: BankMetrics | null,
+  usageDiagnostics: UsageDiagnostics | null,
+  compareMetrics: BankMetrics | null,
+  compareUsageDiagnostics: UsageDiagnostics | null,
+  compareBankId?: string | null,
+  compareBankName?: string | null,
+): UsageToplineMetrics | null => {
+  if (!selectedMetrics || !usageDiagnostics) return null;
+
+  const scopeSignature = `usage_topline:${selectedMetrics.bankId || 'selected'}`;
+  const compareFor = (
+    value: number,
+    base_n: number,
+    base_type: UsageToplineMetric['base_type'],
+    compareValue?: number | null,
+    compareBaseN?: number | null,
+  ): AnalyticsMetricCompare | undefined => {
+    if (!compareBankId || !compareBankName || compareValue === null || compareValue === undefined || compareBaseN === null || compareBaseN === undefined) {
+      return undefined;
+    }
+    return createCompareMetric(
+      createMetric({
+        value,
+        base_n,
+        base_type,
+        source: 'raw',
+        metric_family: 'usage_topline',
+        scope_signature: scopeSignature,
+      }),
+      createMetric({
+        value: compareValue,
+        base_n: compareBaseN,
+        base_type,
+        source: 'raw',
+        metric_family: 'usage_topline',
+        scope_signature: scopeSignature,
+      }),
+      { bankId: compareBankId, bankName: compareBankName },
+    ) || undefined;
+  };
+
+  return {
+    everUsed: buildUsageMetric(
+      'everUsed',
+      'Ever Used',
+      selectedMetrics.everUsed,
+      usageDiagnostics.everCount,
+      selectedMetrics.sample,
+      ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+      compareFor(selectedMetrics.everUsed, selectedMetrics.sample, ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, compareMetrics?.everUsed, compareMetrics?.sample),
+    ),
+    currentUsage: buildUsageMetric(
+      'currentUsage',
+      'Current Usage',
+      selectedMetrics.currentUsing,
+      usageDiagnostics.currentCount,
+      selectedMetrics.sample,
+      ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+      compareFor(selectedMetrics.currentUsing, selectedMetrics.sample, ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, compareMetrics?.currentUsing, compareMetrics?.sample),
+    ),
+    preferred: buildUsageMetric(
+      'preferred',
+      'Preferred',
+      selectedMetrics.preferred,
+      usageDiagnostics.preferredCount,
+      selectedMetrics.sample,
+      ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+      compareFor(selectedMetrics.preferred, selectedMetrics.sample, ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, compareMetrics?.preferred, compareMetrics?.sample),
+    ),
+    consideration: buildUsageMetric(
+      'consideration',
+      'Consideration',
+      selectedMetrics.considerationRate,
+      Math.round((selectedMetrics.considerationRate / 100) * usageDiagnostics.awareCount),
+      usageDiagnostics.awareCount,
+      ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS,
+      undefined,
+    ),
+    trialRate: buildUsageMetric(
+      'trialRate',
+      'Trial Rate',
+      usageDiagnostics.trialRate,
+      usageDiagnostics.everCount,
+      usageDiagnostics.awareCount,
+      ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS,
+      compareFor(usageDiagnostics.trialRate, usageDiagnostics.awareCount, ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS, compareUsageDiagnostics?.trialRate, compareUsageDiagnostics?.awareCount),
+    ),
+    retention: buildUsageMetric(
+      'retention',
+      'Retention',
+      usageDiagnostics.retentionRate,
+      usageDiagnostics.currentCount,
+      usageDiagnostics.everCount,
+      ANALYTICS_BASE_TYPES.EVER_USED_RESPONDENTS,
+      compareFor(usageDiagnostics.retentionRate, usageDiagnostics.everCount, ANALYTICS_BASE_TYPES.EVER_USED_RESPONDENTS, compareUsageDiagnostics?.retentionRate, compareUsageDiagnostics?.everCount),
+    ),
+    churn: buildUsageMetric(
+      'churn',
+      'Churn',
+      usageDiagnostics.churnRate,
+      usageDiagnostics.lapsedUsersCount,
+      usageDiagnostics.everCount,
+      ANALYTICS_BASE_TYPES.EVER_USED_RESPONDENTS,
+      compareFor(usageDiagnostics.churnRate, usageDiagnostics.everCount, ANALYTICS_BASE_TYPES.EVER_USED_RESPONDENTS, compareUsageDiagnostics?.churnRate, compareUsageDiagnostics?.everCount),
+    ),
+    preferenceCapture: buildUsageMetric(
+      'preferenceCapture',
+      'Preference Capture',
+      usageDiagnostics.preferenceRate,
+      usageDiagnostics.preferredCount,
+      usageDiagnostics.currentCount,
+      ANALYTICS_BASE_TYPES.CURRENT_USERS,
+      compareFor(usageDiagnostics.preferenceRate, usageDiagnostics.currentCount, ANALYTICS_BASE_TYPES.CURRENT_USERS, compareUsageDiagnostics?.preferenceRate, compareUsageDiagnostics?.currentCount),
+    ),
+  };
+};
+
 const computeMultiBankShareForBank = (
   multiBankResponses: SurveyResponse[],
   bankId: string,
@@ -1282,18 +1575,13 @@ export const computeMomentumDiagnostics = (
     };
   }).sort((a, b) => b.priorityScore - a.priorityScore);
 
-  const monthStarts: number[] = [];
-  for (let i = months - 1; i >= 0; i -= 1) {
-    monthStarts.push(new Date(now.getFullYear(), now.getMonth() - i, 1).getTime());
-  }
-
-  const monthRows = monthStarts.map((start, idx) => {
-    const end = idx < monthStarts.length - 1 ? monthStarts[idx + 1] : new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+  const windows = monthWindows(months, now);
+  const monthRows = windows.map(({ start, end, month }, idx) => {
     const monthResponses = trendResponses.filter((response) => {
       const ts = parseTimestamp(response.timestamp);
       return ts !== null && ts >= start && ts < end;
     });
-    const previousStart = idx > 0 ? monthStarts[idx - 1] : null;
+    const previousStart = idx > 0 ? windows[idx - 1].start : null;
     const previousEnd = start;
     const previousResponsesForMonth = previousStart === null
       ? monthResponses
@@ -1302,40 +1590,51 @@ export const computeMomentumDiagnostics = (
         return ts !== null && ts >= previousStart && ts < previousEnd;
       });
     const prevAwareness = computeBankMetrics(previousResponsesForMonth, bankId, 0).aware;
-    const monthMetrics = computeBankMetrics(monthResponses, bankId, prevAwareness);
+    const monthMetrics = monthResponses.length > 0 ? computeBankMetrics(monthResponses, bankId, prevAwareness) : null;
     return {
-      month: MONTH_NAMES[new Date(start).getMonth()],
-      score: monthMetrics.momentum,
+      month,
+      sample: monthResponses.length,
+      score: monthMetrics ? monthMetrics.momentum : null,
     };
   });
 
   const trends: MomentumTrendPoint[] = monthRows.map((row, idx) => ({
     month: row.month,
     score: row.score,
-    delta: idx === 0 ? null : Number((row.score - monthRows[idx - 1].score).toFixed(1)),
+    delta: idx === 0 ? null : deltaPp(row.score, monthRows[idx - 1].score),
+    sample: row.sample,
   }));
 
-  const recent = monthRows.slice(-3).map((row) => row.score);
-  const earlier = monthRows.slice(0, 3).map((row) => row.score);
-  const avg = (values: number[]) => (values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
-  const velocity = Number((avg(recent) - avg(earlier)).toFixed(1));
-  const velocityLabel: MomentumDiagnostics['velocityLabel'] = velocity > 3 ? 'Accelerating' : velocity >= 0 ? 'Steady growth' : 'Decelerating';
+  const recentAvg = averageOrNull(monthRows.slice(-3).map((row) => row.score));
+  const earlierAvg = averageOrNull(monthRows.slice(0, 3).map((row) => row.score));
+  const velocity = isFiniteNumber(recentAvg) && isFiniteNumber(earlierAvg)
+    ? Number((recentAvg - earlierAvg).toFixed(1))
+    : null;
+  const velocityLabel: MomentumDiagnostics['velocityLabel'] = velocity === null ? 'Steady growth' : velocity > 3 ? 'Accelerating' : velocity >= 0 ? 'Steady growth' : 'Decelerating';
 
-  const mean = avg(monthRows.map((row) => row.score));
-  const variance = monthRows.length > 0
-    ? monthRows.reduce((sum, row) => sum + (row.score - mean) ** 2, 0) / monthRows.length
-    : 0;
-  const stdDev = Math.sqrt(variance);
-  const volatilityCv = mean > 0 ? Number(((stdDev / mean) * 100).toFixed(1)) : 0;
+  const validScores = monthRows.map((row) => row.score).filter(isFiniteNumber);
+  const mean = averageOrNull(validScores);
+  const stdDev = stdDevFromValues(validScores);
+  const volatilityCv = isFiniteNumber(mean) && mean > 0 ? Number(((stdDev / mean) * 100).toFixed(1)) : null;
   const volatilityLabel: MomentumDiagnostics['volatilityLabel'] =
-    volatilityCv < 10 ? 'Low volatility' : volatilityCv <= 20 ? 'Moderate volatility' : 'High volatility';
+    !isFiniteNumber(volatilityCv) || volatilityCv < 10 ? 'Low volatility' : volatilityCv <= 20 ? 'Moderate volatility' : 'High volatility';
 
-  const slope = monthRows.length > 1 ? (monthRows[monthRows.length - 1].score - monthRows[0].score) / (monthRows.length - 1) : 0;
-  const forecastBase = monthRows.length > 0 ? monthRows[monthRows.length - 1].score : score;
+  const validTrendPoints = validSeriesPoints(monthRows.map((row) => row.score));
+  const trailingScores = monthRows.slice(-3).map((row) => row.score);
+  const momentumForecastReasons: string[] = [];
+  if (validTrendPoints.length < 4) momentumForecastReasons.push('requires_four_valid_periods');
+  if (monthRows.length > 0 && (validTrendPoints.length / monthRows.length) < 0.67) momentumForecastReasons.push('series_too_sparse');
+  if (trailingScores.some((value) => !isFiniteNumber(value))) momentumForecastReasons.push('recent_periods_missing');
+  const { slope } = linearRegressionFromPoints(validTrendPoints);
+  const forecastBase = validTrendPoints.length > 0 ? validTrendPoints[validTrendPoints.length - 1].y : null;
+  const forecastEligible = momentumForecastReasons.length === 0 && isFiniteNumber(forecastBase);
   const forecast: MomentumForecastPoint[] = [1, 2, 3].map((step) => ({
     month: addMonthLabel(now, step),
-    projectedScore: round(Math.max(0, Math.min(100, forecastBase + slope * step))),
+    projectedScore: forecastEligible && forecastBase !== null
+      ? round(Math.max(0, Math.min(100, forecastBase + slope * step)))
+      : null,
   }));
+  const notes = momentumForecastReasons.map((reason) => `forecast_blocked:${reason}`);
 
   const countryBankIds = BANKS.filter((bank) => bank.country === country).map((bank) => bank.id);
   const bankCompetitiveRows: CompetitiveMomentumRow[] = countryBankIds.map((candidateBankId) => {
@@ -1385,6 +1684,10 @@ export const computeMomentumDiagnostics = (
     competitiveRows: bankCompetitiveRows,
     selectedRank,
     gapToLeader,
+    validTrendPeriods: validTrendPoints.length,
+    missingTrendPeriods: monthRows.length - validTrendPoints.length,
+    forecastEligible,
+    notes,
   };
 };
 
@@ -1726,21 +2029,20 @@ const stdDevFromValues = (values: number[]) => {
   return Math.sqrt(variance);
 };
 
-const linearRegression = (values: number[]) => {
-  const n = values.length;
+const linearRegressionFromPoints = (points: Array<{ x: number; y: number }>) => {
+  const n = points.length;
   if (n < 2) {
-    return { slope: 0, intercept: values[0] || 0, r2: 0 };
+    return { slope: 0, intercept: points[0]?.y || 0, r2: 0 };
   }
-  const xs = values.map((_, idx) => idx + 1);
-  const xMean = xs.reduce((sum, x) => sum + x, 0) / n;
-  const yMean = values.reduce((sum, y) => sum + y, 0) / n;
-  const numerator = xs.reduce((sum, x, idx) => sum + (x - xMean) * (values[idx] - yMean), 0);
-  const denominator = xs.reduce((sum, x) => sum + (x - xMean) ** 2, 0) || 1;
+  const xMean = points.reduce((sum, point) => sum + point.x, 0) / n;
+  const yMean = points.reduce((sum, point) => sum + point.y, 0) / n;
+  const numerator = points.reduce((sum, point) => sum + (point.x - xMean) * (point.y - yMean), 0);
+  const denominator = points.reduce((sum, point) => sum + (point.x - xMean) ** 2, 0) || 1;
   const slope = numerator / denominator;
   const intercept = yMean - slope * xMean;
-  const predicted = xs.map((x) => slope * x + intercept);
-  const ssTot = values.reduce((sum, y) => sum + (y - yMean) ** 2, 0);
-  const ssRes = values.reduce((sum, y, idx) => sum + (y - predicted[idx]) ** 2, 0);
+  const predicted = points.map((point) => slope * point.x + intercept);
+  const ssTot = points.reduce((sum, point) => sum + (point.y - yMean) ** 2, 0);
+  const ssRes = points.reduce((sum, point, idx) => sum + (point.y - predicted[idx]) ** 2, 0);
   const r2 = ssTot > 0 ? 1 - (ssRes / ssTot) : 0;
   return { slope, intercept, r2 };
 };
@@ -1751,84 +2053,87 @@ export const computeTrendForecastDiagnostics = (
   months = 12,
 ): TrendForecastDiagnostics => {
   const now = new Date();
-  const monthStarts: number[] = [];
-  for (let i = months - 1; i >= 0; i -= 1) {
-    monthStarts.push(new Date(now.getFullYear(), now.getMonth() - i, 1).getTime());
-  }
-
-  const monthly: TrendMonthlyPoint[] = monthStarts.map((start, idx) => {
-    const end = idx < monthStarts.length - 1 ? monthStarts[idx + 1] : new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+  const windows = monthWindows(months, now);
+  const monthly: TrendMonthlyPoint[] = windows.map(({ start, end, month }) => {
     const monthResponses = responses.filter((response) => {
       const ts = parseTimestamp(response.timestamp);
       return ts !== null && ts >= start && ts < end;
     });
-    const metrics = computeBankMetrics(monthResponses, bankId, 0);
+    const metrics = monthResponses.length > 0 ? computeBankMetrics(monthResponses, bankId, 0) : null;
     return {
-      month: MONTH_NAMES[new Date(start).getMonth()],
-      awareness: metrics.aware,
-      usage: metrics.currentUsing,
-      nps: metrics.nps,
+      month,
+      awareness: metrics ? metrics.aware : null,
+      usage: metrics ? metrics.currentUsing : null,
+      nps: metrics ? metrics.nps : null,
+      sample: monthResponses.length,
     };
   });
 
   const awarenessSeries = monthly.map((row) => row.awareness);
-  const last = awarenessSeries[awarenessSeries.length - 1] ?? 0;
+  const validAwareness = awarenessSeries.filter(isFiniteNumber);
+  const validPeriods = validAwareness.length;
+  const missingPeriods = monthly.length - validPeriods;
+  const last = awarenessSeries[awarenessSeries.length - 1] ?? null;
   const prev = awarenessSeries[awarenessSeries.length - 2] ?? null;
-  const momPp = prev === null ? null : Number((last - prev).toFixed(1));
-  const momPct = prev === null || prev === 0 ? null : Number((((last - prev) / prev) * 100).toFixed(1));
+  const momPp = deltaPp(last, prev);
+  const momPct = deltaPct(last, prev);
 
   const qCurrent = awarenessSeries.slice(-3);
   const qPrevious = awarenessSeries.slice(-6, -3);
-  const qCurrentAvg = qCurrent.length > 0 ? qCurrent.reduce((sum, value) => sum + value, 0) / qCurrent.length : 0;
-  const qPrevAvg = qPrevious.length > 0 ? qPrevious.reduce((sum, value) => sum + value, 0) / qPrevious.length : null;
-  const qoqPp = qPrevAvg === null ? null : Number((qCurrentAvg - qPrevAvg).toFixed(1));
-  const qoqPct = qPrevAvg === null || qPrevAvg === 0 ? null : Number((((qCurrentAvg - qPrevAvg) / qPrevAvg) * 100).toFixed(1));
+  const qCurrentAvg = quarterAverage(qCurrent);
+  const qPrevAvg = quarterAverage(qPrevious);
+  const qoqPp = deltaPp(qCurrentAvg, qPrevAvg);
+  const qoqPct = deltaPct(qCurrentAvg, qPrevAvg);
 
   const yoyCurrent = awarenessSeries[awarenessSeries.length - 1] ?? null;
   const yoyPrev = awarenessSeries.length >= 12 ? awarenessSeries[awarenessSeries.length - 12] : null;
-  const yoyPp = yoyCurrent === null || yoyPrev === null ? null : Number((yoyCurrent - yoyPrev).toFixed(1));
-  const yoyPct = yoyCurrent === null || yoyPrev === null || yoyPrev === 0 ? null : Number((((yoyCurrent - yoyPrev) / yoyPrev) * 100).toFixed(1));
-  const ytdAverage = awarenessSeries.length > 0
-    ? Math.round((awarenessSeries.reduce((sum, value) => sum + value, 0) / awarenessSeries.length) * 10) / 10
-    : 0;
+  const yoyPp = deltaPp(yoyCurrent, yoyPrev);
+  const yoyPct = deltaPct(yoyCurrent, yoyPrev);
+  const ytdAverageRaw = averageOrNull(awarenessSeries);
+  const ytdAverage = isFiniteNumber(ytdAverageRaw) ? Math.round(ytdAverageRaw * 10) / 10 : null;
 
   const periodGrowthRates = awarenessSeries
     .map((value, idx) => {
       if (idx === 0) return null;
       const prior = awarenessSeries[idx - 1];
-      if (!prior) return null;
+      if (!isFiniteNumber(value) || !isFiniteNumber(prior) || prior === 0) return null;
       return ((value - prior) / prior) * 100;
     })
     .filter((value): value is number => value !== null);
   const averageGrowthPct = periodGrowthRates.length > 0
     ? Math.round((periodGrowthRates.reduce((sum, value) => sum + value, 0) / periodGrowthRates.length) * 10) / 10
-    : 0;
-  const firstPositive = awarenessSeries.find((value) => value > 0) ?? null;
-  const lastPositive = [...awarenessSeries].reverse().find((value) => value > 0) ?? null;
-  const cagrPct = firstPositive && lastPositive && months > 1
-    ? Math.round((((Math.pow(lastPositive / firstPositive, 1 / ((months - 1) / 12)) - 1) * 100) || 0) * 10) / 10
+    : null;
+  const firstPositiveIndex = awarenessSeries.findIndex((value) => isFiniteNumber(value) && value > 0);
+  const lastPositiveReverseIndex = [...awarenessSeries].reverse().findIndex((value) => isFiniteNumber(value) && value > 0);
+  const lastPositiveIndex = lastPositiveReverseIndex === -1 ? -1 : awarenessSeries.length - 1 - lastPositiveReverseIndex;
+  const firstPositive = firstPositiveIndex >= 0 ? awarenessSeries[firstPositiveIndex] : null;
+  const lastPositive = lastPositiveIndex >= 0 ? awarenessSeries[lastPositiveIndex] : null;
+  const monthSpan = firstPositiveIndex >= 0 && lastPositiveIndex >= 0 ? lastPositiveIndex - firstPositiveIndex : 0;
+  const cagrPct = isFiniteNumber(firstPositive) && isFiniteNumber(lastPositive) && monthSpan >= 11
+    ? Math.round((((Math.pow(lastPositive / firstPositive, 12 / monthSpan) - 1) * 100) || 0) * 10) / 10
     : null;
   const exponentialSignal = periodGrowthRates.length >= 3
     && periodGrowthRates.slice(-3).every((value, idx, arr) => idx === 0 || value >= arr[idx - 1]);
 
-  const stdDev = Number(stdDevFromValues(awarenessSeries).toFixed(2));
-  const mean = awarenessSeries.length > 0 ? awarenessSeries.reduce((sum, value) => sum + value, 0) / awarenessSeries.length : 0;
+  const stdDev = Number(stdDevFromValues(validAwareness).toFixed(2));
+  const mean = averageOrNull(validAwareness) ?? 0;
   const cv = mean > 0 ? Number(((stdDev / mean) * 100).toFixed(1)) : 0;
-  const range = awarenessSeries.length > 0 ? Math.max(...awarenessSeries) - Math.min(...awarenessSeries) : 0;
+  const range = validAwareness.length > 0 ? Math.max(...validAwareness) - Math.min(...validAwareness) : 0;
   let reversals = 0;
-  for (let i = 2; i < awarenessSeries.length; i += 1) {
-    const delta1 = awarenessSeries[i - 1] - awarenessSeries[i - 2];
-    const delta2 = awarenessSeries[i] - awarenessSeries[i - 1];
+  for (let i = 2; i < validAwareness.length; i += 1) {
+    const delta1 = validAwareness[i - 1] - validAwareness[i - 2];
+    const delta2 = validAwareness[i] - validAwareness[i - 1];
     if ((delta1 > 0 && delta2 < 0) || (delta1 < 0 && delta2 > 0)) reversals += 1;
   }
-  const directionalChanges = awarenessSeries.length > 0 ? (reversals / awarenessSeries.length) * 100 : 0;
+  const directionalChanges = validAwareness.length > 0 ? (reversals / validAwareness.length) * 100 : 0;
   const stabilityScore = Math.max(0, Math.min(100, round(100 - (cv + directionalChanges))));
   const volatilityLabel: TrendForecastDiagnostics['volatility']['label'] =
     cv < 10 ? 'Low volatility' : cv <= 20 ? 'Moderate volatility' : 'High volatility';
 
   const monthBuckets = new Map<number, number[]>();
   monthly.forEach((row, idx) => {
-    const monthIndex = (new Date(now.getFullYear(), now.getMonth() - (monthly.length - 1 - idx), 1)).getMonth();
+    if (!isFiniteNumber(row.awareness)) return;
+    const monthIndex = windows[idx].monthIndex;
     const existing = monthBuckets.get(monthIndex) || [];
     existing.push(row.awareness);
     monthBuckets.set(monthIndex, existing);
@@ -1846,44 +2151,59 @@ export const computeTrendForecastDiagnostics = (
   const weakestMonth = monthIndices.length > 0 ? [...monthIndices].sort((a, b) => a.index - b.index)[0].month : null;
   const currentMonthIndex = monthIndices.find((row) => row.monthIndex === now.getMonth())?.index ?? null;
 
-  const smaNext = awarenessSeries.length >= 3
-    ? Math.round((awarenessSeries.slice(-3).reduce((sum, value) => sum + value, 0) / 3) * 10) / 10
+  const trailingSeries = awarenessSeries.slice(-3);
+  const forecastReasons: string[] = [];
+  if (validPeriods < 6) forecastReasons.push('requires_six_valid_periods');
+  if (monthly.length > 0 && (validPeriods / monthly.length) < 0.75) forecastReasons.push('series_too_sparse');
+  if (trailingSeries.some((value) => !isFiniteNumber(value))) forecastReasons.push('recent_periods_missing');
+  const regressionPoints = validSeriesPoints(awarenessSeries);
+  const { slope, intercept, r2 } = linearRegressionFromPoints(regressionPoints);
+  if (regressionPoints.length < 4) forecastReasons.push('requires_four_regression_points');
+  const forecastEligible = forecastReasons.length === 0 && regressionPoints.length >= 4;
+  const smaNext = forecastEligible
+    ? Math.round((((trailingSeries as number[]).reduce((sum, value) => sum + value, 0) / 3)) * 10) / 10
     : null;
-  const wmaNext = awarenessSeries.length >= 3
-    ? Math.round((awarenessSeries[awarenessSeries.length - 3] * 0.2 + awarenessSeries[awarenessSeries.length - 2] * 0.3 + awarenessSeries[awarenessSeries.length - 1] * 0.5) * 10) / 10
+  const wmaNext = forecastEligible
+    ? Math.round((((trailingSeries[0] as number) * 0.2 + (trailingSeries[1] as number) * 0.3 + (trailingSeries[2] as number) * 0.5)) * 10) / 10
     : null;
-  const { slope, intercept, r2 } = linearRegression(awarenessSeries);
-  const regressionNextRaw = slope * (awarenessSeries.length + 1) + intercept;
-  const regressionNext = awarenessSeries.length >= 2
+  const regressionNextRaw = slope * (monthly.length + 1) + intercept;
+  const regressionNext = forecastEligible
     ? Math.round(Math.max(0, Math.min(100, regressionNextRaw)) * 10) / 10
     : null;
-  const regressionR2 = awarenessSeries.length >= 2 ? Math.round(r2 * 100) / 100 : null;
+  const regressionR2 = forecastEligible ? Math.round(r2 * 100) / 100 : null;
 
   const alpha = 0.3;
-  let expForecast = awarenessSeries[0] ?? 0;
-  for (let i = 1; i < awarenessSeries.length; i += 1) {
-    expForecast = alpha * awarenessSeries[i] + (1 - alpha) * expForecast;
+  let expForecast = trailingSeries.find(isFiniteNumber) ?? null;
+  if (forecastEligible && expForecast !== null) {
+    trailingSeries.slice(1).forEach((value) => {
+      expForecast = alpha * (value as number) + (1 - alpha) * (expForecast as number);
+    });
   }
-  const expSmoothingNext = awarenessSeries.length > 0 ? Math.round(expForecast * 10) / 10 : null;
+  const expSmoothingNext = forecastEligible && expForecast !== null ? Math.round(expForecast * 10) / 10 : null;
 
   const nextMonth = (now.getMonth() + 1) % 12;
-  const nextIndex = monthIndices.find((row) => row.monthIndex === nextMonth)?.index || 100;
-  const seasonalAdjustedNext = regressionNext !== null
+  const nextIndex = monthIndices.find((row) => row.monthIndex === nextMonth)?.index ?? null;
+  const seasonalAdjustedNext = forecastEligible && regressionNext !== null && nextIndex !== null
     ? Math.round((regressionNext * nextIndex / 100) * 10) / 10
     : null;
 
-  const predicted = awarenessSeries.map((_, idx) => slope * (idx + 1) + intercept);
-  const residuals = awarenessSeries.map((actual, idx) => actual - predicted[idx]);
+  const predicted = regressionPoints.map((point) => slope * point.x + intercept);
+  const residuals = regressionPoints.map((point, idx) => point.y - predicted[idx]);
   const residualStd = stdDevFromValues(residuals);
-  const baseForecast = regressionNext ?? smaNext ?? wmaNext ?? expSmoothingNext ?? 0;
-  const confidenceLow = baseForecast ? Math.round(Math.max(0, baseForecast - 1.96 * residualStd) * 10) / 10 : null;
-  const confidenceHigh = baseForecast ? Math.round(Math.min(100, baseForecast + 1.96 * residualStd) * 10) / 10 : null;
+  const baseForecast = regressionNext ?? smaNext ?? wmaNext ?? expSmoothingNext;
+  const confidenceLow = forecastEligible && isFiniteNumber(baseForecast)
+    ? Math.round(Math.max(0, baseForecast - 1.96 * residualStd) * 10) / 10
+    : null;
+  const confidenceHigh = forecastEligible && isFiniteNumber(baseForecast)
+    ? Math.round(Math.min(100, baseForecast + 1.96 * residualStd) * 10) / 10
+    : null;
 
-  const significantSignal = Math.abs(momPp || 0) > (2 * stdDev);
+  const significantSignal = momPp !== null && Math.abs(momPp) > (2 * stdDev);
   const diagnosis = (() => {
     if (significantSignal && (momPp || 0) > 0) return 'Positive acceleration signal detected above normal volatility.';
     if (significantSignal && (momPp || 0) < 0) return 'Negative signal detected; decline exceeds normal volatility.';
     if (cv > 20) return 'High volatility indicates unstable trend; treat short-term changes cautiously.';
+    if (momPp === null) return 'Recent period comparisons are unavailable because one or more required months are missing.';
     return 'Trend movement is within expected variation range.';
   })();
 
@@ -1894,6 +2214,7 @@ export const computeTrendForecastDiagnostics = (
   if (exponentialSignal) highlights.push('Growth pattern is accelerating across recent periods.');
   if ((volatilityLabel === 'High volatility')) highlights.push('High volatility flagged: use conservative planning and monitor weekly signal quality.');
   if ((regressionR2 || 0) > 0.7) highlights.push('Regression fit is strong; forecast reliability is comparatively higher.');
+  if (!forecastEligible) highlights.push(`Forecast suppressed: ${forecastReasons.join(', ') || 'insufficient_history'}.`);
   if (highlights.length === 0) highlights.push('Trend remains mixed; prioritize stabilizing consistency before scaling investment.');
 
   return {
@@ -1926,6 +2247,8 @@ export const computeTrendForecastDiagnostics = (
       weakestMonth,
     },
     forecast: {
+      eligible: forecastEligible,
+      reasons: forecastReasons,
       smaNext,
       wmaNext,
       regressionNext,
@@ -1936,11 +2259,13 @@ export const computeTrendForecastDiagnostics = (
       confidenceHigh,
     },
     signal: {
-      slope: Math.round(slope * 10) / 10,
+      slope: validPeriods >= 2 ? Math.round(slope * 10) / 10 : null,
       isSignificantSignal: significantSignal,
       diagnosis,
     },
     highlights,
+    validPeriods,
+    missingPeriods,
   };
 };
 
@@ -1949,23 +2274,20 @@ export const computeTrendSeries = (
   bankId: string,
   months = 6,
 ): TrendPoint[] => {
-  const now = new Date();
   const output: TrendPoint[] = [];
-  for (let i = months - 1; i >= 0; i -= 1) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i, 1).getTime();
-    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1).getTime();
+  monthWindows(months).forEach(({ start, end, month }) => {
     const monthResponses = responses.filter((response) => {
       const ts = parseTimestamp(response.timestamp);
       return ts !== null && ts >= start && ts < end;
     });
-    const current = computeBankMetrics(monthResponses, bankId, 0);
+    const current = monthResponses.length > 0 ? computeBankMetrics(monthResponses, bankId, 0) : null;
     output.push({
-      month: MONTH_NAMES[new Date(start).getMonth()],
-      awareness: current.aware,
-      usage: current.currentUsing,
-      nps: current.nps,
+      month,
+      awareness: current ? current.aware : null,
+      usage: current ? current.currentUsing : null,
+      nps: current ? current.nps : null,
     });
-  }
+  });
   return output;
 };
 
@@ -1981,7 +2303,7 @@ export const computeCompetitiveRows = (
   });
   const rawRows = countryBanks.map((bank) => {
     const trend = trendMap.get(bank.id) || [];
-    const previousAwareness = trend.length > 1 ? trend[trend.length - 2].awareness : 0;
+    const previousAwareness = trend.length > 1 ? (trend[trend.length - 2].awareness ?? 0) : 0;
     const metrics = computeBankMetrics(responses, bank.id, previousAwareness);
     return { bank, metrics };
   });
@@ -1998,7 +2320,7 @@ export const computeCompetitiveRows = (
       momentum: metrics.momentum,
       shareOfVoice: round(pct(metrics.topOfMind, tomTotal)),
     }))
-    .sort((a, b) => b.awareness - a.awareness);
+    .sort((a, b) => (b.awareness ?? -1) - (a.awareness ?? -1));
 };
 
 export const computeGeography = (

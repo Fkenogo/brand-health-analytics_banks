@@ -1,5 +1,17 @@
 import { Bank, Choice, Question, Localized, CountryCode, SurveyResponse } from './types';
 
+export const ANALYTICS_BASE_TYPES = {
+  TOTAL_RESPONSES: 'total_responses',
+  AWARE_RESPONDENTS: 'aware_respondents',
+  EVER_USED_RESPONDENTS: 'ever_used_respondents',
+  CURRENT_USERS: 'current_users',
+  PREFERRED_USERS: 'preferred_users',
+  MARKET_TOTAL: 'market_total',
+  MULTI_BANK_USERS: 'multi_bank_users',
+  SEGMENT_POPULATION: 'segment_population',
+  TIME_SERIES_WINDOW: 'time_series_window',
+} as const;
+
 export interface CountryTheme {
   primary: string;
   secondary: string;
@@ -283,6 +295,13 @@ export const EDUCATION_CHOICES: Choice[] = [
   { label: { en: 'Post-graduate', rw: 'Nyuma ya kaminuza', fr: 'Post-universitaire' }, value: 'postgraduate' }
 ];
 
+export const LEGACY_PREAMBLE_QUESTION_IDS = new Set([
+  'intro',
+  'selected_country',
+  'consent',
+  'termination_consent',
+]);
+
 // Helper to check if user passed screening
 const passedScreening = (d: SurveyResponse): boolean => 
   d.consent === 'yes' && 
@@ -295,6 +314,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     id: 'intro',
     type: 'note',
     section: 'A',
+    isPreambleStep: true,
     label: { en: 'Welcome to Banking Insights', rw: 'Ikaze mu bushakashatsi bwa Banki', fr: 'Bienvenue aux Perspectives Bancaires' },
     description: { 
       en: 'We invite you to take part in this important survey about banking services. By sharing your honest views, you help improve services for everyone. Your responses will remain completely confidential.',
@@ -306,6 +326,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     id: 'selected_country',
     type: 'radio',
     section: 'A',
+    isPreambleStep: true,
     label: { en: 'Which country are you responding from?', rw: 'Ni mu buhe gihugu muri gusubiriza?', fr: 'De quel pays répondez-vous ?' },
     required: true,
     choices: COUNTRY_CHOICES
@@ -314,6 +335,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     id: 'consent',
     type: 'radio',
     section: 'A',
+    isPreambleStep: true,
     label: { en: 'Would you like to participate?', rw: 'Wifuza kugira uruhare?', fr: 'Souhaitez-vous participer ?' },
     required: true,
     choices: [
@@ -325,6 +347,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     id: 'termination_consent',
     type: 'note',
     section: 'A',
+    isPreambleStep: true,
     label: { en: 'Thank you for your time', rw: 'Murakoze ku gihe cyanyu', fr: 'Merci pour votre temps' },
     description: { 
       en: 'Thank you for your time.',
@@ -569,6 +592,9 @@ export const SURVEY_QUESTIONS: Question[] = [
     logic: (d) => !!d.e3_gender
   }
 ];
+
+export const getRuntimeSurveyQuestions = (questions: Question[]): Question[] =>
+  questions.filter((question) => !question.isPreambleStep && !LEGACY_PREAMBLE_QUESTION_IDS.has(question.id));
 
 export const BANKS = ALL_BANKS;
 export const AGE_CHOICES = [

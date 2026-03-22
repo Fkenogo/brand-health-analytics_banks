@@ -53,9 +53,9 @@ export const COMPETITIVE_METRIC_CONTENT: Record<CompetitiveMetricKey, MetricInsi
     formulaPlain: 'Estimated wallet share uses inverse bank count allocation (1 / number of active banks)',
   },
   win_rate_ci: {
-    title: 'Win Rate',
-    definition: 'Share of competitive customer battles won versus losses over the comparison period.',
-    formulaPlain: 'Win rate = Gains / (Gains + Losses) × 100',
+    title: 'Competitive Balance',
+    definition: 'Balance of competitive gains versus losses, using observed transitions when available and proxy signals otherwise.',
+    formulaPlain: 'Competitive balance = Gains / (Gains + Losses) × 100',
   },
   relative_strength_index: {
     title: 'Relative Strength Index',
@@ -63,9 +63,9 @@ export const COMPETITIVE_METRIC_CONTENT: Record<CompetitiveMetricKey, MetricInsi
     formulaPlain: 'Relative strength = (Your value - Market average) / Market average × 100',
   },
   threat_indicator: {
-    title: 'Threat Indicator',
-    definition: 'Early warning score from competitor likelihood and impact signals.',
-    formulaPlain: 'Threat level derives from overlap intensity, share growth, and visibility pressure',
+    title: 'Risk Indicator',
+    definition: 'Early warning signal built from competitor likelihood and impact heuristics.',
+    formulaPlain: 'Risk level derives from overlap intensity, share growth, and visibility pressure',
   },
 };
 
@@ -98,7 +98,7 @@ export const COMPETITIVE_SECTION_INSIGHTS: Record<CompetitiveSectionInsightKey, 
       'Overlap <20%: indirect competitor.',
       'Leaders combine high share and stronger NPS.',
     ],
-    keyInsight: 'Tiering and positioning map clarify who threatens share now versus who may disrupt next.',
+    keyInsight: 'Tiering and positioning map clarify who pressures share now versus who may disrupt next.',
   },
   share_wallet_ci: {
     title: 'Share of Wallet',
@@ -109,13 +109,13 @@ export const COMPETITIVE_SECTION_INSIGHTS: Record<CompetitiveSectionInsightKey, 
     keyInsight: 'Wallet depth often improves faster through primary-bank conversion than through pure awareness growth.',
   },
   win_loss_ci: {
-    title: 'Win/Loss Analysis',
+    title: 'Competitive Balance Signals',
     interpretationThresholds: [
-      'Win rate >50%: winning competitive battles.',
-      'Win rate 45-50%: balanced/unstable.',
-      'Win rate <45%: losing competitive battles.',
+      'Above 50%: selected bank is ahead on the measured balance signal.',
+      '45-50%: competitive balance is broadly even.',
+      'Below 45%: selected bank is under more competitive pressure.',
     ],
-    keyInsight: 'Track net gains by competitor to isolate where losses are concentrated.',
+    keyInsight: 'Treat this view as observed only when transition evidence exists; otherwise it is a directional proxy signal.',
   },
   strengths_weaknesses_ci: {
     title: 'Competitive Strengths & Weaknesses',
@@ -127,7 +127,7 @@ export const COMPETITIVE_SECTION_INSIGHTS: Record<CompetitiveSectionInsightKey, 
     keyInsight: 'Use relative strength profile to defend advantages and close the highest-impact performance gaps.',
   },
   white_space_ci: {
-    title: 'White Space Opportunities',
+    title: 'Whitespace Opportunities',
     interpretationThresholds: [
       'Gap <= -6pp: high opportunity.',
       'Gap -5pp to -3pp: moderate opportunity.',
@@ -136,13 +136,13 @@ export const COMPETITIVE_SECTION_INSIGHTS: Record<CompetitiveSectionInsightKey, 
     keyInsight: 'Demographic gaps indicate where targeted acquisition can produce faster share gains.',
   },
   threat_assessment_ci: {
-    title: 'Threat Assessment',
+    title: 'Competitive Risk Signals',
     interpretationThresholds: [
       'Critical: high likelihood and high impact.',
       'Monitor: high likelihood, lower immediate impact.',
       'Emerging: lower likelihood, high potential impact.',
       'Low Priority: lower likelihood and impact.',
     ],
-    keyInsight: 'Threat indicators provide early warning so response can begin before share decline becomes structural.',
+    keyInsight: 'These are heuristic warning signals, not direct observations of competitive attack or loss.',
   },
 };

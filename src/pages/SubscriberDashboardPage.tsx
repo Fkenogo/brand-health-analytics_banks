@@ -3,8 +3,8 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { BotMessageSquare, ChevronRight, CircleHelp, FileDown, Loader2, Lock, Palette, Send, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/auth/context';
 import { hasPermission } from '@/auth/types';
-import { BANKS, COUNTRY_CHOICES } from '@/constants';
-import { CountryCode, SurveyResponse } from '@/types';
+import { ANALYTICS_BASE_TYPES, BANKS, COUNTRY_CHOICES } from '@/constants';
+import { AnalyticsMetricValue, CountryCode, SurveyResponse } from '@/types';
 import {
   AwarenessMetricKey,
   AwarenessSectionInsightKey,
@@ -53,6 +53,14 @@ import { exportToCSV } from '@/utils/export';
 import { getResponses } from '@/utils/storage';
 import { responseService } from '@/services/responseService';
 import {
+  analyticsAggregateService,
+  buildAggregateBackedLoyaltySummary,
+  buildAggregateBackedMomentumSummary,
+  buildUsageAggregateMetrics,
+  type DashboardOverviewAggregate,
+  type UsageAggregateMetrics,
+} from '@/services/analyticsAggregateService';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -65,6 +73,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { aiStrategyAdvisorService, compressText, strategyAdvisorLimits, type StrategyAdvisorPayload } from '@/services/aiStrategyAdvisorService';
+import { CustomerSwitchingRadar } from '@/components/analytics/CustomerSwitchingRadar';
+import { CustomerMigrationMap } from '@/components/analytics/CustomerMigrationMap';
 import {
   BankMetrics,
   DemographicSummary,
@@ -91,7 +101,18 @@ import {
   computeUsageDiagnostics,
   computeTrendSeries,
   filterResponsesForDashboard,
+  buildUsageToplineMetricsFromRaw,
+  createCompareMetric,
+  createMetric,
+  type UsageToplineMetrics,
 } from '@/utils/subscriberDashboard';
+import {
+  computeBrandEdgeScore,
+  describeBrandEdgeScore,
+  summarizeBrandEdgeDrivers,
+} from '@/utils/brandEdgeScore';
+import { computeCustomerSwitchingRadar, type CustomerSwitchingRadarResult } from '@/utils/customerSwitchingRadar';
+import { computeCustomerMigrationMap, type CustomerMigrationMapResult } from '@/utils/customerMigrationMap';
 
 type SubscriberSection =
   | 'overview'
@@ -302,16 +323,42 @@ const hexToRgba = (hex: string, alpha: number) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const Sparkline: React.FC<{ values?: number[]; accent?: 'blue' | 'green' | 'red' | 'amber' }> = ({ values, accent = 'blue' }) => {
-  if (!values || values.length < 2) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+const Sparkline: React.FC<{ values?: Array<number | null | undefined>; accent?: 'blue' | 'green' | 'red' | 'amber' }> = ({ values, accent = 'blue' }) => {
+  const series = values || [];
+  const validValues = series.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  if (validValues.length === 0) return null;
+  const min = Math.min(...validValues);
+  const max = Math.max(...validValues);
   const safeRange = max - min || 1;
-  const points = values.map((value, idx) => {
-    const x = (idx / Math.max(values.length - 1, 1)) * 100;
-    const y = 100 - ((value - min) / safeRange) * 100;
-    return `${x},${y}`;
-  }).join(' ');
+  const segments: string[] = [];
+  const singlePoints: Array<{ x: number; y: number }> = [];
+  let currentSegment: string[] = [];
+
+  series.forEach((value, idx) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const x = (idx / Math.max(series.length - 1, 1)) * 100;
+      const y = 100 - ((value - min) / safeRange) * 100;
+      currentSegment.push(`${x},${y}`);
+      return;
+    }
+
+    if (currentSegment.length >= 2) {
+      segments.push(currentSegment.join(' '));
+    } else if (currentSegment.length === 1) {
+      const [x, y] = currentSegment[0].split(',').map(Number);
+      singlePoints.push({ x, y });
+    }
+    currentSegment = [];
+  });
+
+  if (currentSegment.length >= 2) {
+    segments.push(currentSegment.join(' '));
+  } else if (currentSegment.length === 1) {
+    const [x, y] = currentSegment[0].split(',').map(Number);
+    singlePoints.push({ x, y });
+  }
+
+  if (segments.length === 0 && singlePoints.length === 0) return null;
   const strokeColor = accent === 'green'
     ? ACCENT_POSITIVE
     : accent === 'red'
@@ -319,7 +366,20 @@ const Sparkline: React.FC<{ values?: number[]; accent?: 'blue' | 'green' | 'red'
       : ACCENT_PRIMARY;
   return (
     <svg viewBox="0 0 100 100" className="h-7 w-20">
-      <polyline fill="none" stroke={strokeColor} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" points={points} />
+      {segments.map((points, idx) => (
+        <polyline
+          key={`spark-segment-${idx}`}
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+        />
+      ))}
+      {singlePoints.map((point, idx) => (
+        <circle key={`spark-point-${idx}`} cx={point.x} cy={point.y} r="4.5" fill={strokeColor} />
+      ))}
     </svg>
   );
 };
@@ -372,23 +432,28 @@ const Card: React.FC<{
   </div>
 );
 
-const MiniBar: React.FC<{ label: string; value: number; color?: string }> = ({ label, value, color = 'bg-blue-500' }) => (
-  <div className="rounded-xl bg-slate-100 p-2.5">
-    <div className="mb-1 flex items-center justify-between text-xs text-slate-600">
-      <span>{label}</span>
-      <span className="font-semibold text-slate-800">{value}%</span>
+const MiniBar: React.FC<{ label: string; value: number | null; color?: string }> = ({ label, value, color = 'bg-blue-500' }) => {
+  const isMissing = value === null;
+  return (
+    <div className={`rounded-xl p-2.5 ${isMissing ? 'border border-dashed border-slate-300 bg-slate-50/80' : 'bg-slate-100'}`}>
+      <div className="mb-1 flex items-center justify-between text-xs text-slate-600">
+        <span>{label}</span>
+        <span className={`font-semibold ${isMissing ? 'text-slate-500' : 'text-slate-800'}`}>{isMissing ? 'No data' : `${value}%`}</span>
+      </div>
+      <div className={`h-2 rounded-full ${isMissing ? 'border border-dashed border-slate-300 bg-slate-50' : 'bg-slate-200'}`}>
+        {isMissing ? null : (
+          <div
+            className="h-2 rounded-full"
+            style={{
+              width: `${Math.min(Math.max(value, 0), 100)}%`,
+              backgroundColor: color.includes('rose') ? ACCENT_NEGATIVE : color.includes('emerald') ? ACCENT_POSITIVE : ACCENT_PRIMARY,
+            }}
+          />
+        )}
+      </div>
     </div>
-    <div className="h-2 rounded-full bg-slate-200">
-      <div
-        className="h-2 rounded-full"
-        style={{
-          width: `${Math.min(Math.max(value, 0), 100)}%`,
-          backgroundColor: color.includes('rose') ? ACCENT_NEGATIVE : color.includes('emerald') ? ACCENT_POSITIVE : ACCENT_PRIMARY,
-        }}
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 const FunnelSteps: React.FC<{ steps: Array<{ label: string; value: number; color: string }> }> = ({ steps }) => (
   <div className="space-y-5">
@@ -480,6 +545,104 @@ const pctGrowthValue = (value: number | null) => {
   return `${sign}${value.toFixed(1)}%`;
 };
 
+const formatSignedValue = (value: number | null, suffix = '', digits = 1) => {
+  if (value === null) return '--';
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(digits)}${suffix}`;
+};
+
+const formatUnsignedValue = (value: number | null, suffix = '', digits = 1) => {
+  if (value === null) return '--';
+  return `${value.toFixed(digits)}${suffix}`;
+};
+
+const isFiniteMetricValue = (value: number | null | undefined): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+const safeNumber = (value: number | null | undefined, fallback = '--') =>
+  isFiniteMetricValue(value) ? String(value) : fallback;
+
+const safeCount = (value: number | null | undefined, fallback = 'No data') =>
+  isFiniteMetricValue(value) ? String(value) : fallback;
+
+const safePercent = (value: number | null | undefined, fallback = '--') =>
+  isFiniteMetricValue(value) ? `${value}%` : fallback;
+
+const safeSignedPercent = (value: number | null | undefined, fallback = '--') =>
+  isFiniteMetricValue(value) ? `${value > 0 ? '+' : ''}${value}%` : fallback;
+
+const safePp = (value: number | null | undefined, fallback = '--') =>
+  isFiniteMetricValue(value) ? `${value}pp` : fallback;
+
+const safeSignedPp = (value: number | null | undefined, fallback = '--') =>
+  isFiniteMetricValue(value) ? `${value > 0 ? '+' : ''}${value}pp` : fallback;
+
+const safeText = (value: string | number | null | undefined, fallback = 'No data') =>
+  value === null || value === undefined || value === '' ? fallback : String(value);
+
+const safeAverageIntent = (value: number | null | undefined, fallback = '--') =>
+  isFiniteMetricValue(value) ? value.toFixed(1) : fallback;
+
+const safeRatioPercent = (count: number | null | undefined, base: number | null | undefined, fallback = '--') => {
+  if (!isFiniteMetricValue(count) || !isFiniteMetricValue(base) || base <= 0) return fallback;
+  return `${Math.round((count / base) * 100)}%`;
+};
+
+const EMPTY_COPY = {
+  noData: 'No data',
+  noDataInSlice: 'No data in this slice.',
+  noAwareInSlice: 'No aware respondents in this slice.',
+  noCurrentUsersInSlice: 'No current users in this slice.',
+  noValidPeriods: 'No valid periods',
+  insufficientHistory: 'Insufficient history',
+  forecastUnavailable: 'Forecast unavailable',
+};
+
+const normalizeStatusReason = (reason: string) => {
+  const normalized = reason.replace(/^forecast_blocked:/, '');
+  switch (normalized) {
+    case 'requires_four_valid_periods':
+      return `${EMPTY_COPY.forecastUnavailable}: at least four valid periods are required.`;
+    case 'requires_six_valid_periods':
+      return `${EMPTY_COPY.forecastUnavailable}: at least six valid periods are required.`;
+    case 'series_too_sparse':
+      return `${EMPTY_COPY.insufficientHistory}: recent periods are too sparse.`;
+    case 'recent_periods_missing':
+      return `${EMPTY_COPY.insufficientHistory}: recent periods are missing.`;
+    case 'requires_four_regression_points':
+      return `${EMPTY_COPY.forecastUnavailable}: regression needs four valid points.`;
+    default:
+      return normalized.replaceAll('_', ' ');
+  }
+};
+
+const firstStatusNote = (notes?: string[] | null, fallback = EMPTY_COPY.insufficientHistory) => {
+  if (!notes || notes.length === 0) return fallback;
+  return normalizeStatusReason(notes[0]);
+};
+
+const validPeriodSubtitle = (baseN?: number | null, fallback = EMPTY_COPY.noValidPeriods) => {
+  if (!Number.isFinite(baseN as number) || Number(baseN) <= 0) return fallback;
+  const count = Number(baseN);
+  return `${count} valid period${count === 1 ? '' : 's'}`;
+};
+
+const compareSubtitle = (compareBankName: string | null, compareValue: string | number | null | undefined, fallback: string) => {
+  if (!compareBankName || compareValue === null || compareValue === undefined || compareValue === '') {
+    return fallback;
+  }
+  return `vs ${compareBankName}: ${compareValue}`;
+};
+
+const compareDisplayValue = (metric: AnalyticsMetricValue | null | undefined, formatter?: (value: number | null) => string | number | null) => {
+  if (!metric?.compare?.valid) return null;
+  const value = metric.compare.value;
+  return formatter ? formatter(value) : value;
+};
+
+const compareDelta = (metric: AnalyticsMetricValue | null | undefined) =>
+  metric?.compare?.valid ? metric.compare.delta : null;
+
 const AI_ADVISOR_PLACEHOLDER_MODE = (import.meta.env.VITE_AI_ADVISOR_PLACEHOLDER ?? 'true') === 'true';
 const AI_ADVISOR_PLACEHOLDER_TEXT =
   'AI Strategy Advisor is temporarily unavailable while backend billing is being finalized. You can continue using all dashboard reports. Please check back after upgrade is completed.';
@@ -532,7 +695,11 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all');
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(false);
-  const [dataSource, setDataSource] = useState<'firestore' | 'local'>('firestore');
+  const [rawDataSource, setRawDataSource] = useState<'firestore' | 'local'>('firestore');
+  const [rawDataSourceReason, setRawDataSourceReason] = useState<string | null>(null);
+  const [overviewAggregate, setOverviewAggregate] = useState<DashboardOverviewAggregate | null>(null);
+  const [loadingOverviewAggregate, setLoadingOverviewAggregate] = useState(false);
+  const [overviewAggregateReason, setOverviewAggregateReason] = useState<string | null>(null);
   const [advisorOpen, setAdvisorOpen] = useState(false);
   const [upgradeModalMode, setUpgradeModalMode] = useState<UpgradeModalMode | null>(null);
   const [advisorMessages, setAdvisorMessages] = useState<AdvisorMessage[]>([]);
@@ -579,20 +746,34 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
   useEffect(() => {
     const loadResponses = async () => {
+      if (!activeCountry) {
+        setResponses([]);
+        return;
+      }
       setLoadingResponses(true);
       try {
-        const live = await responseService.listResponses();
-        setResponses(live);
-        setDataSource('firestore');
-      } catch {
-        setResponses(getResponses());
-        setDataSource('local');
+        const result = await responseService.listDashboardResponsesWithFallback({ country: activeCountry });
+        setResponses(result.responses);
+        setRawDataSource('firestore');
+        setRawDataSourceReason(result.fallbackReason);
+      } catch (error) {
+        console.warn('[dashboard:data-source] falling back to local responses', {
+          adminMode,
+          country: activeCountry,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        setResponses(getResponses().filter((response) => {
+          const country = (response.country || response.selected_country || null) as CountryCode | null;
+          return country === activeCountry;
+        }));
+        setRawDataSource('local');
+        setRawDataSourceReason(error instanceof Error ? error.message : 'Live dashboard response load failed.');
       } finally {
         setLoadingResponses(false);
       }
     };
     loadResponses();
-  }, []);
+  }, [activeCountry]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -607,9 +788,17 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   useEffect(() => {
     if (countryBanks.length > 0) {
       setSelectedBankId(countryBanks[0].id);
-      setCompareBankId(countryBanks[1]?.id || countryBanks[0].id);
+      setCompareBankId(countryBanks[1]?.id || '');
     }
   }, [countryBanks]);
+
+  useEffect(() => {
+    if (!compareBankId) return;
+    const compareStillValid = countryBanks.some((bank) => bank.id === compareBankId && bank.id !== selectedBankId);
+    if (!compareStillValid) {
+      setCompareBankId('');
+    }
+  }, [compareBankId, countryBanks, selectedBankId]);
 
   const filters: SubscriberFilters | null = activeCountry && selectedBankId
     ? {
@@ -620,6 +809,34 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
         timeWindow,
       }
     : null;
+  const canUseOverviewAggregate = Boolean(activeCountry && selectedBankId && ageGroups.length === 0 && genders.length === 0);
+
+  useEffect(() => {
+    const loadOverviewAggregate = async () => {
+      if (!activeCountry || !selectedBankId || !canUseOverviewAggregate) {
+        setOverviewAggregate(null);
+        setOverviewAggregateReason(null);
+        return;
+      }
+
+      setLoadingOverviewAggregate(true);
+      try {
+        const result = await analyticsAggregateService.getDashboardOverviewAggregateWithFallback(activeCountry, selectedBankId, timeWindow);
+        const aggregate = result.aggregate;
+        const isUsableAggregate = aggregate.integrity?.coverageComplete !== false
+          && aggregate.integrity?.rebuildStatus !== 'rebuilding';
+        setOverviewAggregate(isUsableAggregate ? aggregate : null);
+        setOverviewAggregateReason(result.fallbackReason);
+      } catch (error) {
+        setOverviewAggregate(null);
+        setOverviewAggregateReason(error instanceof Error ? error.message : 'Overview aggregate load failed.');
+      } finally {
+        setLoadingOverviewAggregate(false);
+      }
+    };
+
+    loadOverviewAggregate();
+  }, [activeCountry, selectedBankId, timeWindow, canUseOverviewAggregate]);
 
   const scopedResponses = useMemo(() => {
     if (!filters) return [];
@@ -629,7 +846,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   const scopedNoTimeResponses = useMemo(() => {
     if (!activeCountry) return [];
     return responses.filter((response) => {
-      const country = (response.selected_country || response.country || null) as CountryCode | null;
+      const country = (response.country || response.selected_country || null) as CountryCode | null;
       if (!country || country !== activeCountry) return false;
       if (ageGroups.length > 0 && (!response.b2_age || !ageGroups.includes(response.b2_age))) return false;
       if (genders.length > 0 && (!response.gender || !genders.includes(response.gender))) return false;
@@ -637,14 +854,29 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     });
   }, [responses, activeCountry, ageGroups, genders]);
 
+  const sampleSize = scopedResponses.length;
+
   const trend: TrendPoint[] = useMemo(
     () => (selectedBankId ? computeTrendSeries(scopedResponses, selectedBankId, 6) : []),
     [scopedResponses, selectedBankId],
   );
+  const trendView: TrendPoint[] = useMemo(
+    () => (canUseOverviewAggregate && overviewAggregate
+      ? overviewAggregate.monthlyTrend.map((point) => ({
+          month: point.month,
+          awareness: point.awareness,
+          usage: point.usage,
+          nps: point.nps,
+          topOfMind: point.topOfMind,
+          spontaneous: point.spontaneous,
+        })) as TrendPoint[]
+      : trend),
+    [canUseOverviewAggregate, overviewAggregate, trend],
+  );
 
   const selectedMetrics: BankMetrics | null = useMemo(() => {
     if (!selectedBankId) return null;
-    const previousAwareness = trend.length > 1 ? trend[trend.length - 2].awareness : 0;
+    const previousAwareness = trend.length > 1 ? (trend[trend.length - 2].awareness ?? 0) : 0;
     return computeBankMetrics(scopedResponses, selectedBankId, previousAwareness);
   }, [scopedResponses, selectedBankId, trend]);
 
@@ -688,6 +920,95 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     };
   }, [awarenessCurrentPrevious]);
 
+  const selectedMetricsView: BankMetrics | null = useMemo(() => {
+    if (!overviewAggregate?.selectedMetrics) return selectedMetrics;
+    const aggregateMetrics = overviewAggregate.selectedMetrics;
+    return {
+      ...(selectedMetrics || {
+        bankId: selectedBankId,
+        sample: aggregateMetrics.sample,
+        aware: 0,
+        topOfMind: 0,
+        spontaneous: 0,
+        aided: 0,
+        awarenessQuality: 0,
+        everUsed: 0,
+        currentUsing: 0,
+        preferred: 0,
+        trialRate: 0,
+        retentionRate: 0,
+        preferenceRate: 0,
+        lapseRate: 0,
+        considerationRate: 0,
+        marketPenetration: 0,
+        nps: 0,
+        promoters: 0,
+        passives: 0,
+        detractors: 0,
+        loyalty: {
+          Committed: 0,
+          Favors: 0,
+          Potential: 0,
+          Accessibles: 0,
+          Rejectors: 0,
+        },
+        loyaltyCounts: {
+          Committed: 0,
+          Favors: 0,
+          Potential: 0,
+          Accessibles: 0,
+          Rejectors: 0,
+        },
+        loyaltyIndex: 0,
+        momentum: 0,
+      }),
+      sample: aggregateMetrics.sample,
+      aware: aggregateMetrics.aware,
+      topOfMind: aggregateMetrics.topOfMind,
+      spontaneous: aggregateMetrics.spontaneous,
+      aided: aggregateMetrics.aided,
+      awarenessQuality: aggregateMetrics.awarenessQuality,
+      everUsed: aggregateMetrics.everUsed,
+      currentUsing: aggregateMetrics.currentUsing,
+      preferred: aggregateMetrics.preferred,
+      trialRate: aggregateMetrics.trialRate,
+      retentionRate: aggregateMetrics.retentionRate,
+      preferenceRate: aggregateMetrics.preferenceRate,
+      lapseRate: Math.max(0, 100 - aggregateMetrics.retentionRate),
+      considerationRate: aggregateMetrics.considerationRate,
+      marketPenetration: aggregateMetrics.currentUsing,
+      nps: aggregateMetrics.nps,
+      promoters: aggregateMetrics.promoters,
+      passives: aggregateMetrics.passives,
+      detractors: aggregateMetrics.detractors,
+      loyalty: {
+        Committed: aggregateMetrics.segmentPcts.Committed || 0,
+        Favors: aggregateMetrics.segmentPcts.Favors || 0,
+        Potential: aggregateMetrics.segmentPcts.Potential || 0,
+        Accessibles: aggregateMetrics.segmentPcts.Accessibles || 0,
+        Rejectors: aggregateMetrics.segmentPcts.Rejectors || 0,
+      },
+      loyaltyCounts: {
+        Committed: aggregateMetrics.loyaltyCounts.Committed || 0,
+        Favors: aggregateMetrics.loyaltyCounts.Favors || 0,
+        Potential: aggregateMetrics.loyaltyCounts.Potential || 0,
+        Accessibles: aggregateMetrics.loyaltyCounts.Accessibles || 0,
+        Rejectors: aggregateMetrics.loyaltyCounts.Rejectors || 0,
+      },
+      loyaltyIndex: aggregateMetrics.loyaltyIndex,
+    };
+  }, [overviewAggregate, selectedMetrics, selectedBankId]);
+
+  const awarenessDeltasView = useMemo(() => {
+    if (!canUseOverviewAggregate || !overviewAggregate) return awarenessDeltas;
+    return {
+      topOfMind: overviewAggregate.monthOverMonth.deltas.topOfMind,
+      spontaneous: overviewAggregate.monthOverMonth.deltas.spontaneous,
+      awareness: overviewAggregate.monthOverMonth.deltas.awareness,
+      quality: overviewAggregate.monthOverMonth.deltas.quality,
+    };
+  }, [canUseOverviewAggregate, overviewAggregate, awarenessDeltas]);
+
   const awarenessMoMGrowthPct = useMemo(() => {
     const current = awarenessCurrentPrevious.current;
     const previous = awarenessCurrentPrevious.previous;
@@ -704,6 +1025,40 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     () => (activeCountry && selectedBankId ? computeUsageDiagnostics(scopedResponses, activeCountry, selectedBankId) : null),
     [scopedResponses, activeCountry, selectedBankId],
   );
+
+  const compareMetrics: BankMetrics | null = useMemo(
+    () => (compareBankId ? computeBankMetrics(scopedResponses, compareBankId, 0) : null),
+    [scopedResponses, compareBankId],
+  );
+
+  const compareUsageDiagnostics: UsageDiagnostics | null = useMemo(
+    () => (activeCountry && compareBankId ? computeUsageDiagnostics(scopedResponses, activeCountry, compareBankId) : null),
+    [scopedResponses, activeCountry, compareBankId],
+  );
+
+  const usageToplineMetrics: UsageToplineMetrics | UsageAggregateMetrics | null = useMemo(() => {
+    const aggregateMetrics = canUseOverviewAggregate
+      ? buildUsageAggregateMetrics(overviewAggregate, compareBankId || null)
+      : null;
+    if (aggregateMetrics) return aggregateMetrics;
+    return buildUsageToplineMetricsFromRaw(
+      selectedMetricsView,
+      usageDiagnostics,
+      compareMetrics,
+      compareUsageDiagnostics,
+      compareBankId || null,
+      compareBankId ? countryBanks.find((bank) => bank.id === compareBankId)?.name || compareBankId : null,
+    );
+  }, [
+    canUseOverviewAggregate,
+    overviewAggregate,
+    compareBankId,
+    selectedMetricsView,
+    usageDiagnostics,
+    compareMetrics,
+    compareUsageDiagnostics,
+    countryBanks,
+  ]);
 
   const multiBankCompetition: MultiBankCompetitionDiagnostics | null = useMemo(
     () => (selectedBankId
@@ -726,6 +1081,26 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     () => (selectedBankId ? computeLoyaltyDiagnostics(scopedResponses, selectedBankId, previousMonthResponses) : null),
     [scopedResponses, selectedBankId, previousMonthResponses],
   );
+  const aggregateLoyaltySummary = useMemo(
+    () => (canUseOverviewAggregate ? buildAggregateBackedLoyaltySummary(overviewAggregate) : null),
+    [canUseOverviewAggregate, overviewAggregate],
+  );
+  const loyaltyDiagnosticsView: LoyaltyDiagnostics | null = useMemo(() => {
+    if (!loyaltyDiagnostics && !aggregateLoyaltySummary) return null;
+    if (!aggregateLoyaltySummary) return loyaltyDiagnostics;
+    return {
+      awareCount: aggregateLoyaltySummary.awareCount,
+      segmentCounts: aggregateLoyaltySummary.segmentCounts as LoyaltyDiagnostics['segmentCounts'],
+      segmentPcts: aggregateLoyaltySummary.segmentPcts as LoyaltyDiagnostics['segmentPcts'],
+      loyaltyIndex: aggregateLoyaltySummary.loyaltyIndex,
+      nps: aggregateLoyaltySummary.nps,
+      movementRows: aggregateLoyaltySummary.movementRows as LoyaltyDiagnostics['movementRows'],
+      profileCards: loyaltyDiagnostics?.profileCards || [],
+      awareToPotential: aggregateLoyaltySummary.awareToPotential,
+      potentialToFavors: aggregateLoyaltySummary.potentialToFavors,
+      favorsToCommitted: aggregateLoyaltySummary.favorsToCommitted,
+    };
+  }, [loyaltyDiagnostics, aggregateLoyaltySummary]);
 
   const momentumDiagnostics: MomentumDiagnostics | null = useMemo(
     () => (activeCountry && selectedBankId
@@ -733,6 +1108,22 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
       : null),
     [scopedResponses, scopedNoTimeResponses, activeCountry, selectedBankId],
   );
+  const aggregateMomentumSummary = useMemo(
+    () => (canUseOverviewAggregate ? buildAggregateBackedMomentumSummary(overviewAggregate) : null),
+    [canUseOverviewAggregate, overviewAggregate],
+  );
+  const momentumDiagnosticsView: MomentumDiagnostics | null = useMemo(() => {
+    if (!momentumDiagnostics && !aggregateMomentumSummary) return null;
+    if (!aggregateMomentumSummary) return momentumDiagnostics;
+    if (!momentumDiagnostics) return null;
+    return {
+      ...momentumDiagnostics,
+      score: aggregateMomentumSummary.score,
+      status: aggregateMomentumSummary.status,
+      strategy: aggregateMomentumSummary.strategy,
+      components: aggregateMomentumSummary.components,
+    };
+  }, [momentumDiagnostics, aggregateMomentumSummary]);
 
   const competitiveDiagnostics: CompetitiveIntelligenceDiagnostics | null = useMemo(
     () => (activeCountry && selectedBankId
@@ -741,12 +1132,36 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     [scopedResponses, scopedNoTimeResponses, activeCountry, selectedBankId],
   );
 
+  const switchingRadar: CustomerSwitchingRadarResult | null = useMemo(
+    () => (selectedBankId ? computeCustomerSwitchingRadar(scopedResponses, selectedBankId) : null),
+    [scopedResponses, selectedBankId],
+  );
+
+  const migrationMap: CustomerMigrationMapResult | null = useMemo(
+    () => (selectedBankId ? computeCustomerMigrationMap(scopedResponses, selectedBankId) : null),
+    [scopedResponses, selectedBankId],
+  );
+
+  const hasObservedWinLoss = competitiveDiagnostics?.winLoss.hasPanelTransitions ?? false;
+  const winLossSectionTitle = hasObservedWinLoss ? 'Observed Preference Transitions' : 'Proxy Competitive Balance';
+  const winLossSectionSubtitle = hasObservedWinLoss
+    ? 'Based on device-linked preferred-bank changes across matched responses.'
+    : 'Modeled from multi-bank overlap and market-share deltas. This is directional, not observed customer switching.';
+  const winLossPrimaryCardTitle = hasObservedWinLoss ? 'Observed Win Rate' : 'Proxy Balance';
+  const winLossModeLabel = hasObservedWinLoss ? 'Observed transitions' : 'Proxy signal';
+  const winLossModeSubtitle = hasObservedWinLoss
+    ? 'Matched preferred-bank movement across linked responses.'
+    : 'Estimated from overlap and share movement rather than observed customer transitions.';
+
   const trendsDiagnostics: TrendForecastDiagnostics | null = useMemo(
     () => (selectedBankId ? computeTrendForecastDiagnostics(scopedNoTimeResponses, selectedBankId, 12) : null),
     [scopedNoTimeResponses, selectedBankId],
   );
 
   const awarenessRankRows = useMemo(() => {
+    if (canUseOverviewAggregate && overviewAggregate) {
+      return overviewAggregate.marketRows;
+    }
     if (!activeCountry) return [];
     const bankIds = countryBanks.map((bank) => bank.id);
     const currentRows = computeCompetitiveRows(scopedResponses, activeCountry, bankIds);
@@ -769,25 +1184,268 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
         movement,
       };
     });
-  }, [scopedResponses, scopedNoTimeResponses, activeCountry, countryBanks]);
+  }, [canUseOverviewAggregate, overviewAggregate, scopedResponses, scopedNoTimeResponses, activeCountry, countryBanks]);
+
+  const brandEdgeInputs = useMemo(() => {
+    const primaryShare = awarenessRankRows.find((row) => row.bankId === selectedBankId)?.marketShare
+      || competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare
+      || 0;
+    const switchingRisk = overviewAggregate?.selectedMetrics?.switchingRisk || usageDiagnostics?.churnRate || 0;
+    return {
+      awareness: selectedMetricsView?.aware || 0,
+      usage: selectedMetricsView?.currentUsing || 0,
+      loyalty: overviewAggregate?.selectedMetrics?.loyaltyIndex || loyaltyDiagnosticsView?.loyaltyIndex || selectedMetricsView?.loyaltyIndex || 0,
+      primaryShare,
+      switchingRisk,
+    };
+  }, [awarenessRankRows, competitiveDiagnostics, selectedBankId, usageDiagnostics, selectedMetricsView, loyaltyDiagnosticsView, overviewAggregate]);
+
+  const brandEdgeScore = useMemo(
+    () => overviewAggregate?.selectedMetrics?.brandEdgeScore ?? computeBrandEdgeScore(brandEdgeInputs),
+    [overviewAggregate, brandEdgeInputs],
+  );
+  const brandEdgeLabel = useMemo(() => describeBrandEdgeScore(brandEdgeScore), [brandEdgeScore]);
+  const brandEdgeDriverSummary = useMemo(() => summarizeBrandEdgeDrivers(brandEdgeInputs), [brandEdgeInputs]);
+
+  const compareBankName = useMemo(
+    () => (compareBankId ? countryBanks.find((bank) => bank.id === compareBankId)?.name || compareBankId : null),
+    [countryBanks, compareBankId],
+  );
+  const metricScopeSignature = useMemo(
+    () => [
+      activeCountry || 'none',
+      timeWindow,
+      [...ageGroups].sort().join(',') || 'all-ages',
+      [...genders].sort().join(',') || 'all-genders',
+    ].join('|'),
+    [activeCountry, timeWindow, ageGroups, genders],
+  );
+
+  const selectedBankName = useMemo(
+    () => countryBanks.find((bank) => bank.id === selectedBankId)?.name || selectedBankId,
+    [countryBanks, selectedBankId],
+  );
+
+  const compareBrandEdgeInputs = useMemo(() => {
+    if (!compareBankId) return null;
+    const comparePrimaryShare = awarenessRankRows.find((row) => row.bankId === compareBankId)?.marketShare || 0;
+    return {
+      awareness: compareMetrics?.aware || 0,
+      usage: compareMetrics?.currentUsing || 0,
+      loyalty: compareMetrics?.loyaltyIndex || 0,
+      primaryShare: comparePrimaryShare,
+      switchingRisk: compareUsageDiagnostics?.churnRate || 0,
+    };
+  }, [compareBankId, awarenessRankRows, compareMetrics, compareUsageDiagnostics]);
+
+  const compareBrandEdgeScore = useMemo(
+    () => (compareBrandEdgeInputs ? computeBrandEdgeScore(compareBrandEdgeInputs) : null),
+    [compareBrandEdgeInputs],
+  );
 
   const selectedAwarenessRow = useMemo(
     () => awarenessRankRows.find((row) => row.bankId === selectedBankId) || null,
     [awarenessRankRows, selectedBankId],
   );
 
+  const compareAwarenessRow = useMemo(
+    () => (compareBankId ? awarenessRankRows.find((row) => row.bankId === compareBankId) || null : null),
+    [awarenessRankRows, compareBankId],
+  );
+
+  const overviewTopMetrics = useMemo(() => {
+    const awarenessMetric = createMetric({
+      value: selectedMetricsView?.aware ?? null,
+      base_n: selectedMetricsView?.sample ?? sampleSize,
+      base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+      source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+      metric_family: 'overview',
+      compare_supported: Boolean(compareAwarenessRow),
+      compare: compareAwarenessRow ? createCompareMetric(
+        createMetric({
+          value: selectedMetricsView?.aware ?? null,
+          base_n: selectedMetricsView?.sample ?? sampleSize,
+          base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+          source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+          metric_family: 'overview',
+          scope_signature: metricScopeSignature,
+        }),
+        createMetric({
+          value: compareAwarenessRow.awareness,
+          base_n: selectedMetricsView?.sample ?? sampleSize,
+          base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+          source: 'hybrid',
+          metric_family: 'overview',
+          scope_signature: metricScopeSignature,
+        }),
+        { bankId: compareBankId, bankName: compareBankName },
+      ) : null,
+      scope_signature: metricScopeSignature,
+    });
+    const currentUsageMetric = createMetric({
+      value: selectedMetricsView?.currentUsing ?? null,
+      base_n: selectedMetricsView?.sample ?? sampleSize,
+      base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+      source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+      metric_family: 'overview',
+      compare_supported: Boolean(compareAwarenessRow),
+      compare: compareAwarenessRow ? createCompareMetric(
+        createMetric({
+          value: selectedMetricsView?.currentUsing ?? null,
+          base_n: selectedMetricsView?.sample ?? sampleSize,
+          base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+          source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+          metric_family: 'overview',
+          scope_signature: metricScopeSignature,
+        }),
+        createMetric({
+          value: compareAwarenessRow.currentUsage,
+          base_n: selectedMetricsView?.sample ?? sampleSize,
+          base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+          source: 'hybrid',
+          metric_family: 'overview',
+          scope_signature: metricScopeSignature,
+        }),
+        { bankId: compareBankId, bankName: compareBankName },
+      ) : null,
+      scope_signature: metricScopeSignature,
+    });
+    const loyaltyMetric = createMetric({
+      value: loyaltyDiagnosticsView?.loyaltyIndex ?? null,
+      base_n: loyaltyDiagnosticsView?.awareCount ?? selectedMetricsView?.sample ?? sampleSize,
+      base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS,
+      source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw',
+      metric_family: 'loyalty',
+      compare_supported: Boolean(compareMetrics),
+      compare: compareMetrics ? createCompareMetric(
+        createMetric({
+          value: loyaltyDiagnosticsView?.loyaltyIndex ?? null,
+          base_n: loyaltyDiagnosticsView?.awareCount ?? null,
+          base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS,
+          source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw',
+          metric_family: 'loyalty',
+          scope_signature: metricScopeSignature,
+        }),
+        createMetric({
+          value: compareMetrics.loyaltyIndex,
+          base_n: compareMetrics.sample,
+          base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS,
+          source: 'raw',
+          metric_family: 'loyalty',
+          scope_signature: metricScopeSignature,
+        }),
+        { bankId: compareBankId, bankName: compareBankName },
+      ) : null,
+      scope_signature: metricScopeSignature,
+    });
+    const npsMetric = createMetric({
+      value: selectedMetricsView?.nps ?? null,
+      base_n: usageDiagnostics?.everCount ?? null,
+      base_type: ANALYTICS_BASE_TYPES.EVER_USED_RESPONDENTS,
+      source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+      metric_family: 'overview',
+      compare_supported: Boolean(compareMetrics),
+      compare: compareMetrics ? createCompareMetric(
+        createMetric({
+          value: selectedMetricsView?.nps ?? null,
+          base_n: usageDiagnostics?.everCount ?? null,
+          base_type: ANALYTICS_BASE_TYPES.EVER_USED_RESPONDENTS,
+          source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+          metric_family: 'overview',
+          scope_signature: metricScopeSignature,
+        }),
+        createMetric({
+          value: compareMetrics.nps,
+          base_n: compareUsageDiagnostics?.everCount ?? null,
+          base_type: ANALYTICS_BASE_TYPES.EVER_USED_RESPONDENTS,
+          source: 'raw',
+          metric_family: 'overview',
+          scope_signature: metricScopeSignature,
+        }),
+        { bankId: compareBankId, bankName: compareBankName },
+      ) : null,
+      scope_signature: metricScopeSignature,
+    });
+    return {
+      awareness: awarenessMetric,
+      currentUsage: currentUsageMetric,
+      loyaltyIndex: loyaltyMetric,
+      nps: npsMetric,
+    };
+  }, [
+    selectedMetricsView,
+    sampleSize,
+    canUseOverviewAggregate,
+    overviewAggregate,
+    compareAwarenessRow,
+    compareBankId,
+    compareBankName,
+    loyaltyDiagnostics,
+    loyaltyDiagnosticsView,
+    compareMetrics,
+    usageDiagnostics,
+    compareUsageDiagnostics,
+    metricScopeSignature,
+  ]);
+
+  const brandEdgeTrend = useMemo(() => {
+    if (canUseOverviewAggregate && overviewAggregate) {
+      return overviewAggregate.monthlyTrend.map((point) => ({ month: point.month, score: point.brandEdgeScore }));
+    }
+    if (!activeCountry || !selectedBankId) return [] as Array<{ month: string; score: number | null }>;
+    const now = new Date();
+    const points: Array<{ month: string; score: number | null }> = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1).getTime();
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1).getTime();
+      const monthResponses = scopedNoTimeResponses.filter((response) => {
+        const ts = new Date(response.timestamp).getTime();
+        return Number.isFinite(ts) && ts >= start && ts < end;
+      });
+      if (monthResponses.length === 0) {
+        points.push({
+          month: new Date(start).toLocaleDateString('en', { month: 'short' }),
+          score: null,
+        });
+        continue;
+      }
+      const monthMetrics = computeBankMetrics(monthResponses, selectedBankId, 0);
+      const monthUsage = computeUsageDiagnostics(monthResponses, activeCountry, selectedBankId);
+      const monthCompetitive = computeCompetitiveIntelligenceDiagnostics(monthResponses, monthResponses, activeCountry, selectedBankId);
+      const monthPrimaryShare = monthCompetitive.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare || 0;
+      points.push({
+        month: new Date(start).toLocaleDateString('en', { month: 'short' }),
+        score: computeBrandEdgeScore({
+          awareness: monthMetrics.aware,
+          usage: monthMetrics.currentUsing,
+          loyalty: monthMetrics.loyaltyIndex,
+          primaryShare: monthPrimaryShare,
+          switchingRisk: monthUsage.churnRate,
+        }),
+      });
+    }
+    return points;
+  }, [activeCountry, selectedBankId, scopedNoTimeResponses]);
+
   const awarenessShareIndex = useMemo(() => {
     const totalAwareness = awarenessRankRows.reduce((sum, row) => sum + row.awareness, 0);
-    if (totalAwareness <= 0 || !selectedMetrics) return 0;
-    return Math.round((selectedMetrics.aware / totalAwareness) * 100);
-  }, [awarenessRankRows, selectedMetrics]);
+    if (totalAwareness <= 0 || !selectedMetricsView) return 0;
+    return Math.round((selectedMetricsView.aware / totalAwareness) * 100);
+  }, [awarenessRankRows, selectedMetricsView]);
 
   const awarenessDepthScore = useMemo(() => {
-    if (!selectedMetrics) return 0;
-    const aidedOnly = Math.max(selectedMetrics.aided - selectedMetrics.spontaneous, 0);
-    const score = (selectedMetrics.topOfMind * 3 + selectedMetrics.spontaneous * 2 + aidedOnly) / 3;
+    if (!selectedMetricsView) return 0;
+    const aidedOnly = Math.max(selectedMetricsView.aided - selectedMetricsView.spontaneous, 0);
+    const score = (selectedMetricsView.topOfMind * 3 + selectedMetricsView.spontaneous * 2 + aidedOnly) / 3;
     return Math.round(score);
-  }, [selectedMetrics]);
+  }, [selectedMetricsView]);
+
+  const compareAwarenessDepthScore = useMemo(() => {
+    if (!compareMetrics) return null;
+    const aidedOnly = Math.max(compareMetrics.aided - compareMetrics.spontaneous, 0);
+    const score = (compareMetrics.topOfMind * 3 + compareMetrics.spontaneous * 2 + aidedOnly) / 3;
+    return Math.round(score);
+  }, [compareMetrics]);
 
   const demographicSummary: DemographicSummary = useMemo(
     () => computeDemographics(scopedResponses),
@@ -799,113 +1457,325 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     [scopedResponses, selectedBankId],
   );
 
+  const awarenessTopMetrics = useMemo(() => ({
+    topOfMind: createMetric({
+      value: selectedMetricsView?.topOfMind ?? null,
+      base_n: selectedMetricsView?.sample ?? sampleSize,
+      base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+      source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+      metric_family: 'awareness',
+      compare_supported: Boolean(compareAwarenessRow),
+      compare: compareAwarenessRow ? createCompareMetric(
+        createMetric({ value: selectedMetricsView?.topOfMind ?? null, base_n: selectedMetricsView?.sample ?? sampleSize, base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw', metric_family: 'awareness', scope_signature: metricScopeSignature }),
+        createMetric({ value: compareAwarenessRow.topOfMind, base_n: selectedMetricsView?.sample ?? sampleSize, base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, source: 'hybrid', metric_family: 'awareness', scope_signature: metricScopeSignature }),
+        { bankId: compareBankId, bankName: compareBankName },
+      ) : null,
+      scope_signature: metricScopeSignature,
+    }),
+    spontaneous: createMetric({
+      value: selectedMetricsView?.spontaneous ?? null,
+      base_n: selectedMetricsView?.sample ?? sampleSize,
+      base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+      source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+      metric_family: 'awareness',
+      compare_supported: Boolean(compareMetrics),
+      compare: compareMetrics ? createCompareMetric(
+        createMetric({ value: selectedMetricsView?.spontaneous ?? null, base_n: selectedMetricsView?.sample ?? sampleSize, base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw', metric_family: 'awareness', scope_signature: metricScopeSignature }),
+        createMetric({ value: compareMetrics.spontaneous, base_n: compareMetrics.sample, base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, source: 'raw', metric_family: 'awareness', scope_signature: metricScopeSignature }),
+        { bankId: compareBankId, bankName: compareBankName },
+      ) : null,
+      scope_signature: metricScopeSignature,
+    }),
+    awareness: createMetric({
+      value: selectedMetricsView?.aware ?? null,
+      base_n: selectedMetricsView?.sample ?? sampleSize,
+      base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES,
+      source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+      metric_family: 'awareness',
+      compare_supported: Boolean(compareAwarenessRow),
+      compare: compareAwarenessRow ? createCompareMetric(
+        createMetric({ value: selectedMetricsView?.aware ?? null, base_n: selectedMetricsView?.sample ?? sampleSize, base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw', metric_family: 'awareness', scope_signature: metricScopeSignature }),
+        createMetric({ value: compareAwarenessRow.awareness, base_n: selectedMetricsView?.sample ?? sampleSize, base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, source: 'hybrid', metric_family: 'awareness', scope_signature: metricScopeSignature }),
+        { bankId: compareBankId, bankName: compareBankName },
+      ) : null,
+      scope_signature: metricScopeSignature,
+    }),
+    quality: createMetric({
+      value: selectedMetricsView?.awarenessQuality ?? null,
+      base_n: usageDiagnostics?.awareCount ?? null,
+      base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS,
+      source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw',
+      metric_family: 'awareness',
+      compare_supported: Boolean(compareMetrics),
+      compare: compareMetrics ? createCompareMetric(
+        createMetric({ value: selectedMetricsView?.awarenessQuality ?? null, base_n: usageDiagnostics?.awareCount ?? null, base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS, source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw', metric_family: 'awareness', scope_signature: metricScopeSignature }),
+        createMetric({ value: compareMetrics.awarenessQuality, base_n: compareUsageDiagnostics?.awareCount ?? null, base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS, source: 'raw', metric_family: 'awareness', scope_signature: metricScopeSignature }),
+        { bankId: compareBankId, bankName: compareBankName },
+      ) : null,
+      scope_signature: metricScopeSignature,
+    }),
+  }), [selectedMetricsView, sampleSize, canUseOverviewAggregate, overviewAggregate, compareAwarenessRow, compareMetrics, compareUsageDiagnostics, usageDiagnostics, compareBankId, compareBankName, metricScopeSignature]);
+
+  const loyaltyTopMetrics = useMemo(() => loyaltyDiagnosticsView ? ({
+    loyaltyIndex: createMetric({ value: loyaltyDiagnosticsView.loyaltyIndex, base_n: loyaltyDiagnosticsView.awareCount, base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS, source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw', metric_family: 'loyalty', compare_supported: false, scope_signature: metricScopeSignature, notes: ['compare_disabled: loyalty summary compare not normalized in this pass'] }),
+    nps: createMetric({ value: loyaltyDiagnosticsView.nps, base_n: usageDiagnostics?.everCount ?? null, base_type: ANALYTICS_BASE_TYPES.EVER_USED_RESPONDENTS, source: canUseOverviewAggregate && overviewAggregate ? 'aggregate' : 'raw', metric_family: 'loyalty', compare_supported: false, scope_signature: metricScopeSignature, notes: ['compare_disabled: loyalty summary compare not normalized in this pass'] }),
+    committed: createMetric({ value: loyaltyDiagnosticsView.segmentPcts.Committed, count: loyaltyDiagnosticsView.segmentCounts.Committed, base_n: loyaltyDiagnosticsView.awareCount, base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS, source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw', metric_family: 'loyalty', compare_supported: false, scope_signature: metricScopeSignature }),
+    rejectors: createMetric({ value: loyaltyDiagnosticsView.segmentPcts.Rejectors, count: loyaltyDiagnosticsView.segmentCounts.Rejectors, base_n: loyaltyDiagnosticsView.awareCount, base_type: ANALYTICS_BASE_TYPES.AWARE_RESPONDENTS, source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw', metric_family: 'loyalty', compare_supported: false, scope_signature: metricScopeSignature }),
+  }) : null, [loyaltyDiagnosticsView, overviewAggregate, usageDiagnostics, canUseOverviewAggregate, metricScopeSignature]);
+
+  const momentumTopMetrics = useMemo(() => momentumDiagnosticsView ? ({
+    score: createMetric({
+      value: momentumDiagnosticsView.score,
+      base_n: momentumDiagnosticsView.validTrendPeriods,
+      base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW,
+      source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw',
+      metric_family: 'momentum',
+      compare_supported: false,
+      scope_signature: metricScopeSignature,
+      notes: ['compare_disabled: momentum summary scores are rolling-window normalized composites', ...momentumDiagnosticsView.notes],
+    }),
+    awarenessGrowth: createMetric({
+      value: momentumDiagnosticsView.components.awarenessGrowth,
+      base_n: momentumDiagnosticsView.validTrendPeriods,
+      base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW,
+      source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw',
+      metric_family: 'momentum',
+      compare_supported: false,
+      scope_signature: metricScopeSignature,
+      notes: ['normalized momentum component', ...momentumDiagnosticsView.notes],
+    }),
+    consideration: createMetric({
+      value: momentumDiagnosticsView.components.consideration,
+      base_n: momentumDiagnosticsView.validTrendPeriods,
+      base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW,
+      source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw',
+      metric_family: 'momentum',
+      compare_supported: false,
+      scope_signature: metricScopeSignature,
+      notes: ['normalized momentum component', ...momentumDiagnosticsView.notes],
+    }),
+    conversion: createMetric({
+      value: momentumDiagnosticsView.components.conversion,
+      base_n: momentumDiagnosticsView.validTrendPeriods,
+      base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW,
+      source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw',
+      metric_family: 'momentum',
+      compare_supported: false,
+      scope_signature: metricScopeSignature,
+      notes: ['normalized momentum component', ...momentumDiagnosticsView.notes],
+    }),
+    retention: createMetric({
+      value: momentumDiagnosticsView.components.retention,
+      base_n: momentumDiagnosticsView.validTrendPeriods,
+      base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW,
+      source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw',
+      metric_family: 'momentum',
+      compare_supported: false,
+      scope_signature: metricScopeSignature,
+      notes: ['normalized momentum component', ...momentumDiagnosticsView.notes],
+    }),
+    adoption: createMetric({
+      value: momentumDiagnosticsView.components.adoption,
+      base_n: momentumDiagnosticsView.validTrendPeriods,
+      base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW,
+      source: overviewAggregate?.selectedMetrics ? 'aggregate' : 'raw',
+      metric_family: 'momentum',
+      compare_supported: false,
+      scope_signature: metricScopeSignature,
+      notes: ['normalized momentum component', ...momentumDiagnosticsView.notes],
+    }),
+  }) : null, [momentumDiagnosticsView, metricScopeSignature, overviewAggregate]);
+
+  const competitiveTopMetrics = useMemo(() => competitiveDiagnostics ? ({
+    marketShare: createMetric({ value: competitiveDiagnostics.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare ?? null, count: competitiveDiagnostics.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.preferredCount ?? null, base_n: sampleSize, base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, source: 'raw', metric_family: 'competitive', compare_supported: false, scope_signature: metricScopeSignature, notes: ['compare_disabled: competitive summary compare not normalized in this pass'] }),
+    hhi: createMetric({ value: competitiveDiagnostics.marketStructure.hhi, base_n: sampleSize, base_type: ANALYTICS_BASE_TYPES.MARKET_TOTAL, source: 'raw', metric_family: 'competitive', compare_supported: false, scope_signature: metricScopeSignature }),
+    avgBanksPerCustomer: createMetric({ value: competitiveDiagnostics.customerBehavior.averageBanksPerCustomer, base_n: competitiveDiagnostics.customerBehavior.portfolioComposition.reduce((sum, row) => sum + row.count, 0), base_type: ANALYTICS_BASE_TYPES.CURRENT_USERS, source: 'raw', metric_family: 'competitive', compare_supported: false, scope_signature: metricScopeSignature }),
+    multiBankingRate: createMetric({ value: competitiveDiagnostics.customerBehavior.multiBankingRate, base_n: competitiveDiagnostics.customerBehavior.portfolioComposition.reduce((sum, row) => sum + row.count, 0), base_type: ANALYTICS_BASE_TYPES.CURRENT_USERS, source: 'raw', metric_family: 'competitive', compare_supported: false, scope_signature: metricScopeSignature }),
+  }) : null, [competitiveDiagnostics, selectedBankId, sampleSize, metricScopeSignature]);
+
+  const demographicsTopMetrics = useMemo(() => demographicDiagnostics ? ({
+    sample: createMetric({ value: demographicDiagnostics.sample, base_n: demographicDiagnostics.sample, base_type: ANALYTICS_BASE_TYPES.TOTAL_RESPONSES, source: 'raw', metric_family: 'demographics', scope_signature: metricScopeSignature }),
+    topSegment: createMetric({ value: demographicDiagnostics.highValueSegments[0]?.score ?? null, base_n: demographicDiagnostics.sample, base_type: ANALYTICS_BASE_TYPES.SEGMENT_POPULATION, source: 'raw', metric_family: 'demographics', scope_signature: metricScopeSignature }),
+    highestGap: createMetric({ value: demographicDiagnostics.opportunities[0]?.usageGap ?? null, base_n: demographicDiagnostics.sample, base_type: ANALYTICS_BASE_TYPES.SEGMENT_POPULATION, source: 'raw', metric_family: 'demographics', scope_signature: metricScopeSignature }),
+    avgSegmentMultiBanking: createMetric({ value: demographicDiagnostics.ageRows.length > 0 ? Math.round((demographicDiagnostics.ageRows.reduce((sum, row) => sum + row.multiBankRate, 0) / demographicDiagnostics.ageRows.length) * 10) / 10 : null, base_n: demographicDiagnostics.ageRows.length, base_type: ANALYTICS_BASE_TYPES.SEGMENT_POPULATION, source: 'raw', metric_family: 'demographics', scope_signature: metricScopeSignature }),
+  }) : null, [demographicDiagnostics, metricScopeSignature]);
+
+  const trendsTopMetrics = useMemo(() => trendsDiagnostics ? ({
+    mom: createMetric({ value: trendsDiagnostics.periodComparisons.momPp, base_n: trendsDiagnostics.validPeriods, base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW, source: 'raw', metric_family: 'trends', scope_signature: metricScopeSignature, notes: trendsDiagnostics.forecast.reasons }),
+    qoq: createMetric({ value: trendsDiagnostics.periodComparisons.qoqPp, base_n: trendsDiagnostics.validPeriods, base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW, source: 'raw', metric_family: 'trends', scope_signature: metricScopeSignature, notes: trendsDiagnostics.forecast.reasons }),
+    yoy: createMetric({ value: trendsDiagnostics.periodComparisons.yoyPp, base_n: trendsDiagnostics.validPeriods, base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW, source: 'raw', metric_family: 'trends', scope_signature: metricScopeSignature, notes: trendsDiagnostics.forecast.reasons }),
+    ytdAverage: createMetric({ value: trendsDiagnostics.periodComparisons.ytdAverage, base_n: trendsDiagnostics.validPeriods, base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW, source: 'raw', metric_family: 'trends', scope_signature: metricScopeSignature, notes: trendsDiagnostics.forecast.reasons }),
+    cagr: createMetric({ value: trendsDiagnostics.growth.cagrPct, base_n: trendsDiagnostics.validPeriods, base_type: ANALYTICS_BASE_TYPES.TIME_SERIES_WINDOW, source: 'raw', metric_family: 'trends', scope_signature: metricScopeSignature, notes: trendsDiagnostics.forecast.reasons }),
+  }) : null, [trendsDiagnostics, metricScopeSignature]);
+
   const periodLabel = useMemo(() => TIME_WINDOWS.find((window) => window.id === timeWindow)?.label || 'All data', [timeWindow]);
+  const hasToplineSample = (canUseOverviewAggregate && (overviewAggregate?.sampleSize ?? 0) > 0) || sampleSize > 0;
+  const dashboardSource = canUseOverviewAggregate && overviewAggregate
+    ? 'aggregate'
+    : rawDataSource === 'firestore'
+      ? 'firestore'
+      : 'local';
+  const dashboardSourceReason = dashboardSource === 'aggregate'
+    ? overviewAggregateReason
+    : rawDataSourceReason;
 
   const heroConfig = useMemo(() => {
     switch (section) {
       case 'awareness_consideration':
         return {
           label: 'Awareness Intelligence',
-          score: `${selectedMetrics?.aware || 0}%`,
-          delta: awarenessDeltas.awareness,
-          summary: 'Awareness trajectory and conversion quality for executive tracking.',
+          score: safePercent(selectedMetricsView?.aware),
+          delta: compareAwarenessRow && isFiniteMetricValue(selectedMetricsView?.aware)
+            ? selectedMetricsView.aware - compareAwarenessRow.awareness
+            : awarenessDeltasView.awareness,
+          summary: compareBankName
+            ? `Awareness trajectory for ${selectedBankName} versus ${compareBankName}.`
+            : 'Awareness trajectory and conversion quality for executive tracking.',
           rightCards: [
-            { label: 'Top of Mind', value: `${selectedMetrics?.topOfMind || 0}%`, tone: (awarenessDeltas.topOfMind || 0) > 0 ? 'positive' as const : (awarenessDeltas.topOfMind || 0) < 0 ? 'negative' as const : 'neutral' as const },
-            { label: 'Spontaneous Recall', value: `${selectedMetrics?.spontaneous || 0}%`, tone: (awarenessDeltas.spontaneous || 0) > 0 ? 'positive' as const : (awarenessDeltas.spontaneous || 0) < 0 ? 'negative' as const : 'neutral' as const },
+            {
+              label: compareBankName ? `Top of Mind vs ${compareBankName}` : 'Top of Mind',
+              value: safePercent(selectedMetricsView?.topOfMind),
+              tone: compareAwarenessRow
+                ? ((selectedMetricsView?.topOfMind ?? null) !== null && selectedMetricsView!.topOfMind >= compareAwarenessRow.topOfMind ? 'positive' as const : 'negative' as const)
+                : (awarenessDeltasView.topOfMind || 0) > 0 ? 'positive' as const : (awarenessDeltasView.topOfMind || 0) < 0 ? 'negative' as const : 'neutral' as const,
+            },
+            {
+              label: compareBankName ? `Spontaneous vs ${compareBankName}` : 'Spontaneous Recall',
+              value: safePercent(selectedMetricsView?.spontaneous),
+              tone: compareMetrics
+                ? ((selectedMetricsView?.spontaneous ?? null) !== null && selectedMetricsView!.spontaneous >= compareMetrics.spontaneous ? 'positive' as const : 'negative' as const)
+                : (awarenessDeltasView.spontaneous || 0) > 0 ? 'positive' as const : (awarenessDeltasView.spontaneous || 0) < 0 ? 'negative' as const : 'neutral' as const,
+            },
           ],
         };
       case 'usage_behavior':
         return {
           label: 'Usage Intelligence',
-          score: `${usageDiagnostics?.currentUsageRate || 0}%`,
-          delta: null,
-          summary: 'Current usage efficiency and conversion bottlenecks across the funnel.',
+          score: safePercent(usageToplineMetrics?.currentUsage.value),
+          delta: usageToplineMetrics?.currentUsage.compare?.delta ?? null,
+          summary: compareBankName
+            ? `Usage funnel efficiency for ${selectedBankName} versus ${compareBankName}.`
+            : 'Current usage efficiency and conversion bottlenecks across the funnel.',
           rightCards: [
-            { label: 'Retention', value: `${usageDiagnostics?.retentionRate || 0}%`, tone: (usageDiagnostics?.retentionRate || 0) >= 50 ? 'positive' as const : 'negative' as const },
-            { label: 'BUMO', value: `${usageDiagnostics?.bumoPenetration || 0}%`, tone: 'neutral' as const },
+            {
+              label: compareBankName ? `Retention vs ${compareBankName}` : 'Retention',
+              value: safePercent(usageToplineMetrics?.retention.value),
+              tone: (usageToplineMetrics?.retention.value ?? null) === null ? 'neutral' as const : ((usageToplineMetrics?.retention.value || 0) >= 50 ? 'positive' as const : 'negative' as const),
+            },
+            {
+              label: compareBankName ? `Preference Capture vs ${compareBankName}` : 'Preference Capture',
+              value: safePercent(usageToplineMetrics?.preferenceCapture.value),
+              tone: 'neutral' as const,
+            },
           ],
         };
       case 'loyalty_satisfaction':
         return {
           label: 'Loyalty Intelligence',
-          score: `${loyaltyDiagnostics?.loyaltyIndex || 0}`,
-          delta: loyaltyDiagnostics?.movementRows.find((row) => row.segment === 'Committed')?.deltaPct ?? null,
+          score: safeNumber(loyaltyDiagnosticsView?.loyaltyIndex),
+          delta: loyaltyDiagnosticsView?.movementRows.find((row) => row.segment === 'Committed')?.deltaPct ?? null,
           summary: 'Loyalty strength, segment quality, and advocacy risk posture.',
           rightCards: [
-            { label: 'NPS', value: `${loyaltyDiagnostics?.nps || 0}`, tone: (loyaltyDiagnostics?.nps || 0) >= 0 ? 'positive' as const : 'negative' as const },
-            { label: 'Rejectors', value: `${loyaltyDiagnostics?.segmentPcts.Rejectors || 0}%`, tone: (loyaltyDiagnostics?.segmentPcts.Rejectors || 0) > 12 ? 'negative' as const : 'neutral' as const },
+            { label: 'NPS', value: safeNumber(loyaltyDiagnosticsView?.nps), tone: loyaltyDiagnosticsView?.nps == null ? 'neutral' as const : ((loyaltyDiagnosticsView?.nps || 0) >= 0 ? 'positive' as const : 'negative' as const) },
+            { label: 'Rejectors', value: safePercent(loyaltyDiagnosticsView?.segmentPcts.Rejectors), tone: loyaltyDiagnosticsView?.segmentPcts.Rejectors == null ? 'neutral' as const : ((loyaltyDiagnosticsView?.segmentPcts.Rejectors || 0) > 12 ? 'negative' as const : 'neutral' as const) },
           ],
         };
       case 'brand_momentum':
         return {
           label: 'Momentum Intelligence',
-          score: `${momentumDiagnostics?.score || 0}`,
-          delta: momentumDiagnostics?.velocity ?? null,
-          summary: 'Forward velocity and momentum durability in current market conditions.',
+          score: momentumTopMetrics?.score.value === null || momentumTopMetrics?.score.value === undefined ? '--' : `${momentumTopMetrics.score.value}`,
+          delta: momentumDiagnosticsView?.velocity ?? null,
+          summary: momentumDiagnosticsView?.forecastEligible
+            ? 'Forward velocity and momentum durability in current market conditions.'
+            : firstStatusNote(momentumTopMetrics?.score.notes, EMPTY_COPY.forecastUnavailable),
           rightCards: [
-            { label: 'Velocity', value: `${momentumDiagnostics?.velocity > 0 ? '+' : ''}${momentumDiagnostics?.velocity || 0}`, tone: (momentumDiagnostics?.velocity || 0) >= 0 ? 'positive' as const : 'negative' as const },
-            { label: 'Volatility', value: `${momentumDiagnostics?.volatilityCv || 0}%`, tone: (momentumDiagnostics?.volatilityCv || 0) > 25 ? 'negative' as const : 'neutral' as const },
+            { label: 'Velocity', value: formatSignedValue(momentumDiagnosticsView?.velocity ?? null, '', 1), tone: momentumDiagnosticsView?.velocity === null ? 'neutral' as const : (momentumDiagnosticsView.velocity >= 0 ? 'positive' as const : 'negative' as const) },
+            { label: 'Volatility', value: momentumDiagnosticsView?.volatilityCv === null ? '--' : `${momentumDiagnosticsView.volatilityCv}%`, tone: (momentumDiagnosticsView?.volatilityCv ?? 0) > 25 ? 'negative' as const : 'neutral' as const },
           ],
           tone: 'momentum' as const,
         };
       case 'competitive_intelligence':
         return {
           label: 'Competitive Intelligence',
-          score: `${competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare || 0}%`,
+          score: safePercent(competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare),
           delta: competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShareDelta ?? null,
           summary: 'Share defense and competitor pressure mapped for strategic response.',
           rightCards: [
-            { label: 'Win Rate', value: `${competitiveDiagnostics?.winLoss.overallWinRate || 0}%`, tone: (competitiveDiagnostics?.winLoss.overallWinRate || 0) >= 50 ? 'positive' as const : 'negative' as const },
-            { label: 'HHI', value: `${competitiveDiagnostics?.marketStructure.hhi || 0}`, tone: 'neutral' as const },
+            { label: hasObservedWinLoss ? 'Observed Win Rate' : 'Proxy Balance', value: safePercent(competitiveDiagnostics?.winLoss.overallWinRate), tone: competitiveDiagnostics?.winLoss.overallWinRate == null ? 'neutral' as const : ((competitiveDiagnostics?.winLoss.overallWinRate || 0) >= 50 ? 'positive' as const : 'negative' as const) },
+            { label: 'HHI', value: safeNumber(competitiveDiagnostics?.marketStructure.hhi), tone: 'neutral' as const },
           ],
         };
       case 'demographics':
         return {
           label: 'Demographic Intelligence',
-          score: `${demographicDiagnostics?.highValueSegments[0]?.score || 0}`,
+          score: safeNumber(demographicDiagnostics?.highValueSegments[0]?.score),
           delta: null,
           summary: 'High-value cohort concentration and demographic whitespace opportunity.',
           rightCards: [
-            { label: 'Top Segment', value: `${demographicDiagnostics?.highValueSegments[0]?.segment || '--'}`, tone: 'neutral' as const },
-            { label: 'Priority Gap', value: `${demographicDiagnostics?.opportunities[0]?.usageGap || 0}pp`, tone: (demographicDiagnostics?.opportunities[0]?.usageGap || 0) > 0 ? 'negative' as const : 'neutral' as const },
+            { label: 'Top Segment', value: safeText(demographicDiagnostics?.highValueSegments[0]?.segment, '--'), tone: 'neutral' as const },
+            { label: 'Priority Gap', value: safePp(demographicDiagnostics?.opportunities[0]?.usageGap), tone: demographicDiagnostics?.opportunities[0]?.usageGap == null ? 'neutral' as const : ((demographicDiagnostics?.opportunities[0]?.usageGap || 0) > 0 ? 'negative' as const : 'neutral' as const) },
           ],
         };
       case 'trends_forecasts':
         return {
           label: 'Trend Intelligence',
-          score: `${trendsDiagnostics?.forecast.regressionNext || 0}%`,
+          score: trendsDiagnostics?.forecast.regressionNext == null ? '--' : `${trendsDiagnostics.forecast.regressionNext}%`,
           delta: trendsDiagnostics?.signal.slope ?? null,
-          summary: 'Forecast trajectory, volatility profile, and confidence discipline.',
+          summary: trendsDiagnostics?.forecast.eligible
+            ? 'Forecast trajectory, volatility profile, and confidence discipline.'
+            : firstStatusNote(trendsTopMetrics?.mom.notes, EMPTY_COPY.forecastUnavailable),
           rightCards: [
-            { label: 'CAGR', value: `${trendsDiagnostics?.growth.cagrPct === null ? '--' : `${trendsDiagnostics.growth.cagrPct}%`}`, tone: (trendsDiagnostics?.growth.cagrPct || 0) >= 0 ? 'positive' as const : 'negative' as const },
-            { label: 'Stability', value: `${trendsDiagnostics?.volatility.stabilityScore || 0}`, tone: (trendsDiagnostics?.volatility.stabilityScore || 0) >= 60 ? 'positive' as const : 'negative' as const },
+            { label: 'CAGR', value: trendsDiagnostics?.growth.cagrPct === null ? '--' : `${trendsDiagnostics.growth.cagrPct}%`, tone: trendsDiagnostics?.growth.cagrPct === null ? 'neutral' as const : (trendsDiagnostics.growth.cagrPct >= 0 ? 'positive' as const : 'negative' as const) },
+            { label: 'Stability', value: safeNumber(trendsDiagnostics?.volatility.stabilityScore), tone: trendsDiagnostics?.volatility.stabilityScore == null ? 'neutral' as const : ((trendsDiagnostics?.volatility.stabilityScore || 0) >= 60 ? 'positive' as const : 'negative' as const) },
           ],
         };
       case 'overview':
       default:
         return {
-          label: 'Composite Brand Health Index',
-          score: `${momentumDiagnostics?.score || 0}`,
-          delta: momentumDiagnostics?.velocity ?? null,
-          summary: 'Executive composite of awareness, usage, loyalty, and momentum signals.',
+          label: 'BrandEdge Score',
+          score: hasToplineSample ? `${brandEdgeScore} / 100` : '--',
+          delta: compareBrandEdgeScore === null ? null : brandEdgeScore - compareBrandEdgeScore,
+          summary: compareBankName
+            ? `${brandEdgeLabel}. Executive composite for ${selectedBankName} versus ${compareBankName}.`
+            : `${brandEdgeLabel}. Executive composite of awareness, usage, loyalty, primary share, and switching risk.`,
           rightCards: [
-            { label: 'Awareness', value: `${selectedMetrics?.aware || 0}%`, tone: (awarenessDeltas.awareness || 0) >= 0 ? 'positive' as const : 'negative' as const },
-            { label: 'NPS', value: `${selectedMetrics?.nps || 0}`, tone: (selectedMetrics?.nps || 0) >= 0 ? 'positive' as const : 'negative' as const },
+            {
+              label: compareBankName ? `Awareness vs ${compareBankName}` : 'Awareness',
+              value: safePercent(selectedMetricsView?.aware),
+              tone: compareAwarenessRow
+                ? ((selectedMetricsView?.aware ?? null) !== null && selectedMetricsView!.aware >= compareAwarenessRow.awareness ? 'positive' as const : 'negative' as const)
+                : (awarenessDeltasView.awareness || 0) >= 0 ? 'positive' as const : 'negative' as const,
+            },
+            {
+              label: compareBankName ? `NPS vs ${compareBankName}` : 'NPS',
+              value: safeNumber(selectedMetricsView?.nps),
+              tone: compareMetrics
+                ? ((selectedMetricsView?.nps ?? null) !== null && selectedMetricsView!.nps >= compareMetrics.nps ? 'positive' as const : 'negative' as const)
+                : (selectedMetricsView?.nps ?? null) === null ? 'neutral' as const : ((selectedMetricsView?.nps || 0) >= 0 ? 'positive' as const : 'negative' as const),
+            },
           ],
           tone: 'default' as const,
         };
     }
   }, [
     section,
-    selectedMetrics,
-    awarenessDeltas,
+    selectedMetricsView,
+    awarenessDeltasView,
     usageDiagnostics,
-    loyaltyDiagnostics,
-    momentumDiagnostics,
+    usageToplineMetrics,
+    loyaltyDiagnosticsView,
+    momentumDiagnosticsView,
+    brandEdgeScore,
+    brandEdgeLabel,
     competitiveDiagnostics,
     demographicDiagnostics,
     trendsDiagnostics,
     selectedBankId,
+    selectedBankName,
+    compareBankName,
+    compareMetrics,
+    compareAwarenessRow,
+    compareBrandEdgeScore,
   ]);
 
   const advisorContextSnapshot: StrategyAdvisorPayload | null = useMemo(() => {
@@ -922,21 +1792,28 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
       },
       metrics: {
         sample_size: scopedResponses.length,
-        awareness: selectedMetrics?.aware || 0,
-        top_of_mind: selectedMetrics?.topOfMind || 0,
-        current_usage: selectedMetrics?.currentUsing || 0,
-        bumo: selectedMetrics?.preferred || 0,
-        loyalty_index: loyaltyDiagnostics?.loyaltyIndex || 0,
-        momentum_score: momentumDiagnostics?.score || 0,
-        nps: selectedMetrics?.nps || 0,
+        awareness: selectedMetricsView?.aware || 0,
+        top_of_mind: selectedMetricsView?.topOfMind || 0,
+        current_usage: selectedMetricsView?.currentUsing || 0,
+        bumo: selectedMetricsView?.preferred || 0,
+        loyalty_index: loyaltyDiagnosticsView?.loyaltyIndex || 0,
+        brand_edge_score: brandEdgeScore,
+        brand_edge_label: brandEdgeLabel,
+        brand_edge_drivers: {
+          awareness: brandEdgeInputs.awareness,
+          loyalty: brandEdgeInputs.loyalty,
+          switching_risk: brandEdgeInputs.switchingRisk,
+        },
+        momentum_score: momentumDiagnosticsView?.score || 0,
+        nps: selectedMetricsView?.nps || 0,
         market_share: competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare || 0,
         retention_rate: usageDiagnostics?.retentionRate || 0,
         conversion_rate: usageDiagnostics?.trialRate || 0,
       },
       previous_period: {
-        awareness_delta_pp: awarenessDeltas.awareness,
-        top_of_mind_delta_pp: awarenessDeltas.topOfMind,
-        momentum_previous_score: momentumDiagnostics?.competitiveRows.find((row) => row.bankId === selectedBankId)?.previousScore || null,
+        awareness_delta_pp: awarenessDeltasView.awareness,
+        top_of_mind_delta_pp: awarenessDeltasView.topOfMind,
+        momentum_previous_score: momentumDiagnosticsView?.competitiveRows.find((row) => row.bankId === selectedBankId)?.previousScore || null,
         market_share_delta_pp: competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShareDelta || null,
       },
       competitors: {
@@ -946,7 +1823,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           sov: row.shareOfVoice,
           market_share_delta_pp: row.marketShareDelta,
         })) || [],
-        momentum: momentumDiagnostics?.competitiveRows.slice(0, 6).map((row) => ({
+        momentum: momentumDiagnosticsView?.competitiveRows.slice(0, 6).map((row) => ({
           bank: row.bankName,
           score: row.score,
           growth_rate: row.growthRate,
@@ -964,12 +1841,15 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     genders,
     timeWindow,
     scopedResponses.length,
-    selectedMetrics,
-    loyaltyDiagnostics,
-    momentumDiagnostics,
+    selectedMetricsView,
+    loyaltyDiagnosticsView,
+    momentumDiagnosticsView,
     competitiveDiagnostics,
     usageDiagnostics,
-    awarenessDeltas,
+    awarenessDeltasView,
+    brandEdgeScore,
+    brandEdgeLabel,
+    brandEdgeInputs,
   ]);
 
   useEffect(() => {
@@ -988,9 +1868,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     };
   }, [state.user?.id, advisorContextSnapshot]);
 
-  const sampleSize = scopedResponses.length;
-
-  const selectedBankName = countryBanks.find((bank) => bank.id === selectedBankId)?.name || selectedBankId;
+  const bankNameById = useMemo(
+    () => new Map(countryBanks.map((bank) => [bank.id, bank.name])),
+    [countryBanks],
+  );
   const toggleFilter = (value: string, current: string[], setCurrent: React.Dispatch<React.SetStateAction<string[]>>) => {
     setCurrent((prev) => (prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]));
   };
@@ -1000,7 +1881,25 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
       setUpgradeModalMode('standard');
       return;
     }
-    exportToCSV(scopedResponses, `subscriber_dashboard_${activeCountry}_${selectedBankId}`);
+    const summaryRow = {
+      country: activeCountry || 'all',
+      period: periodLabel,
+      selected_bank_id: selectedBankId,
+      selected_bank_name: selectedBankName,
+      sample_size: sampleSize,
+      brand_edge_score: brandEdgeScore,
+      brand_edge_label: brandEdgeLabel,
+      awareness_pct: selectedMetricsView?.aware || 0,
+      usage_pct: selectedMetricsView?.currentUsing || 0,
+      loyalty_index: loyaltyDiagnosticsView?.loyaltyIndex || 0,
+      primary_bank_share_pct: brandEdgeInputs.primaryShare,
+      switching_risk_pct: brandEdgeInputs.switchingRisk,
+      momentum_score: momentumDiagnosticsView?.score || 0,
+      nps: selectedMetricsView?.nps || 0,
+      brand_edge_driver_summary: brandEdgeDriverSummary,
+      brand_edge_trend_6m: brandEdgeTrend.map((point) => `${point.month}:${point.score}`).join(' | '),
+    };
+    exportToCSV([summaryRow], `subscriber_executive_summary_${activeCountry}_${selectedBankId}`);
   };
 
   const exportComparisonView = () => {
@@ -1187,9 +2086,25 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           <div>
             <p className="text-xs font-semibold tracking-[0.12em] text-slate-500">{adminMode ? 'Admin Console' : 'Subscriber Dashboard'}</p>
             <h1 className="text-3xl font-semibold tracking-tight">Brand Health Tracking</h1>
-            <p className="mt-1 text-sm text-slate-400">
-              Data source: {dataSource === 'firestore' ? 'Live Firestore responses' : 'Local fallback responses'}
-            </p>
+              <p className="mt-1 text-sm text-slate-400">
+                Data source: {dashboardSource === 'aggregate'
+                  ? 'Live Firestore aggregate'
+                  : dashboardSource === 'firestore'
+                    ? 'Live Firestore responses'
+                    : 'Local fallback responses'}
+              </p>
+              {dashboardSource === 'aggregate' ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  Aggregate is the primary source for overview metrics. Some deep-dive diagnostics remain live-response derived.
+                </p>
+              ) : null}
+              {dashboardSourceReason ? (
+              <p className="mt-1 text-xs text-amber-300">
+                {dashboardSource === 'aggregate' && overviewAggregateReason
+                  ? `Aggregate callable fallback: ${overviewAggregateReason}`
+                  : `Fallback reason: ${dashboardSourceReason}`}
+              </p>
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -1203,7 +2118,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             {adminMode ? (
               <>
                 <button
-                  onClick={() => navigate(`/admin/survey/${activeCountry}`)}
+                  onClick={() => navigate('/survey')}
                   className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-blue-500"
                 >
                   Survey Access
@@ -1218,6 +2133,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     <DropdownMenuLabel>Admin Management</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => navigate('/admin/subscribers')}>Subscribers</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => navigate('/admin/subscriptions')}>Subscription Management</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => navigate('/admin/users')}>User Management</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => navigate('/admin/unrecognized')}>Recognition Exceptions</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => navigate('/admin/questionnaires')}>Questionnaires</DropdownMenuItem>
@@ -1278,6 +2194,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 onChange={(event) => setCompareBankId(event.target.value)}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
               >
+                <option value="">No comparison</option>
                 {countryBanks.filter((bank) => bank.id !== selectedBankId).map((bank) => (
                   <option key={bank.id} value={bank.id}>
                     {bank.name}
@@ -1376,13 +2293,54 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
             <TabsContent value="overview" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Card title="Awareness" variant="primary" value={`${selectedMetrics?.aware || 0}%`} subtitle={`${selectedMetrics?.topOfMind || 0}% top of mind`} delta={awarenessDeltas.awareness} sparklineValues={trend.map((point) => point.awareness)} />
-                <Card title="Current Usage" variant="primary" value={`${selectedMetrics?.currentUsing || 0}%`} subtitle={`${selectedMetrics?.preferred || 0}% preferred (BUMO)`} sparklineValues={trend.map((point) => point.current)} />
-                <Card title="Loyalty Index" variant="primary" value={loyaltyDiagnostics?.loyaltyIndex || 0} subtitle={`${loyaltyDiagnostics?.segmentPcts.Committed || 0}% committed`} />
-                <Card title="Momentum" variant="primary" value={momentumDiagnostics?.score || 0} subtitle={momentumDiagnostics?.status || 'No momentum data available'} delta={momentumDiagnostics?.velocity ?? null} sparklineValues={momentumDiagnostics?.trends.map((point) => point.score)} />
-                <Card title="NPS" variant="primary" value={selectedMetrics?.nps || 0} subtitle="Promoters minus detractors" sparklineValues={trend.map((point) => point.nps)} />
-                <Card title="Sample Size" variant="secondary" value={`N=${sampleSize}`} subtitle="Filtered respondents" />
+                <Card
+                  title="BrandEdge Score"
+                  variant="primary"
+                  value={hasToplineSample ? `${brandEdgeScore} / 100` : '--'}
+                  subtitle={compareSubtitle(compareBankName, compareBrandEdgeScore === null ? null : `${compareBrandEdgeScore} / 100`, hasToplineSample ? brandEdgeLabel : EMPTY_COPY.noDataInSlice)}
+                  delta={compareBrandEdgeScore === null ? null : brandEdgeScore - compareBrandEdgeScore}
+                  sparklineValues={brandEdgeTrend.map((point) => point.score)}
+                />
+                <Card
+                  title="Awareness"
+                  variant="primary"
+                  value={safePercent(overviewTopMetrics.awareness.value)}
+                  subtitle={compareSubtitle(compareBankName, compareDisplayValue(overviewTopMetrics.awareness, (value) => safePercent(value)), safePercent(selectedMetricsView?.topOfMind, EMPTY_COPY.noData) === EMPTY_COPY.noData ? EMPTY_COPY.noDataInSlice : `${safePercent(selectedMetricsView?.topOfMind)} top of mind`)}
+                  delta={compareDelta(overviewTopMetrics.awareness) ?? awarenessDeltasView.awareness}
+                  sparklineValues={trendView.map((point) => point.awareness)}
+                />
+                <Card
+                  title="Current Usage"
+                  variant="primary"
+                  value={safePercent(overviewTopMetrics.currentUsage.value)}
+                  subtitle={compareSubtitle(compareBankName, compareDisplayValue(overviewTopMetrics.currentUsage, (value) => safePercent(value)), safePercent(selectedMetricsView?.preferred, EMPTY_COPY.noData) === EMPTY_COPY.noData ? EMPTY_COPY.noDataInSlice : `${safePercent(selectedMetricsView?.preferred)} preferred (BUMO)`)}
+                  delta={compareDelta(overviewTopMetrics.currentUsage)}
+                  sparklineValues={trendView.map((point) => point.usage)}
+                />
+                <Card
+                  title="Loyalty Index"
+                  variant="primary"
+                  value={safeNumber(overviewTopMetrics.loyaltyIndex.value)}
+                  subtitle={compareSubtitle(compareBankName, compareDisplayValue(overviewTopMetrics.loyaltyIndex, (value) => safeNumber(value)), safePercent(loyaltyDiagnosticsView?.segmentPcts.Committed, EMPTY_COPY.noData) === EMPTY_COPY.noData ? EMPTY_COPY.noAwareInSlice : `${safePercent(loyaltyDiagnosticsView?.segmentPcts.Committed)} committed`)}
+                  delta={compareDelta(overviewTopMetrics.loyaltyIndex)}
+                />
+                <Card title="Momentum" variant="primary" value={safeNumber(momentumDiagnosticsView?.score)} subtitle={momentumDiagnosticsView?.status || EMPTY_COPY.noDataInSlice} delta={momentumDiagnosticsView?.velocity ?? null} sparklineValues={momentumDiagnosticsView?.trends.map((point) => point.score)} />
+                <Card
+                  title="NPS"
+                  variant="primary"
+                  value={safeNumber(overviewTopMetrics.nps.value)}
+                  subtitle={compareSubtitle(compareBankName, compareDisplayValue(overviewTopMetrics.nps), 'Promoters minus detractors')}
+                  delta={compareDelta(overviewTopMetrics.nps)}
+                  sparklineValues={trendView.map((point) => point.nps)}
+                />
+                <Card title="Sample Size" variant="secondary" value={`N=${canUseOverviewAggregate && overviewAggregate ? overviewAggregate.sampleSize : sampleSize}`} subtitle={canUseOverviewAggregate && overviewAggregate ? 'Aggregated respondents' : 'Filtered respondents'} />
               </div>
+              {hasAiAddon ? (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">What drives this score?</p>
+                  <p className="mt-2 text-sm text-slate-300">{brandEdgeDriverSummary}</p>
+                </div>
+              ) : null}
 
               <div className="mt-6 dashboard-section">
                 <div className="flex items-center justify-between gap-2">
@@ -1410,8 +2368,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     <tbody>
                       <tr className="border-t border-white/5">
                         <td className="py-2 pr-2">Awareness & Consideration</td>
-                        <td className="py-2 pr-2">{selectedMetrics?.aware || 0}% awareness</td>
-                        <td className="py-2 pr-2">{deltaText(awarenessDeltas.awareness)}</td>
+                        <td className="py-2 pr-2">{isFiniteMetricValue(selectedMetricsView?.aware) ? `${safePercent(selectedMetricsView?.aware)} awareness` : EMPTY_COPY.noData}</td>
+                        <td className="py-2 pr-2">{deltaText(awarenessDeltasView.awareness)}</td>
                         <td className="py-2 pr-2">Increase top-of-mind conversion from the awareness base</td>
                         <td className="py-2">
                           <button type="button" onClick={() => requestSection('awareness_consideration')} className="text-blue-300 hover:text-blue-200">View Report</button>
@@ -1419,8 +2377,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </tr>
                       <tr className="border-t border-white/5">
                         <td className="py-2 pr-2">Usage & Behavior</td>
-                        <td className="py-2 pr-2">{usageDiagnostics?.retentionRate || 0}% retention</td>
-                        <td className="py-2 pr-2">Highest friction: {usageDiagnostics?.highestFrictionStage || 'N/A'}</td>
+                        <td className="py-2 pr-2">{isFiniteMetricValue(usageDiagnostics?.retentionRate) ? `${safePercent(usageDiagnostics?.retentionRate)} retention` : EMPTY_COPY.noData}</td>
+                        <td className="py-2 pr-2">Highest friction: {safeText(usageDiagnostics?.highestFrictionStage, EMPTY_COPY.noData)}</td>
                         <td className="py-2 pr-2">Reduce drop-off at the highest-friction stage</td>
                         <td className="py-2">
                           <button type="button" onClick={() => requestSection('usage_behavior')} className="text-blue-300 hover:text-blue-200">View Report</button>
@@ -1428,8 +2386,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </tr>
                       <tr className="border-t border-white/5">
                         <td className="py-2 pr-2">Loyalty & Satisfaction</td>
-                        <td className="py-2 pr-2">Index {loyaltyDiagnostics?.loyaltyIndex || 0}</td>
-                        <td className="py-2 pr-2">{loyaltyDiagnostics?.segmentPcts.Rejectors || 0}% rejectors</td>
+                        <td className="py-2 pr-2">{isFiniteMetricValue(loyaltyDiagnosticsView?.loyaltyIndex) ? `Index ${safeNumber(loyaltyDiagnosticsView?.loyaltyIndex)}` : EMPTY_COPY.noData}</td>
+                        <td className="py-2 pr-2">{isFiniteMetricValue(loyaltyDiagnosticsView?.segmentPcts.Rejectors) ? `${safePercent(loyaltyDiagnosticsView?.segmentPcts.Rejectors)} rejectors` : EMPTY_COPY.noData}</td>
                         <td className="py-2 pr-2">Increase committed share by converting potential and favors; reduce rejectors</td>
                         <td className="py-2">
                           <button type="button" onClick={() => requestSection('loyalty_satisfaction')} className="text-blue-300 hover:text-blue-200">View Report</button>
@@ -1437,8 +2395,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </tr>
                       <tr className="border-t border-white/5">
                         <td className="py-2 pr-2">Brand Momentum</td>
-                        <td className="py-2 pr-2">{momentumDiagnostics?.score || 0}</td>
-                        <td className="py-2 pr-2">{momentumDiagnostics?.velocityLabel || 'N/A'}</td>
+                        <td className="py-2 pr-2">{safeNumber(momentumDiagnosticsView?.score, EMPTY_COPY.noData)}</td>
+                        <td className="py-2 pr-2">{safeText(momentumDiagnosticsView?.velocityLabel, EMPTY_COPY.noData)}</td>
                         <td className="py-2 pr-2">Prioritize the highest-ROI momentum driver gap</td>
                         <td className="py-2">
                           <button type="button" onClick={() => requestSection('brand_momentum')} className="text-blue-300 hover:text-blue-200">View Report</button>
@@ -1446,17 +2404,17 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </tr>
                       <tr className="border-t border-white/5">
                         <td className="py-2 pr-2">Competitive Intelligence</td>
-                        <td className="py-2 pr-2">{competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare || 0}% market share</td>
-                        <td className="py-2 pr-2">Win Rate {competitiveDiagnostics?.winLoss.overallWinRate || 0}%</td>
-                        <td className="py-2 pr-2">Defend against the highest-likelihood competitor threat</td>
+                        <td className="py-2 pr-2">{isFiniteMetricValue(competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare) ? `${safePercent(competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare)} market share` : EMPTY_COPY.noData}</td>
+                        <td className="py-2 pr-2">{isFiniteMetricValue(competitiveDiagnostics?.winLoss.overallWinRate) ? `${hasObservedWinLoss ? 'Observed Win Rate' : 'Proxy Balance'} ${safePercent(competitiveDiagnostics?.winLoss.overallWinRate)}` : EMPTY_COPY.noData}</td>
+                        <td className="py-2 pr-2">Respond to the strongest competitive risk signal</td>
                         <td className="py-2">
                           <button type="button" onClick={() => requestSection('competitive_intelligence')} className="text-blue-300 hover:text-blue-200">View Report</button>
                         </td>
                       </tr>
                       <tr className="border-t border-white/5">
                         <td className="py-2 pr-2">Demographics</td>
-                        <td className="py-2 pr-2">{demographicDiagnostics?.highValueSegments[0]?.dimension || '-'}: {demographicDiagnostics?.highValueSegments[0]?.segment || '-'}</td>
-                        <td className="py-2 pr-2">{demographicDiagnostics?.opportunities[0]?.priority || 'N/A'} priority gap</td>
+                        <td className="py-2 pr-2">{safeText(demographicDiagnostics?.highValueSegments[0]?.dimension, '--')}: {safeText(demographicDiagnostics?.highValueSegments[0]?.segment, '--')}</td>
+                        <td className="py-2 pr-2">{demographicDiagnostics?.opportunities[0]?.priority ? `${safeText(demographicDiagnostics?.opportunities[0]?.priority)} priority gap` : EMPTY_COPY.noData}</td>
                         <td className="py-2 pr-2">Target cohorts with the largest usage gap and strongest potential</td>
                         <td className="py-2">
                           <button type="button" onClick={() => requestSection('demographics')} className="text-blue-300 hover:text-blue-200">View Report</button>
@@ -1464,7 +2422,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </tr>
                       <tr className="border-t border-white/5">
                         <td className="py-2 pr-2">Trends & Forecasts</td>
-                        <td className="py-2 pr-2">{trendsDiagnostics?.forecast.regressionNext || 0}% next forecast</td>
+                        <td className="py-2 pr-2">{trendsDiagnostics?.forecast.regressionNext == null ? '--' : `${trendsDiagnostics.forecast.regressionNext}%`} next forecast</td>
                         <td className="py-2 pr-2">{trendsDiagnostics?.signal.isSignificantSignal ? 'Significant trend signal' : 'No significant signal'}</td>
                         <td className="py-2 pr-2">Act on stable trend signals and monitor volatility risk</td>
                         <td className="py-2">
@@ -1480,10 +2438,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 <div className="dashboard-section">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Cross-Module Health Indicators</h3>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <Card variant="diagnostic" title="Funnel Health" value={usageDiagnostics?.positionLabel || 'N/A'} subtitle={usageDiagnostics?.funnelHealthDiagnosis || 'No usage diagnosis'} />
-                    <Card variant="diagnostic" title="Top Threat" value={competitiveDiagnostics?.threats.rows[0]?.competitorBankName || 'N/A'} subtitle={competitiveDiagnostics?.threats.rows[0]?.threatLevel || 'No threat score'} />
-                    <Card variant="diagnostic" title="Forecast Confidence" value={trendsDiagnostics?.forecast.confidenceLow === null || trendsDiagnostics?.forecast.confidenceHigh === null ? 'N/A' : `${trendsDiagnostics?.forecast.confidenceLow}% - ${trendsDiagnostics?.forecast.confidenceHigh}%`} subtitle="95% confidence range" />
-                    <Card variant="diagnostic" title="Primary Gap Cohort" value={demographicDiagnostics?.opportunities[0]?.segment || 'N/A'} subtitle={`${demographicDiagnostics?.opportunities[0]?.dimension || 'N/A'} | ${demographicDiagnostics?.opportunities[0]?.usageGap || 0}pp`} />
+                    <Card variant="diagnostic" title="Funnel Health" value={safeText(usageDiagnostics?.positionLabel, EMPTY_COPY.noData)} subtitle={safeText(usageDiagnostics?.funnelHealthDiagnosis, 'No usage diagnosis')} />
+                    <Card variant="diagnostic" title="Top Risk Signal" value={safeText(competitiveDiagnostics?.threats.rows[0]?.competitorBankName, EMPTY_COPY.noData)} subtitle={safeText(competitiveDiagnostics?.threats.rows[0]?.threatLevel, 'No risk signal')} />
+                    <Card variant="diagnostic" title="Forecast Confidence" value={trendsDiagnostics?.forecast.confidenceLow === null || trendsDiagnostics?.forecast.confidenceHigh === null ? EMPTY_COPY.forecastUnavailable : `${trendsDiagnostics?.forecast.confidenceLow}% - ${trendsDiagnostics?.forecast.confidenceHigh}%`} subtitle="95% confidence range" />
+                    <Card variant="diagnostic" title="Primary Gap Cohort" value={safeText(demographicDiagnostics?.opportunities[0]?.segment, EMPTY_COPY.noData)} subtitle={demographicDiagnostics?.opportunities[0] ? `${safeText(demographicDiagnostics?.opportunities[0]?.dimension, EMPTY_COPY.noData)} | ${safePp(demographicDiagnostics?.opportunities[0]?.usageGap)}` : EMPTY_COPY.noDataInSlice} />
                   </div>
                 </div>
                 <details className="dashboard-section dashboard-collapsible" open>
@@ -1498,7 +2456,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     ))}
                     {((trendsDiagnostics?.highlights || []).length === 0) ? (
                       <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3">
-                        Highlights will populate when enough trend data is available.
+                        Highlights will appear when valid trend data is available.
                       </div>
                     ) : null}
                   </div>
@@ -1508,16 +2466,16 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
             <TabsContent value="awareness_consideration" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
               <div className="grid gap-4 md:grid-cols-4">
-                <Card title="Top of Mind" metricKey="top_of_mind" variant="primary" value={`${selectedMetrics?.topOfMind || 0}%`} subtitle={deltaText(awarenessDeltas.topOfMind)} delta={awarenessDeltas.topOfMind} sparklineValues={trend.map((point) => point.topOfMind)} />
-                <Card title="Spontaneous Recall" metricKey="spontaneous_recall" variant="primary" value={`${selectedMetrics?.spontaneous || 0}%`} subtitle={deltaText(awarenessDeltas.spontaneous)} delta={awarenessDeltas.spontaneous} sparklineValues={trend.map((point) => point.spontaneous)} />
-                <Card title="Total Awareness" metricKey="total_awareness" variant="primary" value={`${selectedMetrics?.aware || 0}%`} subtitle={deltaText(awarenessDeltas.awareness)} delta={awarenessDeltas.awareness} sparklineValues={trend.map((point) => point.awareness)} />
-                <Card title="Awareness Quality" metricKey="awareness_quality" variant="primary" value={`${selectedMetrics?.awarenessQuality || 0}%`} subtitle={`Top-of-Mind / aware · ${deltaText(awarenessDeltas.quality)}`} delta={awarenessDeltas.quality} />
+                <Card title="Top of Mind" metricKey="top_of_mind" variant="primary" value={safePercent(awarenessTopMetrics.topOfMind.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.topOfMind, (value) => safePercent(value)), deltaText(awarenessDeltasView.topOfMind))} delta={compareDelta(awarenessTopMetrics.topOfMind) ?? awarenessDeltasView.topOfMind} sparklineValues={trendView.map((point) => point.topOfMind ?? null)} />
+                <Card title="Spontaneous Recall" metricKey="spontaneous_recall" variant="primary" value={safePercent(awarenessTopMetrics.spontaneous.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.spontaneous, (value) => safePercent(value)), deltaText(awarenessDeltasView.spontaneous))} delta={compareDelta(awarenessTopMetrics.spontaneous) ?? awarenessDeltasView.spontaneous} sparklineValues={trendView.map((point) => point.spontaneous ?? null)} />
+                <Card title="Total Awareness" metricKey="total_awareness" variant="primary" value={safePercent(awarenessTopMetrics.awareness.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.awareness, (value) => safePercent(value)), deltaText(awarenessDeltasView.awareness))} delta={compareDelta(awarenessTopMetrics.awareness) ?? awarenessDeltasView.awareness} sparklineValues={trendView.map((point) => point.awareness)} />
+                <Card title="Awareness Quality" metricKey="awareness_quality" variant="primary" value={safePercent(awarenessTopMetrics.quality.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.quality, (value) => safePercent(value)), `Top-of-Mind / aware · ${deltaText(awarenessDeltasView.quality)}`)} delta={compareDelta(awarenessTopMetrics.quality) ?? awarenessDeltasView.quality} />
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-4">
-                <Card title="Share of Voice" metricKey="share_of_voice" value={`${selectedAwarenessRow?.shareOfVoice || 0}%`} subtitle="Top-of-Mind share in market" />
+                <Card title="Share of Voice" metricKey="share_of_voice" value={safePercent(selectedAwarenessRow?.shareOfVoice)} subtitle={compareSubtitle(compareBankName, compareAwarenessRow ? safePercent(compareAwarenessRow.shareOfVoice) : null, 'Top-of-Mind share in market')} delta={compareAwarenessRow && isFiniteMetricValue(selectedAwarenessRow?.shareOfVoice) ? selectedAwarenessRow.shareOfVoice - compareAwarenessRow.shareOfVoice : null} />
                 <Card title="MoM Growth" metricKey="mom_growth" value={pctGrowthValue(awarenessMoMGrowthPct)} subtitle={pctGrowthText(awarenessMoMGrowthPct)} />
                 <Card title="Awareness Share Index" metricKey="awareness_share_index" value={`${awarenessShareIndex}%`} subtitle="Your awareness / total market awareness" />
-                <Card title="Awareness Depth Score" metricKey="awareness_depth_score" value={`${awarenessDepthScore}/100`} subtitle="Weighted: ToM×3 + Spontaneous×2 + AidedOnly×1" />
+                <Card title="Awareness Depth Score" metricKey="awareness_depth_score" value={`${awarenessDepthScore}/100`} subtitle={compareSubtitle(compareBankName, compareAwarenessDepthScore === null ? null : `${compareAwarenessDepthScore}/100`, 'Weighted: ToM×3 + Spontaneous×2 + AidedOnly×1')} delta={compareAwarenessDepthScore === null ? null : awarenessDepthScore - compareAwarenessDepthScore} />
               </div>
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <div className="dashboard-section">
@@ -1528,10 +2486,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <div className="mt-4">
                     <FunnelSteps
                       steps={[
-                        { label: 'Aware', value: selectedMetrics?.aware || 0, color: ACCENT_PRIMARY },
-                        { label: 'Spontaneous', value: selectedMetrics?.spontaneous || 0, color: '#6A78A8' },
-                        { label: 'Top of Mind', value: selectedMetrics?.topOfMind || 0, color: '#4B8A93' },
-                        { label: 'Aided', value: selectedMetrics?.aided || 0, color: '#4B8A93' },
+                        { label: 'Aware', value: selectedMetricsView?.aware || 0, color: ACCENT_PRIMARY },
+                        { label: 'Spontaneous', value: selectedMetricsView?.spontaneous || 0, color: '#6A78A8' },
+                        { label: 'Top of Mind', value: selectedMetricsView?.topOfMind || 0, color: '#4B8A93' },
+                        { label: 'Aided', value: selectedMetricsView?.aided || 0, color: '#4B8A93' },
                       ]}
                     />
                   </div>
@@ -1575,17 +2533,17 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <SectionInsightsTrigger sectionKey="future_intent_consideration" ctaLabel="View Insights" />
                 </div>
                 <div className="mt-6 grid gap-4 md:grid-cols-4">
-                  <Card title="Average Intent (0-10)" metricKey="avg_intent" value={intentSummary?.averageIntent || 0} subtitle="Future intent score" />
-                  <Card title="High Intent (7-10)" metricKey="future_consideration_rate" value={`${intentSummary?.highIntentPct || 0}%`} subtitle={`Base: ${intentSummary?.responseBase || 0} aware respondents`} />
-                  <Card title="High Intent Non-Users" metricKey="high_intent_non_users" value={`${intentSummary?.highIntentNonUserPct || 0}%`} subtitle={`${intentSummary?.highIntentNonUserCount || 0} respondents`} />
-                  <Card title="At-Risk Current Users" metricKey="at_risk_current_users" value={intentSummary?.lowIntentCurrentUserCount || 0} subtitle="Current users with intent <=6" />
+                  <Card title="Average Intent (0-10)" metricKey="avg_intent" value={intentSummary && intentSummary.responseBase > 0 ? safeAverageIntent(intentSummary.averageIntent) : '--'} subtitle={intentSummary && intentSummary.responseBase > 0 ? 'Future intent score' : EMPTY_COPY.noAwareInSlice} />
+                  <Card title="High Intent (7-10)" metricKey="future_consideration_rate" value={intentSummary && intentSummary.responseBase > 0 ? safePercent(intentSummary.highIntentPct) : '--'} subtitle={intentSummary && intentSummary.responseBase > 0 ? `Base: ${safeCount(intentSummary.responseBase)} aware respondents` : EMPTY_COPY.noAwareInSlice} />
+                  <Card title="High Intent Non-Users" metricKey="high_intent_non_users" value={intentSummary && intentSummary.responseBase > 0 ? safePercent(intentSummary.highIntentNonUserPct) : '--'} subtitle={intentSummary && intentSummary.responseBase > 0 ? `${safeCount(intentSummary.highIntentNonUserCount)} respondents` : EMPTY_COPY.noAwareInSlice} />
+                  <Card title="At-Risk Current Users" metricKey="at_risk_current_users" value={intentSummary && intentSummary.responseBase > 0 ? safeCount(intentSummary.lowIntentCurrentUserCount) : '--'} subtitle={intentSummary && intentSummary.responseBase > 0 ? 'Current users with intent <=6' : EMPTY_COPY.noAwareInSlice} />
                 </div>
                 <div className="mt-6 grid gap-4 md:grid-cols-5">
-                  <MiniBar label="Very High (9-10)" value={intentSummary?.veryHighPct || 0} color="bg-emerald-500" />
-                  <MiniBar label="High (7-8)" value={intentSummary?.highPct || 0} color="bg-blue-500" />
-                  <MiniBar label="Medium (5-6)" value={intentSummary?.mediumPct || 0} color="bg-amber-500" />
-                  <MiniBar label="Low (3-4)" value={intentSummary?.lowPct || 0} color="bg-orange-500" />
-                  <MiniBar label="Very Low (0-2)" value={intentSummary?.veryLowPct || 0} color="bg-rose-500" />
+                  <MiniBar label="Very High (9-10)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.veryHighPct : null} color="bg-emerald-500" />
+                  <MiniBar label="High (7-8)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.highPct : null} color="bg-blue-500" />
+                  <MiniBar label="Medium (5-6)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.mediumPct : null} color="bg-amber-500" />
+                  <MiniBar label="Low (3-4)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.lowPct : null} color="bg-orange-500" />
+                  <MiniBar label="Very Low (0-2)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.veryLowPct : null} color="bg-rose-500" />
                 </div>
               </div>
             </TabsContent>
@@ -1594,17 +2552,69 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
               {usageDiagnostics ? (
                 <>
                   <div className="grid gap-4 md:grid-cols-5">
-                    <Card title="Ever Used" metricKey="ever_used" variant="primary" value={`${usageDiagnostics.trialRate}%`} subtitle={`${usageDiagnostics.everCount} respondents`} />
-                    <Card title="Current Usage" metricKey="current_usage" variant="primary" value={`${usageDiagnostics.currentUsageRate}%`} subtitle={`${usageDiagnostics.currentCount} respondents`} />
-                    <Card title="BUMO" metricKey="bumo" variant="primary" value={`${usageDiagnostics.bumoPenetration}%`} subtitle={`${usageDiagnostics.preferredCount} respondents`} />
-                    <Card title="Trial Rate" metricKey="trial_rate" variant="primary" value={`${usageDiagnostics.trialRate}%`} subtitle="Aware to ever-used conversion" />
-                    <Card title="Lapsed Usage" metricKey="lapsed_usage" value={`${usageDiagnostics.lapseRate}%`} subtitle={`${usageDiagnostics.lapsedUsersCount} lapsed users`} />
+                    <Card
+                      title="Ever Used"
+                      metricKey="ever_used"
+                      variant="primary"
+                      value={safePercent(usageToplineMetrics?.everUsed.value)}
+                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.everUsed.compare ? safePercent(usageToplineMetrics.everUsed.compare.value) : null, isFiniteMetricValue(usageToplineMetrics?.everUsed.count) ? `${safeCount(usageToplineMetrics?.everUsed.count)} respondents` : EMPTY_COPY.noDataInSlice)}
+                      delta={usageToplineMetrics?.everUsed.compare?.delta ?? null}
+                    />
+                    <Card
+                      title="Current Usage"
+                      metricKey="current_usage"
+                      variant="primary"
+                      value={safePercent(usageToplineMetrics?.currentUsage.value)}
+                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.currentUsage.compare ? safePercent(usageToplineMetrics.currentUsage.compare.value) : null, isFiniteMetricValue(usageToplineMetrics?.currentUsage.count) ? `${safeCount(usageToplineMetrics?.currentUsage.count)} respondents` : EMPTY_COPY.noDataInSlice)}
+                      delta={usageToplineMetrics?.currentUsage.compare?.delta ?? null}
+                    />
+                    <Card
+                      title="Preferred"
+                      metricKey="bumo"
+                      variant="primary"
+                      value={safePercent(usageToplineMetrics?.preferred.value)}
+                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.preferred.compare ? safePercent(usageToplineMetrics.preferred.compare.value) : null, isFiniteMetricValue(usageToplineMetrics?.preferred.count) ? `${safeCount(usageToplineMetrics?.preferred.count)} respondents` : EMPTY_COPY.noDataInSlice)}
+                      delta={usageToplineMetrics?.preferred.compare?.delta ?? null}
+                    />
+                    <Card
+                      title="Consideration"
+                      metricKey="future_consideration_rate"
+                      variant="primary"
+                      value={safePercent(usageToplineMetrics?.consideration.value)}
+                      subtitle={isFiniteMetricValue(usageToplineMetrics?.consideration.base_n) ? `Base: ${safeCount(usageToplineMetrics?.consideration.base_n)} aware respondents` : EMPTY_COPY.noAwareInSlice}
+                    />
+                    <Card
+                      title="Trial Rate"
+                      metricKey="trial_rate"
+                      variant="primary"
+                      value={safePercent(usageToplineMetrics?.trialRate.value)}
+                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.trialRate.compare ? safePercent(usageToplineMetrics.trialRate.compare.value) : null, 'Aware to ever-used conversion')}
+                      delta={usageToplineMetrics?.trialRate.compare?.delta ?? null}
+                    />
                   </div>
 
                   <div className="mt-6 grid gap-4 md:grid-cols-4">
-                    <Card title="Retention" metricKey="retention_rate" value={`${usageDiagnostics.retentionRate}%`} subtitle="Current / ever used" />
-                    <Card title="Churn" metricKey="churn_rate" value={`${usageDiagnostics.churnRate}%`} subtitle="100 - retention" />
-                    <Card title="Preference Capture" metricKey="preference_rate" value={`${usageDiagnostics.preferenceRate}%`} subtitle="Preferred / current users" />
+                    <Card
+                      title="Retention"
+                      metricKey="retention_rate"
+                      value={safePercent(usageToplineMetrics?.retention.value)}
+                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.retention.compare ? safePercent(usageToplineMetrics.retention.compare.value) : null, 'Current / ever used')}
+                      delta={usageToplineMetrics?.retention.compare?.delta ?? null}
+                    />
+                    <Card
+                      title="Churn"
+                      metricKey="churn_rate"
+                      value={safePercent(usageToplineMetrics?.churn.value)}
+                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.churn.compare ? safePercent(usageToplineMetrics.churn.compare.value) : null, '100 - retention')}
+                      delta={usageToplineMetrics?.churn.compare?.delta ?? null}
+                    />
+                    <Card
+                      title="Preference Capture"
+                      metricKey="preference_rate"
+                      value={safePercent(usageToplineMetrics?.preferenceCapture.value)}
+                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.preferenceCapture.compare ? safePercent(usageToplineMetrics.preferenceCapture.compare.value) : null, 'Preferred / current users')}
+                      delta={usageToplineMetrics?.preferenceCapture.compare?.delta ?? null}
+                    />
                     <Card title="Multi-Banking" metricKey="multi_banking_rate" value={`${usageDiagnostics.multiBankingPct}%`} subtitle={`Average banks per user: ${usageDiagnostics.avgBanksPerUser}`} />
                   </div>
 
@@ -1615,17 +2625,23 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <SectionInsightsTrigger sectionKey="usage_funnel" ctaLabel="View Insights" />
                       </div>
                       <div className="mt-4">
-                        <FunnelSteps
-                          steps={[
-                            { label: 'Aware', value: 100, color: ACCENT_PRIMARY },
-                            { label: 'Ever Used', value: usageDiagnostics.trialRate, color: '#6A78A8' },
-                            { label: 'Current', value: usageDiagnostics.currentUsageRate, color: '#4B8A93' },
-                            { label: 'Preferred', value: usageDiagnostics.bumoPenetration, color: '#4B8A93' },
-                          ]}
-                        />
+                        {usageDiagnostics.awareCount > 0 ? (
+                          <FunnelSteps
+                            steps={[
+                              { label: 'Aware', value: 100, color: ACCENT_PRIMARY },
+                              { label: 'Ever Used', value: usageDiagnostics.trialRate, color: '#6A78A8' },
+                              { label: 'Current', value: usageDiagnostics.currentUsageRate, color: '#4B8A93' },
+                              { label: 'Preferred', value: usageDiagnostics.bumoPenetration, color: '#4B8A93' },
+                            ]}
+                          />
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/40 px-4 py-6 text-sm text-slate-500">
+                            {EMPTY_COPY.noAwareInSlice}
+                          </div>
+                        )}
                       </div>
                       <p className="mt-3 text-xs text-slate-500">
-                        Counts: Aware {usageDiagnostics.awareCount} {'->'} Ever {usageDiagnostics.everCount} {'->'} Current {usageDiagnostics.currentCount} {'->'} Preferred {usageDiagnostics.preferredCount}
+                        Counts: Aware {safeCount(usageDiagnostics.awareCount)} {'->'} Ever {safeCount(usageDiagnostics.everCount)} {'->'} Current {safeCount(usageDiagnostics.currentCount)} {'->'} Preferred {safeCount(usageDiagnostics.preferredCount)}
                       </p>
                     </div>
 
@@ -1650,13 +2666,13 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <SectionInsightsTrigger sectionKey="multi_banking_overlap" ctaLabel="View Insights" />
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <Card title="Average Banks per User" metricKey="avg_banks_per_user" value={usageDiagnostics.avgBanksPerUser} subtitle="Among your current users" />
-                        <Card title="Primary in Multi-Bankers" value={`${usageDiagnostics.primaryPositionInMultiPct}%`} subtitle="Your BUMO share among users with 2+ banks" />
+                        <Card title="Average Banks per User" metricKey="avg_banks_per_user" value={usageDiagnostics.currentCount > 0 ? safeNumber(usageDiagnostics.avgBanksPerUser) : '--'} subtitle={usageDiagnostics.currentCount > 0 ? 'Among your current users' : EMPTY_COPY.noCurrentUsersInSlice} />
+                        <Card title="Primary in Multi-Bankers" value={usageDiagnostics.currentCount > 0 ? safePercent(usageDiagnostics.primaryPositionInMultiPct) : '--'} subtitle={usageDiagnostics.currentCount > 0 ? 'Your BUMO share among users with 2+ banks' : EMPTY_COPY.noCurrentUsersInSlice} />
                       </div>
                       <div className="mt-4 space-y-3">
-                        <MiniBar label="Single-bankers" value={usageDiagnostics.singleBankerPct} color="bg-blue-500" />
-                        <MiniBar label="Dual-bankers" value={usageDiagnostics.dualBankerPct} color="bg-violet-500" />
-                        <MiniBar label="3+ bank users" value={usageDiagnostics.multiBankerPct} color="bg-cyan-500" />
+                        <MiniBar label="Single-bankers" value={usageDiagnostics.currentCount > 0 ? usageDiagnostics.singleBankerPct : null} color="bg-blue-500" />
+                        <MiniBar label="Dual-bankers" value={usageDiagnostics.currentCount > 0 ? usageDiagnostics.dualBankerPct : null} color="bg-violet-500" />
+                        <MiniBar label="3+ bank users" value={usageDiagnostics.currentCount > 0 ? usageDiagnostics.multiBankerPct : null} color="bg-cyan-500" />
                       </div>
                     </div>
 
@@ -1680,7 +2696,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             )) : (
                               <tr>
-                                <td colSpan={3} className="py-3 text-slate-500">No overlap detected in current filter scope.</td>
+                                <td colSpan={3} className="py-3 text-slate-500">No overlap data in this slice.</td>
                               </tr>
                             )}
                           </tbody>
@@ -1692,7 +2708,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <div className="mt-6 dashboard-section">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Multi-Bank Competition</h3>
                     <p className="mt-2 text-xs text-slate-500">
-                      Base: {multiBankCompetition?.multiBankBase || 0} respondents with 2+ active banks.
+                      Base: {safeCount(multiBankCompetition?.multiBankBase, '--')} respondents with 2+ active banks.
                       {multiBankCompetition?.lowSample ? ' Sample is small; interpret with caution.' : ''}
                     </p>
                     {multiBankCompetition && multiBankCompetition.multiBankBase > 0 ? (
@@ -1765,7 +2781,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                                   </tr>
                                 )) : (
                                   <tr>
-                                    <td colSpan={4} className="py-3 text-slate-500">No second-choice competitors in the current filter scope.</td>
+                                    <td colSpan={4} className="py-3 text-slate-500">No second-choice competitor data in this slice.</td>
                                   </tr>
                                 )}
                               </tbody>
@@ -1775,7 +2791,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </>
                     ) : (
                       <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-xs text-slate-500">
-                        Not enough multi-bank responses in the current filter scope to compute competitive shares.
+                        No multi-bank comparison data in this slice.
                       </div>
                     )}
                   </div>
@@ -1784,10 +2800,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     <div className="dashboard-section">
                       <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Usage-Based Segmentation</h3>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <Card title="Non-Triers" value={usageDiagnostics.nonTriersCount} subtitle={`${Math.round((usageDiagnostics.nonTriersCount / Math.max(usageDiagnostics.awareCount, 1)) * 100)}% of aware`} />
-                        <Card title="Lapsed Users" value={usageDiagnostics.lapsedUsersCount} subtitle={`${Math.round((usageDiagnostics.lapsedUsersCount / Math.max(usageDiagnostics.everCount, 1)) * 100)}% of ever-used`} />
-                        <Card title="Secondary Users" value={usageDiagnostics.secondaryUsersCount} subtitle={`${Math.round((usageDiagnostics.secondaryUsersCount / Math.max(usageDiagnostics.currentCount, 1)) * 100)}% of current`} />
-                        <Card title="Primary Users (BUMO)" value={usageDiagnostics.primaryUsersCount} subtitle={`${usageDiagnostics.preferenceRate}% preference rate`} />
+                        <Card title="Non-Triers" value={safeCount(usageDiagnostics.nonTriersCount)} subtitle={`${safeRatioPercent(usageDiagnostics.nonTriersCount, usageDiagnostics.awareCount)} of aware`} />
+                        <Card title="Lapsed Users" value={safeCount(usageDiagnostics.lapsedUsersCount)} subtitle={`${safeRatioPercent(usageDiagnostics.lapsedUsersCount, usageDiagnostics.everCount)} of ever-used`} />
+                        <Card title="Secondary Users" value={safeCount(usageDiagnostics.secondaryUsersCount)} subtitle={`${safeRatioPercent(usageDiagnostics.secondaryUsersCount, usageDiagnostics.currentCount)} of current`} />
+                        <Card title="Primary Users (BUMO)" value={safeCount(usageDiagnostics.primaryUsersCount)} subtitle={usageDiagnostics.currentCount > 0 ? `${safePercent(usageDiagnostics.preferenceRate)} preference rate` : EMPTY_COPY.noCurrentUsersInSlice} />
                       </div>
                     </div>
 
@@ -1830,14 +2846,14 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <SectionInsightsTrigger sectionKey="competitive_growth" ctaLabel="View Insights" />
                       </div>
                       <p className="mt-4 text-sm text-slate-300">{usageDiagnostics.funnelHealthDiagnosis}</p>
-                      <p className="mt-2 text-xs text-slate-500">Highest friction stage: {usageDiagnostics.highestFrictionStage}</p>
+                      <p className="mt-2 text-xs text-slate-500">Highest friction stage: {safeText(usageDiagnostics.highestFrictionStage, 'No diagnosed stage')}</p>
                     </div>
 
                     <div className="dashboard-section">
                       <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Competitive Usage Insights</h3>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <Card title="Position Matrix" metricKey="position_matrix" value={usageDiagnostics.positionLabel} subtitle={`Usage median ${usageDiagnostics.usageMedian}% · Retention median ${usageDiagnostics.retentionMedian}%`} />
-                        <Card title="Growth Opportunity" metricKey="growth_opportunity" value={usageDiagnostics.opportunities[0]?.name || 'None'} subtitle={`${usageDiagnostics.opportunities[0]?.size || 0} respondents`} />
+                        <Card title="Position Matrix" metricKey="position_matrix" value={safeText(usageDiagnostics.positionLabel, '--')} subtitle={`Usage median ${safePercent(usageDiagnostics.usageMedian)} · Retention median ${safePercent(usageDiagnostics.retentionMedian)}`} />
+                        <Card title="Growth Opportunity" metricKey="growth_opportunity" value={safeText(usageDiagnostics.opportunities[0]?.name, 'No data')} subtitle={usageDiagnostics.opportunities[0] ? `${safeCount(usageDiagnostics.opportunities[0]?.size)} respondents` : 'No sized opportunity in this slice'} />
                       </div>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
@@ -1866,7 +2882,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 </>
               ) : (
                 <div className="dashboard-section dashboard-diagnostic">
-                  Usage diagnostics unavailable for the current filter scope.
+                  No usage data in this slice.
                 </div>
               )}
             </TabsContent>
@@ -1875,10 +2891,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
               {loyaltyDiagnostics ? (
                 <>
                   <div className="grid gap-4 md:grid-cols-4">
-                    <Card title="Loyalty Index" metricKey="loyalty_index" variant="primary" value={loyaltyDiagnostics.loyaltyIndex} subtitle="0-100 weighted index" />
-                    <Card title="NPS" metricKey="nps_loyalty" variant="primary" value={loyaltyDiagnostics.nps} subtitle={`${selectedMetrics?.promoters || 0}% promoters · ${selectedMetrics?.detractors || 0}% detractors`} sparklineValues={trend.map((point) => point.nps)} />
-                    <Card title="Committed" metricKey="segment_committed" variant="primary" value={`${loyaltyDiagnostics.segmentPcts.Committed}%`} subtitle={`${loyaltyDiagnostics.segmentCounts.Committed} respondents`} />
-                    <Card title="Rejectors" metricKey="segment_rejectors" variant="primary" value={`${loyaltyDiagnostics.segmentPcts.Rejectors}%`} subtitle={`${loyaltyDiagnostics.segmentCounts.Rejectors} respondents`} />
+                    <Card title="Loyalty Index" metricKey="loyalty_index" variant="primary" value={safeNumber(loyaltyTopMetrics?.loyaltyIndex.value)} subtitle="0-100 weighted index" />
+                    <Card title="NPS" metricKey="nps_loyalty" variant="primary" value={safeNumber(loyaltyTopMetrics?.nps.value)} subtitle={`${safePercent(selectedMetricsView?.promoters, EMPTY_COPY.noData)} promoters · ${safePercent(selectedMetricsView?.detractors, EMPTY_COPY.noData)} detractors`} sparklineValues={trendView.map((point) => point.nps)} />
+                    <Card title="Committed" metricKey="segment_committed" variant="primary" value={safePercent(loyaltyTopMetrics?.committed.value)} subtitle={isFiniteMetricValue(loyaltyTopMetrics?.committed.count) ? `${safeCount(loyaltyTopMetrics?.committed.count)} respondents` : EMPTY_COPY.noAwareInSlice} />
+                    <Card title="Rejectors" metricKey="segment_rejectors" variant="primary" value={safePercent(loyaltyTopMetrics?.rejectors.value)} subtitle={isFiniteMetricValue(loyaltyTopMetrics?.rejectors.count) ? `${safeCount(loyaltyTopMetrics?.rejectors.count)} respondents` : EMPTY_COPY.noAwareInSlice} />
                   </div>
 
                   <div className="mt-4 dashboard-section">
@@ -1887,11 +2903,11 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       <SectionInsightsTrigger sectionKey="loyalty_segmentation" ctaLabel="View Insights" />
                     </div>
                     <div className="mt-6 grid gap-4 md:grid-cols-5">
-                      <Card title="Committed" metricKey="segment_committed" value={`${loyaltyDiagnostics.segmentPcts.Committed}%`} subtitle="Highest loyalty and advocacy" />
-                      <Card title="Favors" metricKey="segment_favors" value={`${loyaltyDiagnostics.segmentPcts.Favors}%`} subtitle="Good loyalty, not fully committed" />
-                      <Card title="Potential" metricKey="segment_potential" value={`${loyaltyDiagnostics.segmentPcts.Potential}%`} subtitle="High opportunity pipeline" />
-                      <Card title="Accessibles" metricKey="segment_accessibles" value={`${loyaltyDiagnostics.segmentPcts.Accessibles}%`} subtitle="Neutral/open audience" />
-                      <Card title="Rejectors" metricKey="segment_rejectors" value={`${loyaltyDiagnostics.segmentPcts.Rejectors}%`} subtitle="Active resistance to adoption" />
+                      <Card title="Committed" metricKey="segment_committed" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Committed) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Highest loyalty and advocacy' : EMPTY_COPY.noAwareInSlice} />
+                      <Card title="Favors" metricKey="segment_favors" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Favors) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Good loyalty, not fully committed' : EMPTY_COPY.noAwareInSlice} />
+                      <Card title="Potential" metricKey="segment_potential" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Potential) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'High opportunity pipeline' : EMPTY_COPY.noAwareInSlice} />
+                      <Card title="Accessibles" metricKey="segment_accessibles" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Accessibles) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Neutral/open audience' : EMPTY_COPY.noAwareInSlice} />
+                      <Card title="Rejectors" metricKey="segment_rejectors" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Rejectors) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Active resistance to adoption' : EMPTY_COPY.noAwareInSlice} />
                     </div>
                   </div>
 
@@ -1902,10 +2918,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <SectionInsightsTrigger sectionKey="decision_tree" ctaLabel="View Insights" />
                       </div>
                       <div className="mt-4 space-y-3">
-                        <MiniBar label="Current users -> Committed/Favors path" value={Math.round((loyaltyDiagnostics.segmentCounts.Committed + loyaltyDiagnostics.segmentCounts.Favors) * 100 / Math.max(loyaltyDiagnostics.awareCount, 1))} color="bg-blue-500" />
-                        <MiniBar label="Non-current -> Potential/Accessible/Rejector path" value={Math.round((loyaltyDiagnostics.segmentCounts.Potential + loyaltyDiagnostics.segmentCounts.Accessibles + loyaltyDiagnostics.segmentCounts.Rejectors) * 100 / Math.max(loyaltyDiagnostics.awareCount, 1))} color="bg-violet-500" />
-                        <MiniBar label="Committed capture among aware" value={loyaltyDiagnostics.segmentPcts.Committed} color="bg-emerald-500" />
-                        <MiniBar label="Rejector pressure among aware" value={loyaltyDiagnostics.segmentPcts.Rejectors} color="bg-rose-500" />
+                        <MiniBar label="Current users -> Committed/Favors path" value={loyaltyDiagnostics.awareCount > 0 ? Math.round((loyaltyDiagnostics.segmentCounts.Committed + loyaltyDiagnostics.segmentCounts.Favors) * 100 / loyaltyDiagnostics.awareCount) : null} color="bg-blue-500" />
+                        <MiniBar label="Non-current -> Potential/Accessible/Rejector path" value={loyaltyDiagnostics.awareCount > 0 ? Math.round((loyaltyDiagnostics.segmentCounts.Potential + loyaltyDiagnostics.segmentCounts.Accessibles + loyaltyDiagnostics.segmentCounts.Rejectors) * 100 / loyaltyDiagnostics.awareCount) : null} color="bg-violet-500" />
+                        <MiniBar label="Committed capture among aware" value={loyaltyDiagnostics.awareCount > 0 ? loyaltyDiagnostics.segmentPcts.Committed : null} color="bg-emerald-500" />
+                        <MiniBar label="Rejector pressure among aware" value={loyaltyDiagnostics.awareCount > 0 ? loyaltyDiagnostics.segmentPcts.Rejectors : null} color="bg-rose-500" />
                       </div>
                     </div>
 
@@ -1925,14 +2941,18 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </tr>
                           </thead>
                           <tbody>
-                            {loyaltyDiagnostics.movementRows.map((row) => (
+                            {loyaltyDiagnostics.movementRows.length > 0 ? loyaltyDiagnostics.movementRows.map((row) => (
                               <tr key={row.segment} className="border-t border-white/5">
                                 <td className="py-2 pr-2">{row.segment}</td>
-                                <td className="py-2 pr-2">{row.previousPct}%</td>
-                                <td className="py-2 pr-2">{row.currentPct}%</td>
-                                <td className="py-2">{row.deltaPct > 0 ? '+' : ''}{row.deltaPct}%</td>
+                                <td className="py-2 pr-2">{safePercent(row.previousPct)}</td>
+                                <td className="py-2 pr-2">{safePercent(row.currentPct)}</td>
+                                <td className="py-2">{safeSignedPercent(row.deltaPct)}</td>
                               </tr>
-                            ))}
+                            )) : (
+                              <tr>
+                                <td colSpan={4} className="py-3 text-slate-500">No movement data in this slice.</td>
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -1946,19 +2966,19 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     </div>
                     <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                       {loyaltyDiagnostics.profileCards.map((profile) => (
-                        <div key={profile.segment} className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                          <div className="flex items-center gap-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-300">{profile.segment}</p>
-                            <MetricInfoIcon metricKey={`segment_${profile.segment.toLowerCase()}` as DashboardMetricKey} />
-                          </div>
-                          <p className="mt-2 text-2xl font-black text-white">{profile.pct}%</p>
-                          <p className="text-xs text-slate-500">{profile.count} respondents</p>
+                          <div key={profile.segment} className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
+                            <div className="flex items-center gap-1">
+                              <p className="text-xs font-bold uppercase tracking-widest text-slate-300">{profile.segment}</p>
+                              <MetricInfoIcon metricKey={`segment_${profile.segment.toLowerCase()}` as DashboardMetricKey} />
+                            </div>
+                          <p className="mt-2 text-2xl font-black text-white">{loyaltyDiagnostics.awareCount > 0 ? safePercent(profile.pct) : '--'}</p>
+                          <p className="text-xs text-slate-500">{loyaltyDiagnostics.awareCount > 0 ? `${safeCount(profile.count)} respondents` : EMPTY_COPY.noAwareInSlice}</p>
                           <div className="mt-3 space-y-1 text-xs text-slate-300">
-                            <p>Average NPS: {profile.avgNps}</p>
-                            <p>Average Intent: {profile.avgIntent}</p>
-                            <p>Top Age: {profile.topAge}</p>
-                            <p>Top Gender: {profile.topGender}</p>
-                            <p>Multi-Bank: {profile.multiBankPct}%</p>
+                            <p>Average NPS: {safeNumber(profile.avgNps)}</p>
+                            <p>Average Intent: {safeNumber(profile.avgIntent)}</p>
+                            <p>Top Age: {safeText(profile.topAge)}</p>
+                            <p>Top Gender: {safeText(profile.topGender)}</p>
+                            <p>Multi-Bank: {safePercent(profile.multiBankPct)}</p>
                           </div>
                         </div>
                       ))}
@@ -1971,21 +2991,21 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       <SectionInsightsTrigger sectionKey="loyalty_conversion" ctaLabel="View Insights" />
                     </div>
                     <div className="mt-6 grid gap-4 md:grid-cols-4">
-                      <Card title="Aware" value="100%" subtitle={`${loyaltyDiagnostics.awareCount} aware respondents`} />
-                      <Card title="Potential" metricKey="segment_potential" value={`${loyaltyDiagnostics.segmentPcts.Potential}%`} subtitle={`${loyaltyDiagnostics.segmentCounts.Potential} respondents`} />
-                      <Card title="Favors" metricKey="segment_favors" value={`${loyaltyDiagnostics.segmentPcts.Favors}%`} subtitle={`${loyaltyDiagnostics.segmentCounts.Favors} respondents`} />
-                      <Card title="Committed" metricKey="segment_committed" value={`${loyaltyDiagnostics.segmentPcts.Committed}%`} subtitle={`${loyaltyDiagnostics.segmentCounts.Committed} respondents`} />
+                      <Card title="Aware" value={loyaltyDiagnostics.awareCount > 0 ? '100%' : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? `${safeCount(loyaltyDiagnostics.awareCount)} aware respondents` : EMPTY_COPY.noAwareInSlice} />
+                      <Card title="Potential" metricKey="segment_potential" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Potential) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? `${safeCount(loyaltyDiagnostics.segmentCounts.Potential)} respondents` : EMPTY_COPY.noAwareInSlice} />
+                      <Card title="Favors" metricKey="segment_favors" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Favors) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? `${safeCount(loyaltyDiagnostics.segmentCounts.Favors)} respondents` : EMPTY_COPY.noAwareInSlice} />
+                      <Card title="Committed" metricKey="segment_committed" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Committed) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? `${safeCount(loyaltyDiagnostics.segmentCounts.Committed)} respondents` : EMPTY_COPY.noAwareInSlice} />
                     </div>
                     <div className="mt-6 grid gap-4 md:grid-cols-3">
-                      <Card title="Aware -> Potential" metricKey="loyalty_conversion_funnel" value={`${loyaltyDiagnostics.awareToPotential}%`} subtitle="Conversion rate" />
-                      <Card title="Potential -> Favors" metricKey="loyalty_conversion_funnel" value={`${loyaltyDiagnostics.potentialToFavors}%`} subtitle="Conversion rate" />
-                      <Card title="Favors -> Committed" metricKey="loyalty_conversion_funnel" value={`${loyaltyDiagnostics.favorsToCommitted}%`} subtitle="Conversion rate" />
+                      <Card title="Aware -> Potential" metricKey="loyalty_conversion_funnel" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.awareToPotential) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Conversion rate' : EMPTY_COPY.noAwareInSlice} />
+                      <Card title="Potential -> Favors" metricKey="loyalty_conversion_funnel" value={loyaltyDiagnostics.segmentCounts.Potential > 0 ? safePercent(loyaltyDiagnostics.potentialToFavors) : '--'} subtitle={loyaltyDiagnostics.segmentCounts.Potential > 0 ? 'Conversion rate' : 'No potential respondents in this slice.'} />
+                      <Card title="Favors -> Committed" metricKey="loyalty_conversion_funnel" value={loyaltyDiagnostics.segmentCounts.Favors > 0 ? safePercent(loyaltyDiagnostics.favorsToCommitted) : '--'} subtitle={loyaltyDiagnostics.segmentCounts.Favors > 0 ? 'Conversion rate' : 'No favoring respondents in this slice.'} />
                     </div>
                   </div>
                 </>
               ) : (
                 <div className="dashboard-section dashboard-diagnostic">
-                  Loyalty diagnostics unavailable for the current filter scope.
+                  No loyalty data in this slice.
                 </div>
               )}
             </TabsContent>
@@ -1998,8 +3018,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       title="Momentum Score"
                       metricKey="momentum_score"
                       variant="primary"
-                      value={momentumDiagnostics.score}
-                      subtitle={`${momentumDiagnostics.status} · ${momentumDiagnostics.strategy}`}
+                      value={momentumTopMetrics?.score.value ?? '--'}
+                      subtitle={`${momentumDiagnostics.status} · ${momentumDiagnostics.strategy}${momentumTopMetrics?.score.base_n ? ` · ${validPeriodSubtitle(momentumTopMetrics.score.base_n)}` : ''}`}
                       delta={momentumDiagnostics.velocity}
                       sparklineValues={momentumDiagnostics.trends.map((point) => point.score)}
                     />
@@ -2007,34 +3027,44 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       title="Awareness Growth Score"
                       metricKey="awareness_growth_score"
                       variant="primary"
-                      value={momentumDiagnostics.components.awarenessGrowth}
-                      subtitle="Normalized period growth"
+                      value={momentumTopMetrics?.awarenessGrowth.value ?? '--'}
+                      subtitle={momentumTopMetrics?.awarenessGrowth.base_n && momentumTopMetrics.awarenessGrowth.base_n < 4
+                        ? firstStatusNote(momentumTopMetrics.awarenessGrowth.notes)
+                        : `Normalized period growth · ${validPeriodSubtitle(momentumTopMetrics?.awarenessGrowth.base_n)}`}
                     />
                     <Card
                       title="Consideration"
                       metricKey="consideration_rate_momentum"
                       variant="primary"
-                      value={`${momentumDiagnostics.components.consideration}%`}
-                      subtitle="Pipeline strength"
+                      value={momentumTopMetrics?.consideration.value === null ? '--' : `${momentumTopMetrics?.consideration.value}%`}
+                      subtitle={momentumTopMetrics?.consideration.base_n && momentumTopMetrics.consideration.base_n < 4
+                        ? firstStatusNote(momentumTopMetrics.consideration.notes)
+                        : 'Pipeline strength'}
                     />
                     <Card
                       title="Conversion"
                       metricKey="conversion_rate_momentum"
                       variant="primary"
-                      value={`${momentumDiagnostics.components.conversion}%`}
-                      subtitle="Aware -> Ever used"
+                      value={momentumTopMetrics?.conversion.value === null ? '--' : `${momentumTopMetrics?.conversion.value}%`}
+                      subtitle={momentumTopMetrics?.conversion.base_n && momentumTopMetrics.conversion.base_n < 4
+                        ? firstStatusNote(momentumTopMetrics.conversion.notes)
+                        : 'Aware -> Ever used'}
                     />
                     <Card
                       title="Retention"
                       metricKey="retention_rate_momentum"
-                      value={`${momentumDiagnostics.components.retention}%`}
-                      subtitle="Ever used -> Current"
+                      value={momentumTopMetrics?.retention.value === null ? '--' : `${momentumTopMetrics?.retention.value}%`}
+                      subtitle={momentumTopMetrics?.retention.base_n && momentumTopMetrics.retention.base_n < 4
+                        ? firstStatusNote(momentumTopMetrics.retention.notes)
+                        : 'Ever used -> Current'}
                     />
                     <Card
                       title="Adoption"
                       metricKey="adoption_rate_momentum"
-                      value={`${momentumDiagnostics.components.adoption}%`}
-                      subtitle="Current -> Preferred"
+                      value={momentumTopMetrics?.adoption.value === null ? '--' : `${momentumTopMetrics?.adoption.value}%`}
+                      subtitle={momentumTopMetrics?.adoption.base_n && momentumTopMetrics.adoption.base_n < 4
+                        ? firstStatusNote(momentumTopMetrics.adoption.notes)
+                        : 'Current -> Preferred'}
                     />
                   </div>
 
@@ -2072,9 +3102,12 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
                     <div className="dashboard-section">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Sensitivity & Investment Prioritization</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Scenario Sensitivity</h3>
                         <SectionInsightsTrigger sectionKey="momentum_drivers" ctaLabel="View Insights" />
                       </div>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Modeled scenario outputs showing which momentum levers move the score most in this framework.
+                      </p>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
                           <thead className="text-[10px] uppercase tracking-widest text-slate-500">
@@ -2113,17 +3146,24 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <div className="mt-4 space-y-3">
                         {momentumDiagnostics.trends.map((point) => (
-                          <MiniBar key={point.month} label={`${point.month} (${point.delta === null ? '-' : `${point.delta > 0 ? '+' : ''}${point.delta}`})`} value={point.score} color="bg-indigo-500" />
+                          <MiniBar
+                            key={point.month}
+                            label={`${point.month} (${point.delta === null ? 'No delta' : `${point.delta > 0 ? '+' : ''}${point.delta}`})`}
+                            value={point.score}
+                            color="bg-indigo-500"
+                          />
                         ))}
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        <Card title="Velocity" metricKey="momentum_velocity" value={`${momentumDiagnostics.velocity > 0 ? '+' : ''}${momentumDiagnostics.velocity}`} subtitle={momentumDiagnostics.velocityLabel} />
-                        <Card title="Volatility" metricKey="volatility_score" value={`${momentumDiagnostics.volatilityCv}%`} subtitle={momentumDiagnostics.volatilityLabel} />
+                        <Card title="Velocity" metricKey="momentum_velocity" value={formatSignedValue(momentumDiagnostics.velocity, '', 1)} subtitle={momentumDiagnostics.velocity === null ? `${EMPTY_COPY.insufficientHistory} for velocity` : momentumDiagnostics.velocityLabel} />
+                        <Card title="Volatility" metricKey="volatility_score" value={momentumDiagnostics.volatilityCv === null ? '--' : `${momentumDiagnostics.volatilityCv}%`} subtitle={momentumDiagnostics.volatilityLabel} />
                         <Card
                           title="Trajectory (3M)"
                           metricKey="trajectory_forecast"
-                          value={momentumDiagnostics.forecast[momentumDiagnostics.forecast.length - 1]?.projectedScore || 0}
-                          subtitle={`${momentumDiagnostics.forecast[0]?.month || ''} to ${momentumDiagnostics.forecast[momentumDiagnostics.forecast.length - 1]?.month || ''}`}
+                          value={momentumDiagnostics.forecast[momentumDiagnostics.forecast.length - 1]?.projectedScore ?? '--'}
+                          subtitle={momentumDiagnostics.forecastEligible
+                            ? `${momentumDiagnostics.forecast[0]?.month || ''} to ${momentumDiagnostics.forecast[momentumDiagnostics.forecast.length - 1]?.month || ''}`
+                            : firstStatusNote(momentumTopMetrics?.score.notes, EMPTY_COPY.forecastUnavailable)}
                         />
                       </div>
                     </div>
@@ -2136,8 +3176,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         {momentumDiagnostics.forecast.map((point) => (
                           <div key={point.month} className="rounded-xl border border-white/10 bg-slate-900/40 p-3 text-center">
                             <p className="text-xs text-slate-400">{point.month}</p>
-                            <p className="mt-1 text-2xl font-black text-white">{point.projectedScore}</p>
-                            <p className="text-[11px] text-slate-500">Projected momentum</p>
+                            <p className="mt-1 text-2xl font-black text-white">{point.projectedScore ?? '--'}</p>
+                            <p className="text-[11px] text-slate-500">{point.projectedScore === null ? EMPTY_COPY.forecastUnavailable : 'Projected momentum'}</p>
                           </div>
                         ))}
                       </div>
@@ -2155,7 +3195,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       <Card
                         title="Selected Growth Rate"
                         metricKey="relative_momentum"
-                        value={`${momentumDiagnostics.competitiveRows.find((row) => row.bankId === selectedBankId)?.growthRate ?? 0}%`}
+                        value={momentumDiagnostics.competitiveRows.find((row) => row.bankId === selectedBankId)?.growthRate === null ? '--' : `${momentumDiagnostics.competitiveRows.find((row) => row.bankId === selectedBankId)?.growthRate}%`}
                         subtitle="Versus previous month"
                       />
                     </div>
@@ -2197,7 +3237,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 </>
               ) : (
                 <div className="dashboard-section dashboard-diagnostic">
-                  Momentum diagnostics unavailable for the current filter scope.
+                  No momentum data in this slice.
                 </div>
               )}
             </TabsContent>
@@ -2209,25 +3249,25 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     <Card
                       title="Market Share"
                       metricKey="market_share"
-                      value={`${competitiveDiagnostics.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare || 0}%`}
+                      value={safePercent(competitiveTopMetrics?.marketShare.value)}
                       subtitle={selectedBankName}
                     />
                     <Card
                       title="Market Concentration (HHI)"
                       metricKey="market_concentration"
-                      value={competitiveDiagnostics.marketStructure.hhi}
+                      value={safeNumber(competitiveTopMetrics?.hhi.value)}
                       subtitle={competitiveDiagnostics.marketStructure.concentrationLabel}
                     />
                     <Card
                       title="Average Banks per Customer"
                       metricKey="avg_banks_per_customer_ci"
-                      value={competitiveDiagnostics.customerBehavior.averageBanksPerCustomer}
+                      value={safeNumber(competitiveTopMetrics?.avgBanksPerCustomer.value)}
                       subtitle="Active banking customers"
                     />
                     <Card
                       title="Multi-Banking Rate"
                       metricKey="multi_banking_rate_ci"
-                      value={`${competitiveDiagnostics.customerBehavior.multiBankingRate}%`}
+                      value={safePercent(competitiveTopMetrics?.multiBankingRate.value)}
                       subtitle="Customers using 2+ banks"
                     />
                   </div>
@@ -2294,7 +3334,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             )) : (
                               <tr>
-                                <td colSpan={3} className="py-2 text-slate-500">No overlap detected in current scope.</td>
+                                <td colSpan={3} className="py-2 text-slate-500">No overlap data in this slice.</td>
                               </tr>
                             )}
                           </tbody>
@@ -2324,8 +3364,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               return (
                                 <tr key={row.bankId} className="border-t border-white/5">
                                   <td className="py-2 pr-2">{row.bankName}</td>
-                                  <td className="py-2 pr-2">{set?.overlapPct ?? 0}%</td>
-                                  <td className="py-2 pr-2">{set?.competitorType ?? 'Indirect'}</td>
+                                  <td className="py-2 pr-2">{safePercent(set?.overlapPct)}</td>
+                                  <td className="py-2 pr-2">{safeText(set?.competitorType, 'Indirect')}</td>
                                   <td className="py-2 pr-2">{row.position}</td>
                                   <td className="py-2">{row.tier}</td>
                                 </tr>
@@ -2337,54 +3377,80 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     </div>
                   </div>
 
-                  <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                    <div className="dashboard-section">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Share of Wallet Analysis</h3>
-                        <SectionInsightsTrigger sectionKey="share_wallet_ci" ctaLabel="View Insights" />
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <Card title="Estimated Wallet Share" metricKey="wallet_share_estimation" value={`${competitiveDiagnostics.shareOfWallet.estimatedWalletShare}%`} subtitle="Selected bank wallet capture" />
-                        <Card title="Top Wallet Competitor" metricKey="wallet_share_estimation" value={competitiveDiagnostics.shareOfWallet.byCompetitor[0]?.bankName || 'None'} subtitle={`${competitiveDiagnostics.shareOfWallet.byCompetitor[0]?.estimatedWalletShare || 0}% estimated share`} />
-                      </div>
-                      <div className="mt-4 overflow-auto">
-                        <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
-                            <tr>
-                              <th className="py-2 pr-2">Competitor</th>
-                              <th className="py-2">Estimated Wallet Share</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {competitiveDiagnostics.shareOfWallet.byCompetitor.map((row) => (
-                              <tr key={row.bankId} className="border-t border-white/5">
-                                <td className="py-2 pr-2">{row.bankName}</td>
-                                <td className="py-2">{row.estimatedWalletShare}%</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                  {switchingRadar && (
+                    <div className="mt-6">
+                      <CustomerSwitchingRadar
+                        metrics={switchingRadar}
+                        title="Multi-Bank Competitive Pressure"
+                        subtitle="Among customers who actively use your bank and at least one competitor, this highlights where secondary preference is strongest."
+                        resolveCompetitorLabel={(competitor) => bankNameById.get(competitor) || competitor}
+                      />
                     </div>
+                  )}
+
+                  {migrationMap && (
+                    <div className="mt-6">
+                      <CustomerMigrationMap
+                        metrics={migrationMap}
+                        resolveCompetitorLabel={(competitor) => bankNameById.get(competitor) || competitor}
+                      />
+                    </div>
+                  )}
+
+                  <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                    {adminMode ? (
+                      <div className="dashboard-section">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Share of Wallet Analysis</h3>
+                          <SectionInsightsTrigger sectionKey="share_wallet_ci" ctaLabel="View Insights" />
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                          Internal-only proxy view. Wallet share is estimated from current-bank overlap, not directly observed spending share.
+                        </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <Card title="Estimated Wallet Share" metricKey="wallet_share_estimation" value={`${competitiveDiagnostics.shareOfWallet.estimatedWalletShare}%`} subtitle="Selected bank wallet capture" />
+                          <Card title="Top Wallet Competitor" metricKey="wallet_share_estimation" value={safeText(competitiveDiagnostics.shareOfWallet.byCompetitor[0]?.bankName, 'No data')} subtitle={competitiveDiagnostics.shareOfWallet.byCompetitor[0] ? `${safePercent(competitiveDiagnostics.shareOfWallet.byCompetitor[0]?.estimatedWalletShare)} estimated share` : 'No competitor estimate in this slice'} />
+                        </div>
+                        <div className="mt-4 overflow-auto">
+                          <table className="w-full text-xs text-slate-300">
+                            <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                              <tr>
+                                <th className="py-2 pr-2">Competitor</th>
+                                <th className="py-2">Estimated Wallet Share</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {competitiveDiagnostics.shareOfWallet.byCompetitor.map((row) => (
+                                <tr key={row.bankId} className="border-t border-white/5">
+                                  <td className="py-2 pr-2">{row.bankName}</td>
+                                  <td className="py-2">{row.estimatedWalletShare}%</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : null}
 
                     <div className="dashboard-section">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Win/Loss Analysis</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">{winLossSectionTitle}</h3>
                         <SectionInsightsTrigger sectionKey="win_loss_ci" ctaLabel="View Insights" />
                       </div>
+                      <p className="mt-2 text-xs text-slate-500">{winLossSectionSubtitle}</p>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <Card title="Overall Win Rate" metricKey="win_rate_ci" value={`${competitiveDiagnostics.winLoss.overallWinRate}%`} subtitle="Across mapped competitors" />
-                        <Card title="Data Mode" value={competitiveDiagnostics.winLoss.hasPanelTransitions ? 'Observed transitions' : 'Trend proxy'} subtitle={competitiveDiagnostics.winLoss.hasPanelTransitions ? 'Device-linked preferred-bank movement' : 'Built from overlap + share deltas'} />
+                        <Card title={winLossPrimaryCardTitle} metricKey="win_rate_ci" value={`${competitiveDiagnostics.winLoss.overallWinRate}%`} subtitle={hasObservedWinLoss ? 'Across measured competitor transitions' : 'Across modeled competitor pressure signals'} />
+                        <Card title="Evidence Mode" value={winLossModeLabel} subtitle={winLossModeSubtitle} />
                       </div>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
                           <thead className="text-[10px] uppercase tracking-widest text-slate-500">
                             <tr>
                               <th className="py-2 pr-2">Competitor</th>
-                              <th className="py-2 pr-2">Gained</th>
-                              <th className="py-2 pr-2">Lost</th>
-                              <th className="py-2 pr-2">Net</th>
-                              <th className="py-2">Win Rate</th>
+                              <th className="py-2 pr-2">{hasObservedWinLoss ? 'Observed Gains' : 'Estimated Gains'}</th>
+                              <th className="py-2 pr-2">{hasObservedWinLoss ? 'Observed Losses' : 'Estimated Losses'}</th>
+                              <th className="py-2 pr-2">{hasObservedWinLoss ? 'Net' : 'Net Signal'}</th>
+                              <th className="py-2">{hasObservedWinLoss ? 'Win Rate' : 'Balance'}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2411,7 +3477,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <Card title="Relative Strength Index" metricKey="relative_strength_index" value={competitiveDiagnostics.strengthsWeaknesses.relativeStrengthIndex} subtitle="Average relative score vs market" />
-                        <Card title="Largest Gap" value={[...competitiveDiagnostics.strengthsWeaknesses.relativeRows].sort((a, b) => a.relativeStrength - b.relativeStrength)[0]?.metric || 'N/A'} subtitle="Lowest relative metric" />
+                        <Card title="Largest Gap" value={safeText([...competitiveDiagnostics.strengthsWeaknesses.relativeRows].sort((a, b) => a.relativeStrength - b.relativeStrength)[0]?.metric, 'No data')} subtitle="Lowest relative metric" />
                       </div>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
@@ -2441,7 +3507,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
                     <div className="dashboard-section">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">White Space Opportunities</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Whitespace Opportunities</h3>
                         <SectionInsightsTrigger sectionKey="white_space_ci" ctaLabel="View Insights" />
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -2497,9 +3563,12 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
                   <div className="mt-6 dashboard-section">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Threat Assessment</h3>
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Competitive Risk Signals</h3>
                       <SectionInsightsTrigger sectionKey="threat_assessment_ci" ctaLabel="View Insights" />
                     </div>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Heuristic risk signals built from overlap, share movement, and visibility pressure. These are warning indicators, not direct observations of customer loss.
+                    </p>
                     <div className="mt-6 grid gap-4 md:grid-cols-2">
                       <div className="overflow-auto">
                         <table className="w-full text-xs text-slate-300">
@@ -2508,7 +3577,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               <th className="py-2 pr-2">Competitor</th>
                               <th className="py-2 pr-2">Likelihood</th>
                               <th className="py-2 pr-2">Impact</th>
-                              <th className="py-2">Threat Level</th>
+                              <th className="py-2">Risk Level</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2527,7 +3596,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <table className="w-full text-xs text-slate-300">
                           <thead className="text-[10px] uppercase tracking-widest text-slate-500">
                             <tr>
-                              <th className="py-2 pr-2">Threat Indicator</th>
+                              <th className="py-2 pr-2">Risk Indicator</th>
                               <th className="py-2 pr-2">Status</th>
                               <th className="py-2">Alert</th>
                             </tr>
@@ -2552,7 +3621,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 </>
               ) : (
                 <div className="dashboard-section dashboard-diagnostic">
-                  Competitive diagnostics unavailable for the current filter scope.
+                  No competitive data in this slice.
                 </div>
               )}
             </TabsContent>
@@ -2561,23 +3630,23 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
               {demographicDiagnostics ? (
                 <>
                   <div className="grid gap-4 md:grid-cols-4">
-                    <Card title="Sample" value={`N=${demographicDiagnostics.sample}`} subtitle="Filtered respondents" />
+                    <Card title="Sample" value={`N=${safeCount(demographicsTopMetrics?.sample.value ?? demographicDiagnostics.sample, '0')}`} subtitle="Filtered respondents" />
                     <Card
                       title="Top High-Value Segment"
-                      value={`${demographicDiagnostics.highValueSegments[0]?.dimension || '-'}: ${demographicDiagnostics.highValueSegments[0]?.segment || '-'}`}
-                      subtitle={`Score ${demographicDiagnostics.highValueSegments[0]?.score || 0}`}
+                      value={`${safeText(demographicDiagnostics.highValueSegments[0]?.dimension, '-')}: ${safeText(demographicDiagnostics.highValueSegments[0]?.segment, '-')}`}
+                      subtitle={demographicDiagnostics.highValueSegments[0] ? `Score ${safeNumber(demographicsTopMetrics?.topSegment.value ?? demographicDiagnostics.highValueSegments[0]?.score)}` : 'No high-value segment data in this slice.'}
                     />
                     <Card
                       title="Highest Priority Gap"
                       metricKey="demo_gap_score"
-                      value={`${demographicDiagnostics.opportunities[0]?.dimension || '-'}: ${demographicDiagnostics.opportunities[0]?.segment || '-'}`}
-                      subtitle={`${demographicDiagnostics.opportunities[0]?.usageGap || 0}pp vs best`}
+                      value={`${safeText(demographicDiagnostics.opportunities[0]?.dimension, '-')}: ${safeText(demographicDiagnostics.opportunities[0]?.segment, '-')}`}
+                      subtitle={demographicDiagnostics.opportunities[0] ? `${safePp(demographicsTopMetrics?.highestGap.value ?? demographicDiagnostics.opportunities[0]?.usageGap)} vs best` : 'No priority gap data in this slice.'}
                     />
                     <Card
                       title="Average Segment Multi-Banking"
                       metricKey="demo_multi_banking"
-                      value={`${Math.round((demographicDiagnostics.ageRows.reduce((sum, row) => sum + row.multiBankRate, 0) / Math.max(demographicDiagnostics.ageRows.length, 1)) * 10) / 10}%`}
-                      subtitle="Across age cohorts"
+                      value={safePercent(demographicsTopMetrics?.avgSegmentMultiBanking.value)}
+                      subtitle={demographicDiagnostics.ageRows.length > 0 ? 'Across age cohorts' : 'No age cohort data in this slice.'}
                     />
                   </div>
 
@@ -2630,17 +3699,21 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </tr>
                           </thead>
                           <tbody>
-                            {demographicDiagnostics.ageRows.map((row) => (
+                            {demographicDiagnostics.ageRows.length > 0 ? demographicDiagnostics.ageRows.map((row) => (
                               <tr key={`age-row-${row.segment}`} className="border-t border-white/5">
                                 <td className="py-2 pr-2">{row.segment}</td>
-                                <td className="py-2 pr-2">{row.samplePct}%</td>
-                                <td className="py-2 pr-2">{row.awareness}%</td>
-                                <td className="py-2 pr-2">{row.currentUsage}%</td>
-                                <td className="py-2 pr-2">{row.preferred}%</td>
-                                <td className="py-2 pr-2">{row.nps}</td>
-                                <td className="py-2">{row.avgIntent}</td>
+                                <td className="py-2 pr-2">{safePercent(row.samplePct)}</td>
+                                <td className="py-2 pr-2">{safePercent(row.awareness)}</td>
+                                <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
+                                <td className="py-2 pr-2">{safePercent(row.preferred)}</td>
+                                <td className="py-2 pr-2">{safeNumber(row.nps)}</td>
+                                <td className="py-2">{safeAverageIntent(row.avgIntent)}</td>
                               </tr>
-                            ))}
+                            )) : (
+                              <tr>
+                                <td colSpan={7} className="py-3 text-slate-500">No age cohort data in this slice.</td>
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -2658,17 +3731,21 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </tr>
                           </thead>
                           <tbody>
-                            {demographicDiagnostics.genderRows.map((row) => (
+                            {demographicDiagnostics.genderRows.length > 0 ? demographicDiagnostics.genderRows.map((row) => (
                               <tr key={`gender-row-${row.segment}`} className="border-t border-white/5">
                                 <td className="py-2 pr-2">{row.segment}</td>
-                                <td className="py-2 pr-2">{row.samplePct}%</td>
-                                <td className="py-2 pr-2">{row.awareness}%</td>
-                                <td className="py-2 pr-2">{row.currentUsage}%</td>
-                                <td className="py-2 pr-2">{row.preferred}%</td>
-                                <td className="py-2 pr-2">{row.nps}</td>
-                                <td className="py-2">{row.multiBankRate}%</td>
+                                <td className="py-2 pr-2">{safePercent(row.samplePct)}</td>
+                                <td className="py-2 pr-2">{safePercent(row.awareness)}</td>
+                                <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
+                                <td className="py-2 pr-2">{safePercent(row.preferred)}</td>
+                                <td className="py-2 pr-2">{safeNumber(row.nps)}</td>
+                                <td className="py-2">{safePercent(row.multiBankRate)}</td>
                               </tr>
-                            ))}
+                            )) : (
+                              <tr>
+                                <td colSpan={7} className="py-3 text-slate-500">No gender cohort data in this slice.</td>
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -2690,14 +3767,18 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             </thead>
                             <tbody>
-                              {demographicDiagnostics.employmentRows.map((row) => (
+                              {demographicDiagnostics.employmentRows.length > 0 ? demographicDiagnostics.employmentRows.map((row) => (
                                 <tr key={`employment-row-${row.segment}`} className="border-t border-white/5">
                                   <td className="py-2 pr-2">{row.segment}</td>
-                                  <td className="py-2 pr-2">{row.currentUsage}%</td>
-                                  <td className="py-2 pr-2">{row.preferred}%</td>
-                                  <td className="py-2">{row.nps}</td>
+                                  <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
+                                  <td className="py-2 pr-2">{safePercent(row.preferred)}</td>
+                                  <td className="py-2">{safeNumber(row.nps)}</td>
                                 </tr>
-                              ))}
+                              )) : (
+                                <tr>
+                                  <td colSpan={4} className="py-3 text-slate-500">No employment cohort data in this slice.</td>
+                                </tr>
+                              )}
                             </tbody>
                           </table>
                         </div>
@@ -2712,14 +3793,18 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             </thead>
                             <tbody>
-                              {demographicDiagnostics.educationRows.map((row) => (
+                              {demographicDiagnostics.educationRows.length > 0 ? demographicDiagnostics.educationRows.map((row) => (
                                 <tr key={`education-row-${row.segment}`} className="border-t border-white/5">
                                   <td className="py-2 pr-2">{row.segment}</td>
-                                  <td className="py-2 pr-2">{row.currentUsage}%</td>
-                                  <td className="py-2 pr-2">{row.preferred}%</td>
-                                  <td className="py-2">{row.nps}</td>
+                                  <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
+                                  <td className="py-2 pr-2">{safePercent(row.preferred)}</td>
+                                  <td className="py-2">{safeNumber(row.nps)}</td>
                                 </tr>
-                              ))}
+                              )) : (
+                                <tr>
+                                  <td colSpan={4} className="py-3 text-slate-500">No education cohort data in this slice.</td>
+                                </tr>
+                              )}
                             </tbody>
                           </table>
                         </div>
@@ -2744,27 +3829,35 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </tr>
                           </thead>
                           <tbody>
-                            {demographicDiagnostics.opportunities.map((row) => (
+                            {demographicDiagnostics.opportunities.length > 0 ? demographicDiagnostics.opportunities.map((row) => (
                               <tr key={`${row.dimension}-${row.segment}`} className="border-t border-white/5">
                                 <td className="py-2 pr-2 capitalize">{row.dimension}</td>
                                 <td className="py-2 pr-2">{row.segment}</td>
-                                <td className="py-2 pr-2">{row.currentUsage}%</td>
-                                <td className="py-2 pr-2">{row.usageGap}pp</td>
-                                <td className="py-2 pr-2">{row.nps}</td>
+                                <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
+                                <td className="py-2 pr-2">{safePp(row.usageGap)}</td>
+                                <td className="py-2 pr-2">{safeNumber(row.nps)}</td>
                                 <td className="py-2">{row.priority}</td>
                               </tr>
-                            ))}
+                            )) : (
+                              <tr>
+                                <td colSpan={6} className="py-3 text-slate-500">No demographic opportunity data in this slice.</td>
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
                       <div className="mt-4">
                         <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">High-Value Segments</p>
                         <div className="mt-2 grid gap-2">
-                          {demographicDiagnostics.highValueSegments.map((row) => (
+                          {demographicDiagnostics.highValueSegments.length > 0 ? demographicDiagnostics.highValueSegments.map((row) => (
                             <div key={`${row.dimension}-${row.segment}`} className="rounded-xl border border-white/10 bg-slate-900/50 p-2 text-xs text-slate-300">
-                              {row.dimension}: {row.segment} | score {row.score} | preferred {row.preferred}% | NPS {row.nps}
+                              {row.dimension}: {row.segment} | score {safeNumber(row.score)} | preferred {safePercent(row.preferred)} | NPS {safeNumber(row.nps)}
                             </div>
-                          ))}
+                          )) : (
+                            <div className="rounded-xl border border-dashed border-white/10 bg-slate-900/40 p-2 text-xs text-slate-500">
+                              No high-value segment data in this slice.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2772,7 +3865,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 </>
               ) : (
                 <div className="dashboard-section dashboard-diagnostic">
-                  Demographic diagnostics unavailable for the current filter scope.
+                  No demographic data in this slice.
                 </div>
               )}
             </TabsContent>
@@ -2784,23 +3877,23 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     <Card
                       title="MoM Change"
                       metricKey="mom_change"
-                      value={trendsDiagnostics.periodComparisons.momPp === null ? '--' : `${trendsDiagnostics.periodComparisons.momPp > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.momPp}pp`}
-                      subtitle={trendsDiagnostics.periodComparisons.momPct === null ? 'No prior month available' : `${trendsDiagnostics.periodComparisons.momPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.momPct}%`}
+                      value={formatSignedValue(trendsTopMetrics?.mom.value ?? null, 'pp', 1)}
+                      subtitle={trendsDiagnostics.periodComparisons.momPct === null ? EMPTY_COPY.insufficientHistory : `${trendsDiagnostics.periodComparisons.momPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.momPct}%`}
                     />
                     <Card
                       title="QoQ Change"
                       metricKey="qoq_change"
-                      value={trendsDiagnostics.periodComparisons.qoqPp === null ? '--' : `${trendsDiagnostics.periodComparisons.qoqPp > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.qoqPp}pp`}
-                      subtitle={trendsDiagnostics.periodComparisons.qoqPct === null ? 'Requires two full quarters' : `${trendsDiagnostics.periodComparisons.qoqPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.qoqPct}%`}
+                      value={formatSignedValue(trendsTopMetrics?.qoq.value ?? null, 'pp', 1)}
+                      subtitle={trendsDiagnostics.periodComparisons.qoqPct === null ? EMPTY_COPY.insufficientHistory : `${trendsDiagnostics.periodComparisons.qoqPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.qoqPct}%`}
                     />
                     <Card
                       title="YoY Change"
                       metricKey="yoy_change"
-                      value={trendsDiagnostics.periodComparisons.yoyPp === null ? '--' : `${trendsDiagnostics.periodComparisons.yoyPp > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.yoyPp}pp`}
-                      subtitle={trendsDiagnostics.periodComparisons.yoyPct === null ? 'Requires twelve months' : `${trendsDiagnostics.periodComparisons.yoyPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.yoyPct}%`}
+                      value={formatSignedValue(trendsTopMetrics?.yoy.value ?? null, 'pp', 1)}
+                      subtitle={trendsDiagnostics.periodComparisons.yoyPct === null ? EMPTY_COPY.insufficientHistory : `${trendsDiagnostics.periodComparisons.yoyPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.yoyPct}%`}
                     />
-                    <Card title="YTD Average" metricKey="ytd_average" value={`${trendsDiagnostics.periodComparisons.ytdAverage}%`} subtitle="Awareness average across trend window" />
-                    <Card title="CAGR" metricKey="cagr_trend" value={trendsDiagnostics.growth.cagrPct === null ? '--' : `${trendsDiagnostics.growth.cagrPct}%`} subtitle="Annualized growth rate" />
+                    <Card title="YTD Average" metricKey="ytd_average" value={trendsTopMetrics?.ytdAverage.value === null ? '--' : `${trendsTopMetrics.ytdAverage.value}%`} subtitle={trendsTopMetrics?.ytdAverage.base_n ? `Awareness average across ${validPeriodSubtitle(trendsTopMetrics.ytdAverage.base_n)}` : EMPTY_COPY.noValidPeriods} />
+                    <Card title="CAGR" metricKey="cagr_trend" value={trendsTopMetrics?.cagr.value === null ? '--' : `${trendsTopMetrics?.cagr.value}%`} subtitle={trendsTopMetrics?.cagr.value === null ? EMPTY_COPY.insufficientHistory : 'Annualized growth rate'} />
                   </div>
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -2816,6 +3909,19 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                     </div>
 
+                    <div className="dashboard-section">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">BrandEdge Score Over Time</h3>
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        {brandEdgeTrend.map((point) => (
+                          <MiniBar key={`brandedge-trend-${point.month}`} label={`${point.month} score`} value={point.score} color="bg-emerald-500" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid gap-6 lg:grid-cols-2">
                     <div className="dashboard-section">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Volatility & Pattern Diagnostics</h3>
@@ -2846,12 +3952,12 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <SectionInsightsTrigger sectionKey="forecast_methods" ctaLabel="View Insights" />
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <Card title="Simple MA (Next)" value={trendsDiagnostics.forecast.smaNext === null ? '--' : `${trendsDiagnostics.forecast.smaNext}%`} subtitle="3-month moving average" />
-                        <Card title="Weighted MA (Next)" value={trendsDiagnostics.forecast.wmaNext === null ? '--' : `${trendsDiagnostics.forecast.wmaNext}%`} subtitle="Weights 0.2, 0.3, 0.5" />
-                        <Card title="Regression (Next)" metricKey="forecast_regression" value={trendsDiagnostics.forecast.regressionNext === null ? '--' : `${trendsDiagnostics.forecast.regressionNext}%`} subtitle={trendsDiagnostics.forecast.regressionR2 === null ? 'Insufficient fit data' : `R² ${trendsDiagnostics.forecast.regressionR2}`} />
-                        <Card title="Exponential Smoothing (Next)" value={trendsDiagnostics.forecast.expSmoothingNext === null ? '--' : `${trendsDiagnostics.forecast.expSmoothingNext}%`} subtitle="Alpha 0.3" />
-                        <Card title="Seasonal Forecast (Next)" value={trendsDiagnostics.forecast.seasonalAdjustedNext === null ? '--' : `${trendsDiagnostics.forecast.seasonalAdjustedNext}%`} subtitle="Regression × seasonal index" />
-                        <Card title="Confidence Band (95%)" metricKey="forecast_confidence" value={trendsDiagnostics.forecast.confidenceLow === null || trendsDiagnostics.forecast.confidenceHigh === null ? '--' : `${trendsDiagnostics.forecast.confidenceLow}% to ${trendsDiagnostics.forecast.confidenceHigh}%`} subtitle="Forecast uncertainty range" />
+                        <Card title="Simple MA (Next)" value={trendsDiagnostics.forecast.smaNext === null ? '--' : `${trendsDiagnostics.forecast.smaNext}%`} subtitle={trendsDiagnostics.forecast.smaNext === null ? EMPTY_COPY.forecastUnavailable : '3-month moving average'} />
+                        <Card title="Weighted MA (Next)" value={trendsDiagnostics.forecast.wmaNext === null ? '--' : `${trendsDiagnostics.forecast.wmaNext}%`} subtitle={trendsDiagnostics.forecast.wmaNext === null ? EMPTY_COPY.forecastUnavailable : 'Weights 0.2, 0.3, 0.5'} />
+                        <Card title="Regression (Next)" metricKey="forecast_regression" value={trendsDiagnostics.forecast.regressionNext === null ? '--' : `${trendsDiagnostics.forecast.regressionNext}%`} subtitle={trendsDiagnostics.forecast.regressionR2 === null ? firstStatusNote(trendsTopMetrics?.mom.notes, EMPTY_COPY.forecastUnavailable) : `R² ${trendsDiagnostics.forecast.regressionR2}`} />
+                        <Card title="Exponential Smoothing (Next)" value={trendsDiagnostics.forecast.expSmoothingNext === null ? '--' : `${trendsDiagnostics.forecast.expSmoothingNext}%`} subtitle={trendsDiagnostics.forecast.expSmoothingNext === null ? EMPTY_COPY.forecastUnavailable : 'Alpha 0.3'} />
+                        <Card title="Seasonal Forecast (Next)" value={trendsDiagnostics.forecast.seasonalAdjustedNext === null ? '--' : `${trendsDiagnostics.forecast.seasonalAdjustedNext}%`} subtitle={trendsDiagnostics.forecast.seasonalAdjustedNext === null ? EMPTY_COPY.forecastUnavailable : 'Regression × seasonal index'} />
+                        <Card title="Confidence Band (95%)" metricKey="forecast_confidence" value={trendsDiagnostics.forecast.confidenceLow === null || trendsDiagnostics.forecast.confidenceHigh === null ? '--' : `${trendsDiagnostics.forecast.confidenceLow}% to ${trendsDiagnostics.forecast.confidenceHigh}%`} subtitle={trendsDiagnostics.forecast.confidenceLow === null || trendsDiagnostics.forecast.confidenceHigh === null ? EMPTY_COPY.forecastUnavailable : 'Forecast uncertainty range'} />
                       </div>
                     </div>
 
@@ -2864,11 +3970,11 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <Card
                           title="Trend Slope"
                           metricKey="trend_signal"
-                          value={`${trendsDiagnostics.signal.slope}pp / month`}
+                          value={trendsDiagnostics.signal.slope === null ? '--' : `${trendsDiagnostics.signal.slope}pp / month`}
                           subtitle="Linear trend slope"
                         />
                         <Card title="Signal Status" metricKey="trend_signal" value={trendsDiagnostics.signal.isSignificantSignal ? 'Signal' : 'No strong signal'} subtitle="Based on volatility threshold" />
-                        <Card title="Average Growth" value={`${trendsDiagnostics.growth.averageGrowthPct}%`} subtitle={trendsDiagnostics.growth.exponentialSignal ? 'Accelerating pattern detected' : 'No exponential acceleration'} />
+                        <Card title="Average Growth" value={trendsDiagnostics.growth.averageGrowthPct === null ? '--' : `${trendsDiagnostics.growth.averageGrowthPct}%`} subtitle={trendsDiagnostics.growth.exponentialSignal ? 'Accelerating pattern detected' : 'No exponential acceleration'} />
                       </div>
                       <p className="mt-4 text-sm text-slate-300">{trendsDiagnostics.signal.diagnosis}</p>
                     </div>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/auth/context';
 import { validateEmail } from '@/auth/utils';
 import { userService } from '@/services/userService';
+import { adminAccessService } from '@/services/adminAccessService';
 import { Shield } from 'lucide-react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -12,6 +13,7 @@ import { db } from '@/lib/firebase';
 const AdminLogin: React.FC = () => {
   const { state, login, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +22,7 @@ const AdminLogin: React.FC = () => {
   const [adminExists, setAdminExists] = useState<boolean | null>(null);
   const [checkingAdmins, setCheckingAdmins] = useState(true);
   const [confirmPassword, setConfirmPassword] = useState('');
+  const passwordResetSuccess = searchParams.get('recovery') === 'password-reset-success';
 
   useEffect(() => {
     if (state.isAuthenticated && state.user?.role === 'admin') {
@@ -86,7 +89,10 @@ const AdminLogin: React.FC = () => {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       await userService.createInitialAdmin(result.user.uid, email);
+      await adminAccessService.bootstrapAdminClaims();
+      await result.user.getIdToken(true);
       setAdminExists(true);
+      navigate('/admin', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Admin creation failed.';
       setError(message);
@@ -120,6 +126,12 @@ const AdminLogin: React.FC = () => {
           </p>
         </div>
 
+        {passwordResetSuccess && !showSignup && (
+          <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            Password updated successfully. Sign in with your new password.
+          </div>
+        )}
+
         <form onSubmit={showSignup ? onCreateAdmin : onSubmit} className="space-y-4">
           <div>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-400">Email</label>
@@ -141,6 +153,16 @@ const AdminLogin: React.FC = () => {
               className="h-12 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 text-white outline-none focus:border-emerald-500"
               placeholder="••••••••"
             />
+            {!showSignup && (
+              <div className="mt-2 text-right">
+                <Link
+                  to={`/forgot-password?returnTo=${encodeURIComponent('/admin/login')}${email ? `&email=${encodeURIComponent(email)}` : ''}`}
+                  className="text-xs text-emerald-200 underline underline-offset-4 hover:text-white"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
           </div>
           {showSignup && (
             <div>

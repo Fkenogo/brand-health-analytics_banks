@@ -6,6 +6,7 @@ This folder contains technical reference documentation generated from the curren
 - [System Architecture](./system-architecture.md)
 - [Database Schema](./database-schema.md)
 - [User Flow Map](./user-flow-map.md)
+- [Operations Monitoring](./operations-monitoring.md)
 
 ## Recommended Reading Order
 1. `system-architecture.md`

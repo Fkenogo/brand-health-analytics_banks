@@ -9,6 +9,7 @@ const createUserWithEmailAndPasswordMock = vi.fn();
 
 const getUserByIdMock = vi.fn();
 const getUserByEmailMock = vi.fn();
+const repairMyAdminClaimsMock = vi.fn();
 
 vi.mock('@/lib/firebase', () => ({
   auth: {},
@@ -25,6 +26,12 @@ vi.mock('@/services/userService', () => ({
   userService: {
     getUserById: (...args: unknown[]) => getUserByIdMock(...args),
     getUserByEmail: (...args: unknown[]) => getUserByEmailMock(...args),
+  },
+}));
+
+vi.mock('@/services/adminAccessService', () => ({
+  adminAccessService: {
+    repairMyAdminClaims: (...args: unknown[]) => repairMyAdminClaimsMock(...args),
   },
 }));
 
@@ -73,5 +80,48 @@ describe('Auth context UID hydration', () => {
 
     expect(getUserByIdMock).toHaveBeenCalledWith('uid-123');
     expect(getUserByEmailMock).not.toHaveBeenCalled();
+  });
+
+  it('repairs missing admin claims during auth hydration when canonical profile is admin', async () => {
+    const fakeUser = {
+      uid: 'admin-123',
+      email: 'admin@example.com',
+      getIdTokenResult: vi.fn()
+        .mockResolvedValueOnce({ claims: {} })
+        .mockResolvedValue({ claims: { role: 'admin' } }),
+    };
+
+    repairMyAdminClaimsMock.mockResolvedValue(undefined);
+
+    onAuthStateChangedMock.mockImplementation((_auth: unknown, cb: (u: unknown) => void) => {
+      void cb(fakeUser);
+      return () => {};
+    });
+
+    getUserByIdMock.mockResolvedValue({
+      id: 'admin-123',
+      email: 'admin@example.com',
+      role: 'admin',
+      status: 'active',
+      createdAt: '2026-03-08T00:00:00.000Z',
+    });
+
+    const { AuthProvider, useAuth } = await import('@/auth/context');
+
+    const AuthProbe = () => {
+      const { state } = useAuth();
+      if (state.isLoading) return <div>loading</div>;
+      if (!state.user) return <div>no-user</div>;
+      return <div>{state.user.hasAdminClaim ? 'admin-claim-ready' : 'admin-claim-missing'}</div>;
+    };
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('admin-claim-ready')).toBeInTheDocument());
+    expect(repairMyAdminClaimsMock).toHaveBeenCalledTimes(1);
   });
 });

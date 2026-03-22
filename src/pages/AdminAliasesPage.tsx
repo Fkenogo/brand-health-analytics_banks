@@ -49,7 +49,7 @@ const AdminAliasesPage: React.FC = () => {
   const suggestions = useMemo(() => {
     const map = new Map<string, SuggestionRow>();
     responses.forEach((response) => {
-      const country = response.selected_country || response.country || 'unknown';
+      const country = response.country || response.selected_country || 'unknown';
       if (!response.c1_recognized_bank_id && response.c1_top_of_mind) {
         const normalized = response.c1_top_of_mind.trim();
         if (normalized) {
@@ -80,7 +80,7 @@ const AdminAliasesPage: React.FC = () => {
         .filter(Boolean)
         .map((item) => String(item).trim().toLowerCase())
         .filter(Boolean);
-      const country = response.selected_country || response.country || 'unknown';
+      const country = response.country || response.selected_country || 'unknown';
       entries.forEach((entry) => {
         const row = usage.get(entry) || { mentions: 0, countries: new Set<string>() };
         row.mentions += 1;
@@ -319,4 +319,3 @@ const AdminAliasesPage: React.FC = () => {
 };
 
 export default AdminAliasesPage;
-

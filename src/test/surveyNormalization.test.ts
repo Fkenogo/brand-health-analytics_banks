@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Question, SurveyResponse } from '@/types';
 import {
+  normalizeResponseForAnalyticsRead,
   isAnsweredValue,
   isMatrixAnswerComplete,
   normalizeResponseForSubmission,
+  resolveResponseCountry,
 } from '@/utils/survey/normalization';
+import { getRuntimeSurveyQuestions, SURVEY_QUESTIONS } from '@/constants';
 
 describe('survey normalization and validation', () => {
   it('treats numeric 0 as a valid required answer', () => {
@@ -58,6 +61,50 @@ describe('survey normalization and validation', () => {
     expect(result.ok).toBe(true);
     expect(result.response?.gender).toBe('female');
     expect(result.response?.bank_count).toBe(2);
+  });
+
+  it('uses response metadata country as the canonical source of truth for new submissions', () => {
+    const result = normalizeResponseForSubmission({
+      data: {
+        country: 'uganda',
+        c5_currently_using: ['bank_a'],
+      },
+      responseId: 'resp-meta-country',
+      deviceId: 'dev-meta-country',
+      language: 'en',
+      status: 'completed',
+      startedAtMs: Date.now() - 4000,
+      nowIso: '2026-03-08T00:00:00.000Z',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.response?.country).toBe('uganda');
+    expect(result.response?.selected_country).toBe('uganda');
+  });
+
+  it('falls back to legacy selected_country only when canonical country metadata is missing', () => {
+    expect(resolveResponseCountry({ country: 'burundi', selected_country: 'rwanda' })).toBe('burundi');
+    expect(resolveResponseCountry({ selected_country: 'rwanda' })).toBe('rwanda');
+    expect(normalizeResponseForAnalyticsRead({
+      response_id: 'legacy-1',
+      device_id: 'dev-legacy',
+      country: 'uganda',
+      selected_country: 'rwanda',
+      timestamp: '2026-03-08T00:00:00.000Z',
+      duration_seconds: 10,
+      question_timings: {},
+      language_at_submission: 'en',
+    } as SurveyResponse).country).toBe('uganda');
+  });
+
+  it('filters legacy preamble steps out of the active respondent runtime question flow', () => {
+    const runtimeIds = getRuntimeSurveyQuestions(SURVEY_QUESTIONS).map((question) => question.id);
+
+    expect(runtimeIds).not.toContain('intro');
+    expect(runtimeIds).not.toContain('selected_country');
+    expect(runtimeIds).not.toContain('consent');
+    expect(runtimeIds).not.toContain('termination_consent');
+    expect(runtimeIds[0]).toBe('b1_recency');
   });
 
   it('auto-assigns preferred and committed bank for single-bank users', () => {

@@ -53,6 +53,15 @@ export interface User {
   claimsSyncPending?: boolean;
   claimsLastSyncedAt?: string;
   claimsLastSyncError?: string;
+  runtimeClaimsRole?: UserRole | null;
+  hasAdminClaim?: boolean;
+  claimsMismatch?: boolean;
+  migratedToUid?: string;
+  migratedAt?: string;
+  legacyMigrationStatus?: 'canonical' | 'migrated' | 'shadowed';
+  legacyCanonicalUid?: string;
+  legacySourceDocId?: string;
+  legacyMigratedAt?: string;
   deviceId?: string;
   lastDeviceSeen?: string;
   

@@ -11,9 +11,33 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Question } from '@/types';
+import { SURVEY_QUESTIONS } from '@/constants';
 import { QuestionnaireVersion } from '@/utils/questionnaireStore';
 
 const COLLECTION = 'questionnaires';
+
+const RUNTIME_QUESTION_FIELDS = new Map(
+  SURVEY_QUESTIONS.map((question) => [
+    question.id,
+    {
+      logic: question.logic,
+      filterChoices: question.filterChoices,
+      repeatFor: question.repeatFor,
+      isTerminationPoint: question.isTerminationPoint,
+      isPreambleStep: question.isPreambleStep,
+    },
+  ]),
+);
+
+export const hydrateRuntimeQuestionnaireQuestions = (questions: Question[]): Question[] =>
+  questions.map((question) => {
+    const runtime = RUNTIME_QUESTION_FIELDS.get(question.id);
+    if (!runtime) return question;
+    return {
+      ...question,
+      ...runtime,
+    };
+  });
 
 const sortByCreatedAt = (a: QuestionnaireVersion, b: QuestionnaireVersion) =>
   new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -27,7 +51,12 @@ export const questionnaireService = {
   getActive: async (): Promise<QuestionnaireVersion | null> => {
     const snapshot = await getDocs(query(collection(db, COLLECTION), where('status', '==', 'active'), limit(1)));
     const docSnap = snapshot.docs[0];
-    return docSnap ? (docSnap.data() as QuestionnaireVersion) : null;
+    if (!docSnap) return null;
+    const version = docSnap.data() as QuestionnaireVersion;
+    return {
+      ...version,
+      questions: hydrateRuntimeQuestionnaireQuestions(version.questions || []),
+    };
   },
   getByWaveTag: async (waveTag: string): Promise<QuestionnaireVersion | null> => {
     const normalized = waveTag.toLowerCase();
@@ -35,7 +64,11 @@ export const questionnaireService = {
     const match = versions.find(
       (version) => (version.waveTag || '').toLowerCase() === normalized || version.name.toLowerCase().includes(normalized)
     );
-    return match || null;
+    if (!match) return null;
+    return {
+      ...match,
+      questions: hydrateRuntimeQuestionnaireQuestions(match.questions || []),
+    };
   },
   ensureSeed: async (versions: QuestionnaireVersion[]) => {
     const existing = await questionnaireService.list();

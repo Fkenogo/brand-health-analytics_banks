@@ -58,7 +58,7 @@ const AdminRafflesPage: React.FC = () => {
         raffleCampaignService.list(),
         raffleEntryService.listEntries(),
         responseService.listResponses(),
-        auditService.list(),
+        auditService.list(200),
       ]);
       setCampaigns(campaignRows.filter((c) => c.status !== 'archived'));
       setEntries(entryRows);

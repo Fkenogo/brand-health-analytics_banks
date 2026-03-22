@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { userService } from '@/services/userService';
+import { diagnoseSubscriberAdminCommandError, userService } from '@/services/userService';
 import { inviteService, SubscriberInvite } from '@/services/inviteService';
 import { auditService, AuditEvent } from '@/services/auditService';
 import { User, CountryCode } from '@/auth/types';
@@ -17,13 +17,15 @@ const AdminSubscribersPage: React.FC = () => {
   const [invites, setInvites] = useState<SubscriberInvite[]>([]);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [reviewId, setReviewId] = useState<string | null>(null);
+  const [countrySelections, setCountrySelections] = useState<Record<string, CountryCode[]>>({});
 
   const refresh = async () => {
     const [subscriberUsers, inviteDocs, auditEvents] = await Promise.all([
       userService.listSubscribers(),
-      inviteService.listInvites(),
-      auditService.list(),
+      inviteService.listInvites(100),
+      auditService.list(200),
     ]);
     setUsers(subscriberUsers);
     setInvites(inviteDocs);
@@ -46,23 +48,27 @@ const AdminSubscribersPage: React.FC = () => {
   const createDraft = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    setNotice(null);
     if (!email) {
       setError('Email is required.');
       return;
     }
-    const existing = await userService.getUserByEmail(email);
-    if (existing) {
-      setError('Subscriber already exists.');
-      return;
+    try {
+      const draft = await userService.createDraftSubscriber(email, companyName);
+      await auditService.log({ action: 'subscriber_draft_created', actorEmail: state.user?.email, targetId: draft.id });
+      setEmail('');
+      setCompanyName('');
+      setNotice('Draft subscriber created.');
+      refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create draft subscriber.';
+      setError(message.includes('already') ? 'Subscriber already exists.' : message);
     }
-    const draft = await userService.createDraftSubscriber(email, companyName);
-    await auditService.log({ action: 'subscriber_draft_created', actorEmail: state.user?.email, targetId: draft.id });
-    setEmail('');
-    setCompanyName('');
-    refresh();
   };
 
   const createInvite = async (userId: string) => {
+    setError(null);
+    setNotice(null);
     const config = inviteConfig[userId] || { countries: [], validityDays: 7 };
     if (config.countries.length === 0) {
       setError('Select at least one country for the subscription.');
@@ -70,38 +76,66 @@ const AdminSubscribersPage: React.FC = () => {
     }
     const user = users.find(u => u.id === userId);
     if (!user) return;
-    const invite = await inviteService.createInvite(userId, user.email, user.companyName || user.email, config.countries, config.validityDays);
-    await userService.setUserCountries(userId, config.countries);
-    await auditService.log({ action: 'subscriber_invite_created', actorEmail: state.user?.email, targetId: userId, details: { inviteId: invite.id } });
-    setInviteConfig(prev => ({ ...prev, [userId]: { countries: [], validityDays: 7 } }));
-    refresh();
+    try {
+      const invite = await inviteService.createInvite(userId, user.email, user.companyName || user.email, config.countries, config.validityDays);
+      try {
+        await auditService.log({ action: 'subscriber_invite_created', actorEmail: state.user?.email, targetId: userId, details: { inviteId: invite.id } });
+      } catch {
+        // Invite creation is already audited on the backend path where applicable.
+      }
+      setInviteConfig(prev => ({ ...prev, [userId]: { countries: [], validityDays: 7 } }));
+      setNotice('Invite created. Assigned countries were applied on the backend.');
+      refresh();
+    } catch (err) {
+      setError(diagnoseSubscriberAdminCommandError(err).message);
+    }
   };
 
   const updateStatus = async (id: string, status: User['status']) => {
-    await userService.setUserStatus(id, status);
-    await auditService.log({ action: 'subscriber_status_updated', actorEmail: state.user?.email, targetId: id, details: { status } });
-    refresh();
+    setError(null);
+    setNotice(null);
+    try {
+      await userService.setUserStatus(id, status);
+      setNotice('Subscriber status updated. Claims sync is queued; the subscriber may need to refresh their token or sign in again.');
+      refresh();
+    } catch (err) {
+      setError(diagnoseSubscriberAdminCommandError(err).message);
+    }
   };
 
   const updateSubscription = async (user: User, patch: Partial<User>) => {
+    setError(null);
+    setNotice(null);
     const nextTier = (patch.subscription_tier ?? user.subscription_tier ?? 'free') as 'free' | 'standard';
     const nextAddon = nextTier === 'free'
       ? false
       : Boolean(patch.subscription_addon_ai ?? user.subscription_addon_ai ?? false);
-    await userService.updateUser(user.id, {
-      subscription_tier: nextTier,
-      subscription_addon_ai: nextAddon,
-    });
-    await auditService.log({
-      action: 'subscriber_subscription_updated',
-      actorEmail: state.user?.email,
-      targetId: user.id,
-      details: {
-        subscription_tier: nextTier,
-        subscription_addon_ai: nextAddon,
-      },
-    });
-    refresh();
+    try {
+      if (nextTier !== (user.subscription_tier || 'free')) {
+        await userService.setUserTier(user.id, nextTier);
+      }
+      if (nextAddon !== Boolean(user.subscription_addon_ai ?? false) || nextTier === 'free') {
+        await userService.setUserAiAddon(user.id, nextAddon);
+      }
+      setNotice('Subscriber entitlements updated. Claims sync is queued; the subscriber may need to refresh their token or sign in again.');
+      refresh();
+    } catch (err) {
+      setError(diagnoseSubscriberAdminCommandError(err).message);
+    }
+  };
+
+  const selectedCountriesFor = (user: User) => countrySelections[user.id] ?? user.assignedCountries ?? [];
+
+  const updateCountries = async (user: User) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await userService.setUserCountries(user.id, selectedCountriesFor(user));
+      setNotice('Assigned countries updated. Claims sync is queued; the subscriber may need to refresh their token or sign in again.');
+      refresh();
+    } catch (err) {
+      setError(diagnoseSubscriberAdminCommandError(err).message);
+    }
   };
 
   const inviteFor = (userId: string) => invites.find((invite) => invite.userId === userId);
@@ -114,21 +148,31 @@ const AdminSubscribersPage: React.FC = () => {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Admin Console</p>
             <h1 className="text-3xl font-black">Subscriber Management</h1>
-            <p className="mt-2 text-sm text-slate-400">Create drafts, send invites, and approve access.</p>
+            <p className="mt-2 text-sm text-slate-400">Approve access, manage subscriber entitlements, and use manual drafts only for internal exceptions.</p>
           </div>
-          <button
-            onClick={() => navigate('/admin')}
-            className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-300 hover:border-blue-500"
-          >
-            Back to Admin
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate('/admin/subscriptions')}
+              className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-300 hover:border-blue-500"
+            >
+              Subscription Management
+            </button>
+            <button
+              onClick={() => navigate('/admin')}
+              className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-300 hover:border-blue-500"
+            >
+              Back to Admin
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-10 space-y-8">
         <section className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-          <h2 className="text-lg font-bold">Create Draft Subscriber</h2>
-          <p className="mt-1 text-sm text-slate-400">Drafts are not active and cannot access dashboards.</p>
+          <h2 className="text-lg font-bold">Internal Draft Subscriber Setup</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Most subscribers should originate from the public pricing and signup funnel. Use manual draft creation only for internal exceptions or assisted onboarding.
+          </p>
           <form onSubmit={createDraft} className="mt-6 grid gap-4 md:grid-cols-3">
             <input
               value={companyName}
@@ -144,7 +188,7 @@ const AdminSubscribersPage: React.FC = () => {
             />
             <button
               type="submit"
-              className="h-12 rounded-2xl bg-blue-600 font-bold uppercase tracking-widest text-xs text-white hover:bg-blue-500"
+              className="h-12 rounded-2xl border border-white/10 bg-slate-800 font-bold uppercase tracking-widest text-xs text-white hover:border-blue-500"
             >
               Create Draft
             </button>
@@ -152,6 +196,11 @@ const AdminSubscribersPage: React.FC = () => {
           {error && (
             <div className="mt-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
               {error}
+            </div>
+          )}
+          {notice && (
+            <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+              {notice}
             </div>
           )}
         </section>
@@ -368,6 +417,44 @@ const AdminSubscribersPage: React.FC = () => {
                       <p className="text-[10px] uppercase tracking-widest text-slate-500">Requested Countries</p>
                       <p className="text-sm text-slate-200">{(user.requestedCountries || []).join(', ') || '—'}</p>
                     </div>
+                    <div className="md:col-span-2">
+                      <p className="text-[10px] uppercase tracking-widest text-slate-500">Assigned Country Access</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {COUNTRY_CHOICES.map(choice => {
+                          const country = choice.value as CountryCode;
+                          const checked = selectedCountriesFor(user).includes(country);
+                          return (
+                            <label
+                              key={`${user.id}-review-${country}`}
+                              className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
+                                checked ? 'border-blue-500/50 bg-blue-500/10 text-blue-200' : 'border-white/10 text-slate-400'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(event) => {
+                                  setCountrySelections((prev) => {
+                                    const current = prev[user.id] ?? user.assignedCountries ?? [];
+                                    const next = event.target.checked
+                                      ? [...current, country]
+                                      : current.filter((item) => item !== country);
+                                    return { ...prev, [user.id]: next };
+                                  });
+                                }}
+                              />
+                              {choice.label.en}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => updateCountries(user)}
+                        className="mt-3 rounded-2xl border border-white/10 px-3 py-2 text-xs font-bold uppercase tracking-widest text-slate-200"
+                      >
+                        Save Country Access
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -390,8 +477,11 @@ const AdminSubscribersPage: React.FC = () => {
                     <p className="mt-1 text-[11px] text-slate-500">
                       Tier: {(user.subscription_tier || 'free').toUpperCase()} · AI Add-On: {user.subscription_addon_ai ? 'Enabled' : 'Disabled'}
                     </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Countries: {(user.assignedCountries || []).join(', ') || 'None assigned'}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <select
                       value={user.subscription_tier || 'free'}
                       onChange={(event) => {
@@ -420,6 +510,36 @@ const AdminSubscribersPage: React.FC = () => {
                       />
                       AI Add-On
                     </label>
+                    <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2">
+                      {COUNTRY_CHOICES.map(choice => {
+                        const country = choice.value as CountryCode;
+                        const checked = selectedCountriesFor(user).includes(country);
+                        return (
+                          <label key={`${user.id}-${status}-${country}`} className="flex items-center gap-1 text-xs text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(event) => {
+                                setCountrySelections((prev) => {
+                                  const current = prev[user.id] ?? user.assignedCountries ?? [];
+                                  const next = event.target.checked
+                                    ? [...current, country]
+                                    : current.filter((item) => item !== country);
+                                  return { ...prev, [user.id]: next };
+                                });
+                              }}
+                            />
+                            {choice.label.en}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => updateCountries(user)}
+                      className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-bold uppercase tracking-widest text-slate-200"
+                    >
+                      Save Countries
+                    </button>
                     {status !== 'active' && (
                       <button
                         onClick={() => updateStatus(user.id, 'active')}
