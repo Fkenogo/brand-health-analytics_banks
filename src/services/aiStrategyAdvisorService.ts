@@ -163,6 +163,44 @@ export function buildAwarenessReportPayload(args: AwarenessPayloadArgs): Awarene
   };
 }
 
+const makeTypedError = (code: AwarenessReportError, message: string): Error & { code: AwarenessReportError } => {
+  const err = new Error(message) as Error & { code: AwarenessReportError };
+  err.code = code;
+  return err;
+};
+
+export async function generateAwarenessReport(
+  payload: AwarenessReportPayload,
+  userId: string,
+): Promise<{ response: string; generatedAt: string; fromCache: boolean }> {
+  const allMetricsNull = Object.values(payload.metrics).every((v) => v === null || v === 0);
+  if (payload.sampleSize === 0 || (payload.sampleSize > 0 && allMetricsNull)) {
+    throw makeTypedError('insufficient-data', 'No data available for this filter combination.');
+  }
+
+  const callable = httpsCallable<
+    { payload: AwarenessReportPayload; userId: string },
+    { response: string; generatedAt: string; fromCache: boolean }
+  >(functions, 'aiStrategyAdvisor');
+
+  try {
+    const result = await callable({ payload, userId });
+    const data = result.data;
+    if (!data?.response) throw new Error('Empty response from AI.');
+    return { response: data.response, generatedAt: data.generatedAt, fromCache: Boolean(data.fromCache) };
+  } catch (error: unknown) {
+    const code = getErrorCode(error);
+    const message = getErrorMessage(error);
+    if (code.includes('resource-exhausted') || message.includes('RESOURCE_EXHAUSTED') || message.includes('(429)')) {
+      throw makeTypedError('rate-limited', 'Monthly limit reached.');
+    }
+    if (code.includes('permission-denied') || code.includes('unauthenticated')) {
+      throw makeTypedError('generation-failed', 'Access denied.');
+    }
+    throw makeTypedError('generation-failed', message || 'Generation failed.');
+  }
+}
+
 const monthKey = (date = new Date()): string => {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');

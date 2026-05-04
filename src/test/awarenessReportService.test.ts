@@ -1,8 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { httpsCallable } from 'firebase/functions';
 import {
   buildAwarenessReportPayload,
+  generateAwarenessReport,
   AWARENESS_REPORT_METHODOLOGY_VERSION,
 } from '@/services/aiStrategyAdvisorService';
+
+vi.mock('firebase/functions', () => ({
+  httpsCallable: vi.fn(),
+  getFunctions: vi.fn(),
+}));
+
+vi.mock('@/lib/firebase', () => ({
+  functions: {},
+  db: {},
+}));
 
 const BASE_ARGS = {
   country: 'rwanda',
@@ -91,5 +103,61 @@ describe('buildAwarenessReportPayload', () => {
     const payload = buildAwarenessReportPayload({ ...BASE_ARGS, momGrowthPct: NaN, topOfMind: Infinity });
     expect(payload.metrics.momGrowthPct).toBeNull();
     expect(payload.metrics.topOfMind).toBeNull();
+  });
+});
+
+const MOCK_PAYLOAD = buildAwarenessReportPayload(BASE_ARGS);
+
+describe('generateAwarenessReport', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('returns response from callable on cache miss', async () => {
+    const mockFn = vi.fn().mockResolvedValue({
+      data: { response: '## Market Awareness Position\n- Strong', generatedAt: '2026-05-04T10:00:00Z', fromCache: false },
+    });
+    vi.mocked(httpsCallable).mockReturnValue(mockFn as any);
+
+    const result = await generateAwarenessReport(MOCK_PAYLOAD, 'user123');
+    expect(result.response).toContain('Market Awareness Position');
+    expect(result.fromCache).toBe(false);
+  });
+
+  it('returns fromCache: true when callable returns cached result', async () => {
+    const mockFn = vi.fn().mockResolvedValue({
+      data: { response: '## Market Awareness Position\n- Cached', generatedAt: '2026-05-04T09:00:00Z', fromCache: true },
+    });
+    vi.mocked(httpsCallable).mockReturnValue(mockFn as any);
+
+    const result = await generateAwarenessReport(MOCK_PAYLOAD, 'user123');
+    expect(result.fromCache).toBe(true);
+  });
+
+  it('throws insufficient-data when sampleSize is 0', async () => {
+    const zeroPayload = buildAwarenessReportPayload({ ...BASE_ARGS, sampleSize: 0 });
+    await expect(generateAwarenessReport(zeroPayload, 'user123')).rejects.toMatchObject({ code: 'insufficient-data' });
+  });
+
+  it('throws insufficient-data when all metric values are null', async () => {
+    const nullPayload = buildAwarenessReportPayload({
+      ...BASE_ARGS,
+      topOfMind: null, spontaneous: null, totalAwareness: null,
+      awarenessQuality: null, shareOfVoice: null, awarenessDepthScore: null,
+      awarenessShareIndex: null, momGrowthPct: null,
+    });
+    await expect(generateAwarenessReport({ ...nullPayload, sampleSize: 10 }, 'user123')).rejects.toMatchObject({ code: 'insufficient-data' });
+  });
+
+  it('throws rate-limited on resource-exhausted error', async () => {
+    const mockFn = vi.fn().mockRejectedValue(Object.assign(new Error('RESOURCE_EXHAUSTED'), { code: 'functions/resource-exhausted' }));
+    vi.mocked(httpsCallable).mockReturnValue(mockFn as any);
+
+    await expect(generateAwarenessReport(MOCK_PAYLOAD, 'user123')).rejects.toMatchObject({ code: 'rate-limited' });
+  });
+
+  it('throws generation-failed on generic error', async () => {
+    const mockFn = vi.fn().mockRejectedValue(new Error('network error'));
+    vi.mocked(httpsCallable).mockReturnValue(mockFn as any);
+
+    await expect(generateAwarenessReport(MOCK_PAYLOAD, 'user123')).rejects.toMatchObject({ code: 'generation-failed' });
   });
 });
