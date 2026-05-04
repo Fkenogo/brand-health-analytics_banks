@@ -50,12 +50,12 @@ describe('AwarenessInsightsReport — idle state', () => {
 });
 
 describe('AwarenessInsightsReport — loading state', () => {
-  it('disables button and shows generating text while loading', async () => {
+  it('disables button and shows spinner while loading', async () => {
     vi.mocked(generateAwarenessReport).mockImplementation(() => new Promise(() => {}));
     render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);
     fireEvent.click(screen.getByRole('button', { name: /generate insights/i }));
     await waitFor(() => expect(screen.getByRole('button')).toBeDisabled());
-    expect(screen.getByText(/generating/i)).toBeInTheDocument();
+    expect(screen.getByTestId('awareness-spinner')).toBeInTheDocument();
   });
 });
 
@@ -93,5 +93,6 @@ describe('AwarenessInsightsReport — generated state', () => {
     render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);
     fireEvent.click(screen.getByRole('button', { name: /generate insights/i }));
     await waitFor(() => expect(screen.getByText(/bank of kigali/i)).toBeInTheDocument());
+    expect(screen.getByText(/generated:/i)).toBeInTheDocument();
   });
 });

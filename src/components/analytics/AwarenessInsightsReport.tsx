@@ -12,18 +12,25 @@ type ReportState =
   | { status: 'generated'; response: string; generatedAt: string; fromCache: boolean; contextHash: string }
   | { status: 'error'; code: AwarenessReportError };
 
+function stableSortedJson(val: unknown): string {
+  if (val === null || typeof val !== 'object') return JSON.stringify(val);
+  if (Array.isArray(val)) return '[' + val.map(stableSortedJson).join(',') + ']';
+  const keys = Object.keys(val as Record<string, unknown>).sort();
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + stableSortedJson((val as Record<string, unknown>)[k])).join(',') + '}';
+}
+
 function computeContextHash(payload: AwarenessReportPayload): string {
   const fields = {
     country: payload.country,
     bankId: payload.bankId,
     compareBankId: payload.compareBankId ?? null,
     period: payload.period,
-    filtersKey: JSON.stringify(payload.filters),
+    filters: payload.filters,
     methodologyVersion: payload.methodologyVersion,
   };
-  const sorted = JSON.stringify(Object.fromEntries(Object.entries(fields).sort(([a], [b]) => a.localeCompare(b))));
+  const stable = stableSortedJson(fields);
   let h = 5381;
-  for (let i = 0; i < sorted.length; i++) { h = (h * 33) ^ sorted.charCodeAt(i); }
+  for (let i = 0; i < stable.length; i++) { h = (h * 33) ^ stable.charCodeAt(i); }
   return Math.abs(h >>> 0).toString(36);
 }
 
@@ -76,6 +83,7 @@ export function AwarenessInsightsReport({ awarenessPayload }: AwarenessInsightsR
 
   const generate = useCallback(async () => {
     setReportState({ status: 'loading' });
+    setIsExpanded(true);
     try {
       const result = await generateAwarenessReport(awarenessPayload, userId);
       setReportState({
@@ -124,7 +132,11 @@ export function AwarenessInsightsReport({ awarenessPayload }: AwarenessInsightsR
           )}
 
           {reportState.status === 'loading' && (
-            <div className="flex items-center gap-2 text-xs text-slate-400" aria-live="polite">
+            <div
+              className="flex items-center gap-2 text-xs text-slate-400"
+              aria-live="polite"
+              data-testid="awareness-spinner"
+            >
               <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
               Generating analysis…
             </div>
