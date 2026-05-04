@@ -55,6 +55,114 @@ export interface StrategyBriefArchiveEntry {
   createdAt: string;
 }
 
+export const AWARENESS_REPORT_METHODOLOGY_VERSION = '1.0';
+
+export type AwarenessReportError = 'rate-limited' | 'insufficient-data' | 'generation-failed';
+
+export interface AwarenessReportPayload {
+  reportType: 'awareness_consideration';
+  methodologyVersion: string;
+  country: string;
+  period: string;
+  bankId: string;
+  bankName: string;
+  compareBankId: string | null;
+  compareBankName: string | null;
+  filters: Record<string, unknown>;
+  sampleSize: number;
+  metrics: {
+    topOfMind: number | null;
+    spontaneous: number | null;
+    totalAwareness: number | null;
+    awarenessQuality: number | null;
+    shareOfVoice: number | null;
+    awarenessDepthScore: number | null;
+    awarenessShareIndex: number | null;
+    momGrowthPct: number | null;
+  };
+  funnel: {
+    aware: number | null;
+    spontaneous: number | null;
+    topOfMind: number | null;
+    aided: number | null;
+  };
+  intent: {
+    averageIntent: number | null;
+    highIntentPct: number | null;
+    highIntentNonUserPct: number | null;
+    lowIntentCurrentUserCount: number | null;
+    responseBase: number;
+  } | null;
+  rankings: Array<{ bankName: string; awareness: number; topOfMind: number; rank: number }>;
+  compareMetrics: { topOfMind: number | null; awareness: number | null } | null;
+}
+
+interface AwarenessPayloadArgs {
+  country: string;
+  period: string;
+  bankId: string;
+  bankName: string;
+  compareBankId?: string | null;
+  compareBankName?: string | null;
+  filters: Record<string, unknown>;
+  sampleSize: number;
+  topOfMind: number | null;
+  spontaneous: number | null;
+  totalAwareness: number | null;
+  awarenessQuality: number | null;
+  shareOfVoice: number | null;
+  awarenessDepthScore: number;
+  awarenessShareIndex: number;
+  momGrowthPct: number | null;
+  funnelAware: number | null;
+  funnelSpontaneous: number | null;
+  funnelTopOfMind: number | null;
+  funnelAided: number | null;
+  intent: AwarenessReportPayload['intent'];
+  rankings: AwarenessReportPayload['rankings'];
+  compareTopOfMind?: number | null;
+  compareAwareness?: number | null;
+}
+
+const toNullable = (v: number | null | undefined): number | null =>
+  v === null || v === undefined || !Number.isFinite(v as number) ? null : (v as number);
+
+export function buildAwarenessReportPayload(args: AwarenessPayloadArgs): AwarenessReportPayload {
+  return {
+    reportType: 'awareness_consideration',
+    methodologyVersion: AWARENESS_REPORT_METHODOLOGY_VERSION,
+    country: args.country,
+    period: args.period,
+    bankId: args.bankId,
+    bankName: args.bankName,
+    compareBankId: args.compareBankId ?? null,
+    compareBankName: args.compareBankName ?? null,
+    filters: args.filters,
+    sampleSize: args.sampleSize,
+    metrics: {
+      topOfMind: toNullable(args.topOfMind),
+      spontaneous: toNullable(args.spontaneous),
+      totalAwareness: toNullable(args.totalAwareness),
+      awarenessQuality: toNullable(args.awarenessQuality),
+      shareOfVoice: toNullable(args.shareOfVoice),
+      awarenessDepthScore: args.awarenessDepthScore,
+      awarenessShareIndex: args.awarenessShareIndex,
+      momGrowthPct: toNullable(args.momGrowthPct),
+    },
+    funnel: {
+      aware: toNullable(args.funnelAware),
+      spontaneous: toNullable(args.funnelSpontaneous),
+      topOfMind: toNullable(args.funnelTopOfMind),
+      aided: toNullable(args.funnelAided),
+    },
+    intent: args.intent ?? null,
+    rankings: args.rankings,
+    compareMetrics: args.compareBankId
+      ? { topOfMind: toNullable(args.compareTopOfMind), awareness: toNullable(args.compareAwareness) }
+      : null,
+  };
+}
+
 const monthKey = (date = new Date()): string => {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
