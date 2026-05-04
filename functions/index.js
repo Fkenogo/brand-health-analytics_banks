@@ -2740,14 +2740,14 @@ const buildAwarenessUserPrompt = (payload) => {
   const m = payload.metrics || {};
   const f = payload.funnel || {};
   const lines = [
+    payload.sampleSize > 0 && payload.sampleSize < 30
+      ? `NOTE: Limited sample (n=${payload.sampleSize}). Treat all findings as indicative only.`
+      : null,
     `Country: ${payload.country}`,
     `Period: ${payload.period}`,
     `Bank: ${payload.bankName} (${payload.bankId})`,
     payload.compareBankName ? `Compare bank: ${payload.compareBankName}` : null,
     `Sample size: n=${payload.sampleSize}`,
-    payload.sampleSize > 0 && payload.sampleSize < 30
-      ? `NOTE: Limited sample (n=${payload.sampleSize}). Treat all findings as indicative only.`
-      : null,
     '',
     '## Awareness Metrics',
     `Top of Mind: ${m.topOfMind !== null && m.topOfMind !== undefined ? m.topOfMind + '%' : 'unavailable'}`,
@@ -2852,6 +2852,9 @@ const handleAwarenessInsightReport = async (payload, request) => {
     const assignedCountries = Array.isArray(userData.assignedCountries) ? userData.assignedCountries : [];
     if (!assignedCountries.includes(String(payload.country || '').toLowerCase())) {
       throw new HttpsError('permission-denied', 'You do not have access to this country context.');
+    }
+    if (Array.isArray(userData.assignedBanks) && !userData.assignedBanks.includes(String(payload.bankId || ''))) {
+      throw new HttpsError('permission-denied', 'You do not have access to this bank.');
     }
   }
 
