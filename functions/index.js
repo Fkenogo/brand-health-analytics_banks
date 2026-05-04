@@ -28,6 +28,7 @@ const {
   buildSubmissionMonitoringMetadata,
   shouldEnforcePublicSurveyAppCheck,
 } = require('./publicSurvey');
+const { deriveSurveyAnalyticsInclusion } = require('./respondentInclusion');
 const {
   buildNextEligibleAt,
   buildPanelistId,
@@ -41,6 +42,7 @@ const {
 } = require('./userIdentityMigration');
 const {
   AGGREGATE_SCHEMA_VERSION,
+  METHODOLOGY_VERSION,
   SUPPORTED_METRICS,
   SUPPORTED_FILTERS,
   SUPPORTED_MODULES,
@@ -199,6 +201,87 @@ const writeAuditEvent = async ({
   await db.collection('audit').add(payload);
 };
 
+const SURVEY_TELEMETRY_COLLECTION = 'surveySessionEvents';
+const SURVEY_SESSIONS_COLLECTION = 'surveySessions';
+const SURVEY_TELEMETRY_EVENT_TYPES = new Set([
+  'survey_session_started',
+  'consent_viewed',
+  'consent_confirmed',
+  'question_viewed',
+  'question_answered',
+  'question_skipped',
+  'survey_submitted',
+  'survey_abandoned',
+]);
+const SURVEY_QUESTION_TYPES = new Set([
+  'note',
+  'radio',
+  'checkbox',
+  'text',
+  'longtext',
+  'dropdown',
+  'date',
+  'rating-0-10-nr',
+  'rating-0-10-dk',
+  'rating-matrix',
+]);
+
+const normalizeQuestionType = (value) => {
+  const normalized = String(value || '').trim();
+  return SURVEY_QUESTION_TYPES.has(normalized) ? normalized : null;
+};
+
+const normalizeTelemetryEventType = (value) => {
+  const normalized = String(value || '').trim();
+  return SURVEY_TELEMETRY_EVENT_TYPES.has(normalized) ? normalized : null;
+};
+
+const normalizeSurveyTelemetryEvent = (payload = {}) => {
+  const sessionId = String(payload.sessionId || '').trim();
+  const eventType = normalizeTelemetryEventType(payload.eventType);
+  const country = normalizeCountry(payload.country);
+  const language = ['en', 'rw', 'fr'].includes(String(payload.language || '').trim())
+    ? String(payload.language || '').trim()
+    : null;
+  const responseId = String(payload.responseId || '').trim() || null;
+  const questionId = String(payload.questionId || '').trim() || null;
+  const questionType = normalizeQuestionType(payload.questionType);
+  const elapsedSeconds = Number(payload.elapsedSeconds);
+  const metadata = payload.metadata && typeof payload.metadata === 'object' && !Array.isArray(payload.metadata)
+    ? payload.metadata
+    : {};
+
+  if (!sessionId) {
+    return { ok: false, message: 'sessionId is required.' };
+  }
+
+  if (!eventType) {
+    return { ok: false, message: 'eventType is invalid.' };
+  }
+
+  return {
+    ok: true,
+    value: {
+      sessionId,
+      eventType,
+      country,
+      language,
+      responseId,
+      questionId,
+      questionType,
+      elapsedSeconds: Number.isFinite(elapsedSeconds) && elapsedSeconds >= 0 ? Math.round(elapsedSeconds) : null,
+      metadata,
+    },
+  };
+};
+
+const isTelemetrySessionAbandoned = (session, thresholdMs) => {
+  if (!session || session.submittedAt) return false;
+  const lastEventIso = String(session.lastEventAt || session.startedAt || '');
+  const lastEventMs = new Date(lastEventIso).getTime();
+  return Number.isFinite(lastEventMs) && (Date.now() - lastEventMs) >= thresholdMs;
+};
+
 const normalizeEntitlementsVersion = (value) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
@@ -297,11 +380,76 @@ const analyticsDocId = (country, dateBucket) => `${country}__${dateBucket}`;
 const analyticsStatusRef = (country) => db.collection(RESPONSE_ANALYTICS_STATUS_COLLECTION).doc(country);
 const buildAggregateContract = () => ({
   aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+  methodologyVersion: METHODOLOGY_VERSION,
+  methodology_version: METHODOLOGY_VERSION,
   supportedMetrics: SUPPORTED_METRICS,
   supportedFilters: SUPPORTED_FILTERS,
   supportedModules: SUPPORTED_MODULES,
   supportedCompareMetrics: SUPPORTED_COMPARE_METRICS,
 });
+
+const aggregateMethodologyVersion = (docData) =>
+  String(docData?.methodologyVersion || docData?.methodology_version || METHODOLOGY_VERSION);
+
+const validateAggregateDocIntegrity = ({ country, docData, context }) => {
+  const failures = [];
+  if (!Object.prototype.hasOwnProperty.call(docData, 'analyticsIncludedCount')) {
+    failures.push('missing_analyticsIncludedCount');
+  }
+  const denominator = Number(docData.analyticsIncludedCount);
+  if (!Number.isFinite(denominator) || denominator < 0) failures.push('invalid_analyticsIncludedCount');
+
+  Object.entries(docData.banks || {}).forEach(([bankId, bank]) => {
+    [
+      ['awareCount', bank?.awareCount],
+      ['topOfMindCount', bank?.topOfMindCount],
+      ['spontaneousCount', bank?.spontaneousCount],
+      ['aidedCount', bank?.aidedCount],
+      ['everUsedCount', bank?.everUsedCount],
+      ['currentUsingCount', bank?.currentUsingCount],
+      ['preferredCount', bank?.preferredCount],
+      ['considerCount', bank?.considerCount],
+    ].forEach(([field, raw]) => {
+      const value = Number(raw || 0);
+      if (!Number.isFinite(value) || value < 0) failures.push(`${bankId}.${field}_invalid`);
+      if (Number.isFinite(denominator) && value > denominator) {
+        failures.push(`${bankId}.${field}_exceeds_denominator`);
+      }
+    });
+  });
+
+  if (failures.length > 0) {
+    logWarn('aggregate_bucket_validation_failed', {
+      country,
+      dateBucket: docData.dateBucket || 'unknown',
+      methodologyVersion: aggregateMethodologyVersion(docData),
+      context,
+      failures,
+    });
+  }
+  return failures;
+};
+
+const assertAggregateDocsIntegrity = ({ country, docs, context }) => {
+  if (!docs.length) {
+    logWarn('aggregate_validation_failed', {
+      country,
+      context,
+      failures: ['no_aggregate_buckets'],
+    });
+    throw new HttpsError('failed-precondition', 'Overview aggregate data is not available for this filter context.');
+  }
+  const failures = docs.flatMap((docData) => validateAggregateDocIntegrity({ country, docData, context }));
+  if (failures.length > 0) {
+    logWarn('aggregate_raw_fallback_triggered', {
+      country,
+      context,
+      bucketCount: docs.length,
+      failureCount: failures.length,
+    });
+    throw new HttpsError('failed-precondition', 'Overview aggregate integrity validation failed. Use raw dashboard analytics for this filter context.');
+  }
+};
 
 const listResponsesForCountryDateBucket = async ({ country, dateBucket, includeLegacyFallback = false }) => {
   const selectedCountryQuery = db.collection('responses')
@@ -433,6 +581,17 @@ const summarizeOverviewForCountry = async ({ country, bankId, timeWindow }) => {
   const currentWindow = dateBucketRangeForWindow(timeWindow);
   const currentSnapshot = await queryAnalyticsBuckets(normalizedCountry, currentWindow.startBucket, currentWindow.endBucket).get();
   const currentDocs = currentSnapshot.docs.map((docSnap) => docSnap.data() || {});
+  assertAggregateDocsIntegrity({
+    country: normalizedCountry,
+    docs: currentDocs,
+    context: {
+      request: 'getDashboardOverviewAggregate',
+      bankId,
+      timeWindow,
+      startBucket: currentWindow.startBucket,
+      endBucket: currentWindow.endBucket,
+    },
+  });
   const currentMerged = mergeAggregateDocs(currentDocs);
   const currentOverview = buildOverviewSnapshot({
     aggregate: currentMerged,
@@ -452,15 +611,39 @@ const summarizeOverviewForCountry = async ({ country, bankId, timeWindow }) => {
         return start.toISOString().slice(0, 10);
       })(), currentWindow.endBucket).get(),
   ]);
+  const currentMonthDocs = currentMonthSnapshot.docs.map((docSnap) => docSnap.data() || {});
+  const previousMonthDocs = previousMonthSnapshot.docs.map((docSnap) => docSnap.data() || {});
+  const trendDocs = trendSnapshot.docs.map((docSnap) => docSnap.data() || {});
+  if (currentMonthDocs.length > 0) {
+    assertAggregateDocsIntegrity({
+      country: normalizedCountry,
+      docs: currentMonthDocs,
+      context: { request: 'getDashboardOverviewAggregate', bankId, timeWindow, window: 'current_month' },
+    });
+  }
+  if (previousMonthDocs.length > 0) {
+    assertAggregateDocsIntegrity({
+      country: normalizedCountry,
+      docs: previousMonthDocs,
+      context: { request: 'getDashboardOverviewAggregate', bankId, timeWindow, window: 'previous_month' },
+    });
+  }
+  if (trendDocs.length > 0) {
+    assertAggregateDocsIntegrity({
+      country: normalizedCountry,
+      docs: trendDocs,
+      context: { request: 'getDashboardOverviewAggregate', bankId, timeWindow, window: 'trend' },
+    });
+  }
 
   const currentMonthOverview = buildOverviewSnapshot({
-    aggregate: mergeAggregateDocs(currentMonthSnapshot.docs.map((docSnap) => docSnap.data() || {})),
+    aggregate: mergeAggregateDocs(currentMonthDocs),
     bankIds,
     bankNames,
     selectedBankId: bankId,
   });
   const previousMonthOverview = buildOverviewSnapshot({
-    aggregate: mergeAggregateDocs(previousMonthSnapshot.docs.map((docSnap) => docSnap.data() || {})),
+    aggregate: mergeAggregateDocs(previousMonthDocs),
     bankIds,
     bankNames,
     selectedBankId: bankId,
@@ -481,8 +664,7 @@ const summarizeOverviewForCountry = async ({ country, bankId, timeWindow }) => {
   };
 
   const trendGroups = new Map();
-  trendSnapshot.docs.forEach((docSnap) => {
-    const data = docSnap.data() || {};
+  trendDocs.forEach((data) => {
     const monthKey = toMonthBucket(data.dateBucket);
     if (!monthKey) return;
     const existing = trendGroups.get(monthKey) || [];
@@ -666,6 +848,10 @@ exports.submitPublicSurveyResponse = onCall({
     _source: 'public_callable',
     timestamp: response.timestamp || nowIso,
   };
+  const inclusion = deriveSurveyAnalyticsInclusion(payload);
+  payload.response_state = inclusion.responseState;
+  payload.screening_outcome = inclusion.screeningOutcome;
+  payload.included_in_analytics = inclusion.includedInAnalytics;
 
   await db.collection('responses').add(payload);
 
@@ -1467,6 +1653,206 @@ exports.logAuditEvent = onCall({
   return { ok: true };
 });
 
+exports.logSurveyTelemetryEvent = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 80,
+  timeoutSeconds: 20,
+  enforceAppCheck: ENFORCE_PUBLIC_SURVEY_APPCHECK,
+}, async (request) => {
+  const normalized = normalizeSurveyTelemetryEvent(request.data || {});
+  if (!normalized.ok) {
+    throw new HttpsError('invalid-argument', normalized.message);
+  }
+
+  const event = normalized.value;
+  const nowIso = new Date().toISOString();
+  const sessionRef = db.collection(SURVEY_SESSIONS_COLLECTION).doc(event.sessionId);
+
+  await db.collection(SURVEY_TELEMETRY_COLLECTION).add({
+    ...event,
+    recordedAt: nowIso,
+    userAgent: String(request.rawRequest?.headers?.['user-agent'] || '').slice(0, 300),
+    appCheckVerified: Boolean(request.app),
+    authUid: request.auth?.uid || null,
+  });
+
+  const sessionPatch = {
+    sessionId: event.sessionId,
+    country: event.country || null,
+    language: event.language || null,
+    responseId: event.responseId || null,
+    lastEventType: event.eventType,
+    lastEventAt: nowIso,
+    lastQuestionId: event.questionId || null,
+    lastQuestionType: event.questionType || null,
+    lastElapsedSeconds: event.elapsedSeconds,
+    appCheckVerified: Boolean(request.app),
+    updatedAt: nowIso,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    eventCount: admin.firestore.FieldValue.increment(1),
+  };
+
+  if (event.eventType === 'survey_session_started') {
+    sessionPatch.startedAt = nowIso;
+    sessionPatch.started = true;
+    sessionPatch.status = 'started';
+  }
+  if (event.eventType === 'survey_submitted') {
+    sessionPatch.submittedAt = nowIso;
+    sessionPatch.submitted = true;
+    sessionPatch.status = 'submitted';
+  }
+  if (event.eventType === 'survey_abandoned') {
+    sessionPatch.abandonedAt = nowIso;
+    sessionPatch.abandoned = true;
+    sessionPatch.status = 'abandoned';
+  }
+
+  await sessionRef.set(sessionPatch, { merge: true });
+  return { ok: true, recordedAt: nowIso };
+});
+
+exports.getSurveyFunnelAudit = onCall({
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 10,
+  timeoutSeconds: 60,
+}, async (request) => {
+  if (!request.auth || !isAdminCaller(request.auth)) {
+    throw new HttpsError('permission-denied', 'Admin access is required.');
+  }
+
+  const requestedCountry = normalizeCountry(request.data?.country);
+  const inactivityMinutes = Math.max(10, Number(request.data?.inactivityMinutes || 30));
+  const inactivityThresholdMs = inactivityMinutes * 60 * 1000;
+
+  const [sessionsSnapshot, eventsSnapshot, responsesSnapshot] = await Promise.all([
+    requestedCountry
+      ? db.collection(SURVEY_SESSIONS_COLLECTION).where('country', '==', requestedCountry).get()
+      : db.collection(SURVEY_SESSIONS_COLLECTION).get(),
+    requestedCountry
+      ? db.collection(SURVEY_TELEMETRY_COLLECTION).where('country', '==', requestedCountry).get()
+      : db.collection(SURVEY_TELEMETRY_COLLECTION).get(),
+    requestedCountry
+      ? db.collection('responses').where('selected_country', '==', requestedCountry).get()
+      : db.collection('responses').get(),
+  ]);
+
+  const sessions = sessionsSnapshot.docs.map((docSnap) => docSnap.data() || {});
+  const events = eventsSnapshot.docs.map((docSnap) => docSnap.data() || {});
+  const responses = responsesSnapshot.docs.map((docSnap) => docSnap.data() || {});
+  const viewedByQuestion = new Map();
+  const answeredByQuestion = new Map();
+  const skippedByQuestion = new Map();
+  const droppedByQuestion = new Map();
+  const elapsedByQuestion = new Map();
+
+  events.forEach((event) => {
+    const questionId = String(event.questionId || '').trim();
+    if (!questionId) return;
+
+    if (event.eventType === 'question_viewed') {
+      viewedByQuestion.set(questionId, Number(viewedByQuestion.get(questionId) || 0) + 1);
+    }
+    if (event.eventType === 'question_answered') {
+      answeredByQuestion.set(questionId, Number(answeredByQuestion.get(questionId) || 0) + 1);
+    }
+    if (event.eventType === 'question_skipped') {
+      skippedByQuestion.set(questionId, Number(skippedByQuestion.get(questionId) || 0) + 1);
+    }
+    if ((event.eventType === 'question_answered' || event.eventType === 'question_skipped') && Number.isFinite(Number(event.elapsedSeconds))) {
+      const elapsedValues = elapsedByQuestion.get(questionId) || [];
+      elapsedValues.push(Number(event.elapsedSeconds));
+      elapsedByQuestion.set(questionId, elapsedValues);
+    }
+  });
+
+  sessions.forEach((session) => {
+    if (!session.abandonedAt && !isTelemetrySessionAbandoned(session, inactivityThresholdMs)) return;
+    const questionId = String(session.lastQuestionId || '').trim();
+    if (!questionId) return;
+    droppedByQuestion.set(questionId, Number(droppedByQuestion.get(questionId) || 0) + 1);
+  });
+
+  const totalStarts = sessions.filter((session) => session.startedAt || session.started).length;
+  const totalSubmissions = sessions.filter((session) => session.submittedAt || session.submitted).length;
+  const completionRate = totalStarts > 0 ? totalSubmissions / totalStarts : 0;
+  const questionIds = Array.from(new Set([
+    ...viewedByQuestion.keys(),
+    ...answeredByQuestion.keys(),
+    ...skippedByQuestion.keys(),
+    ...droppedByQuestion.keys(),
+  ]));
+
+  const questionSummary = questionIds.map((questionId) => {
+    const viewed = Number(viewedByQuestion.get(questionId) || 0);
+    const skipped = Number(skippedByQuestion.get(questionId) || 0);
+    const dropped = Number(droppedByQuestion.get(questionId) || 0);
+    const elapsedValues = elapsedByQuestion.get(questionId) || [];
+    const averageElapsedSeconds = elapsedValues.length > 0
+      ? elapsedValues.reduce((sum, value) => sum + value, 0) / elapsedValues.length
+      : 0;
+    return {
+      question_id: questionId,
+      viewed,
+      answered: Number(answeredByQuestion.get(questionId) || 0),
+      skipped,
+      dropped,
+      drop_off_rate: viewed > 0 ? dropped / viewed : 0,
+      skip_rate: viewed > 0 ? skipped / viewed : 0,
+      average_elapsed_seconds: averageElapsedSeconds,
+    };
+  }).sort((left, right) => right.drop_off_rate - left.drop_off_rate);
+
+  const submittedResponses = responses.filter((response) => String(response._status || '') === 'completed');
+  const demographicCompletion = ['b2_age', 'e1_employment', 'e2_education', 'e3_gender'].map((field) => {
+    const answered = submittedResponses.filter((response) => {
+      const value = String(response[field] || '').trim();
+      return value.length > 0 && value !== 'prefer_not_to_say';
+    }).length;
+    const preferNotToSay = submittedResponses.filter((response) => String(response[field] || '').trim() === 'prefer_not_to_say').length;
+    return {
+      field,
+      answered,
+      prefer_not_to_say: preferNotToSay,
+      completion_rate: submittedResponses.length > 0 ? answered / submittedResponses.length : 0,
+    };
+  });
+
+  return {
+    ok: true,
+    country: requestedCountry,
+    total_starts: totalStarts,
+    total_submissions: totalSubmissions,
+    completion_rate: completionRate,
+    drop_off_by_question: questionSummary.map((item) => ({
+      question_id: item.question_id,
+      dropped: item.dropped,
+      viewed: item.viewed,
+      drop_off_rate: item.drop_off_rate,
+    })),
+    average_time_per_question: questionSummary.map((item) => ({
+      question_id: item.question_id,
+      average_elapsed_seconds: item.average_elapsed_seconds,
+    })),
+    skip_rate_by_question: questionSummary.map((item) => ({
+      question_id: item.question_id,
+      skipped: item.skipped,
+      viewed: item.viewed,
+      skip_rate: item.skip_rate,
+    })),
+    demographic_completion: demographicCompletion,
+    problematic_questions: questionSummary.filter((item) =>
+      item.drop_off_rate >= 0.2 || item.skip_rate >= 0.2 || item.average_elapsed_seconds >= 30,
+    ),
+    abandonment_proxy: {
+      method: 'stale_started_session_without_submission',
+      inactivity_minutes: inactivityMinutes,
+    },
+  };
+});
+
 exports.repairMyAdminClaims = onCall({
   region: 'us-central1',
   cors: true,
@@ -2062,6 +2448,8 @@ exports.aggregateResponseAnalyticsOnWrite = onDocumentWritten({
       await analyticsStatusRef(target.country).set({
         country: target.country,
         aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+        methodologyVersion: METHODOLOGY_VERSION,
+        methodology_version: METHODOLOGY_VERSION,
         supportedMetrics: SUPPORTED_METRICS,
         supportedFilters: SUPPORTED_FILTERS,
         supportedModules: SUPPORTED_MODULES,
@@ -2203,6 +2591,8 @@ exports.rebuildDashboardAggregates = onCall({
   await analyticsStatusRef(requestedCountry).set({
     country: requestedCountry,
     aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+    methodologyVersion: METHODOLOGY_VERSION,
+    methodology_version: METHODOLOGY_VERSION,
     supportedMetrics: SUPPORTED_METRICS,
     supportedFilters: SUPPORTED_FILTERS,
     supportedModules: SUPPORTED_MODULES,
@@ -2227,6 +2617,8 @@ exports.rebuildDashboardAggregates = onCall({
   await analyticsStatusRef(requestedCountry).set({
     country: requestedCountry,
     aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+    methodologyVersion: METHODOLOGY_VERSION,
+    methodology_version: METHODOLOGY_VERSION,
     supportedMetrics: SUPPORTED_METRICS,
     supportedFilters: SUPPORTED_FILTERS,
     supportedModules: SUPPORTED_MODULES,
@@ -2325,6 +2717,230 @@ exports.resetSurveyAnalyticsData = onCall({
   };
 });
 
+// ---------------------------------------------------------------------------
+// Awareness Insight Report helpers
+// ---------------------------------------------------------------------------
+
+const AWARENESS_REQUIRED_SECTIONS = [
+  'Market Awareness Position',
+  'Awareness Funnel',
+  'Competitive Landscape',
+  'Future Consideration',
+  'Strategic Implications',
+];
+
+const buildAwarenessSystemPrompt = () =>
+  'You are a brand analytics advisor for a bank executive. ' +
+  'Analyze only the awareness metrics provided below. ' +
+  'Do not introduce data not listed in this snapshot. ' +
+  'If a metric value is null or listed as unavailable, say so explicitly — do not substitute estimates. ' +
+  'Use ## headings for each of the 5 required sections. Use bullet points. Maximum 600 words.';
+
+const buildAwarenessUserPrompt = (payload) => {
+  const m = payload.metrics || {};
+  const f = payload.funnel || {};
+  const lines = [
+    `Country: ${payload.country}`,
+    `Period: ${payload.period}`,
+    `Bank: ${payload.bankName} (${payload.bankId})`,
+    payload.compareBankName ? `Compare bank: ${payload.compareBankName}` : null,
+    `Sample size: n=${payload.sampleSize}`,
+    payload.sampleSize > 0 && payload.sampleSize < 30
+      ? `NOTE: Limited sample (n=${payload.sampleSize}). Treat all findings as indicative only.`
+      : null,
+    '',
+    '## Awareness Metrics',
+    `Top of Mind: ${m.topOfMind !== null && m.topOfMind !== undefined ? m.topOfMind + '%' : 'unavailable'}`,
+    `Spontaneous Recall: ${m.spontaneous !== null && m.spontaneous !== undefined ? m.spontaneous + '%' : 'unavailable'}`,
+    `Total Awareness: ${m.totalAwareness !== null && m.totalAwareness !== undefined ? m.totalAwareness + '%' : 'unavailable'}`,
+    `Awareness Quality: ${m.awarenessQuality !== null && m.awarenessQuality !== undefined ? m.awarenessQuality + '%' : 'unavailable'}`,
+    `Share of Voice: ${m.shareOfVoice !== null && m.shareOfVoice !== undefined ? m.shareOfVoice + '%' : 'unavailable'}`,
+    `Awareness Depth Score: ${m.awarenessDepthScore !== null && m.awarenessDepthScore !== undefined ? m.awarenessDepthScore + '/100' : 'unavailable'}`,
+    `Awareness Share Index: ${m.awarenessShareIndex !== null && m.awarenessShareIndex !== undefined ? m.awarenessShareIndex + '%' : 'unavailable'}`,
+    `MoM Growth: ${m.momGrowthPct !== null && m.momGrowthPct !== undefined ? m.momGrowthPct + '%' : 'unavailable'}`,
+    '',
+    '## Awareness Funnel',
+    `Aware: ${f.aware !== null && f.aware !== undefined ? f.aware + '%' : 'unavailable'}`,
+    `Spontaneous: ${f.spontaneous !== null && f.spontaneous !== undefined ? f.spontaneous + '%' : 'unavailable'}`,
+    `Top of Mind: ${f.topOfMind !== null && f.topOfMind !== undefined ? f.topOfMind + '%' : 'unavailable'}`,
+    `Aided: ${f.aided !== null && f.aided !== undefined ? f.aided + '%' : 'unavailable'}`,
+  ].filter((l) => l !== null);
+
+  if (payload.intent) {
+    const i = payload.intent;
+    lines.push('', '## Future Intent');
+    lines.push(`Average Intent: ${i.averageIntent !== null ? i.averageIntent.toFixed(1) + '/10' : 'unavailable'}`);
+    lines.push(`High Intent (7-10): ${i.highIntentPct !== null ? Math.round(i.highIntentPct * 100) + '%' : 'unavailable'}`);
+    lines.push(`High Intent Non-Users: ${i.highIntentNonUserPct !== null ? Math.round(i.highIntentNonUserPct * 100) + '%' : 'unavailable'}`);
+    lines.push(`At-Risk Current Users: ${i.lowIntentCurrentUserCount !== null ? i.lowIntentCurrentUserCount : 'unavailable'}`);
+    lines.push(`Response base: ${i.responseBase}`);
+  }
+
+  if (Array.isArray(payload.rankings) && payload.rankings.length > 0) {
+    lines.push('', '## Brand Rankings');
+    payload.rankings.forEach((row) => {
+      lines.push(`Rank ${row.rank}: ${row.bankName} — Awareness ${row.awareness}%, Top-of-Mind ${row.topOfMind}%`);
+    });
+  }
+
+  if (payload.compareMetrics) {
+    lines.push('', '## Compare Bank Metrics');
+    const cm = payload.compareMetrics;
+    lines.push(`Top of Mind: ${cm.topOfMind !== null ? cm.topOfMind + '%' : 'unavailable'}`);
+    lines.push(`Total Awareness: ${cm.awareness !== null ? cm.awareness + '%' : 'unavailable'}`);
+  }
+
+  lines.push(
+    '',
+    'Respond with only the 5 required sections in this order:',
+    '1. ## Market Awareness Position',
+    '2. ## Awareness Funnel',
+    '3. ## Competitive Landscape',
+    '4. ## Future Consideration',
+    '5. ## Strategic Implications',
+    '',
+    'Use ## headings and bullet points. Do not invent or estimate data not provided above.',
+  );
+
+  return lines.join('\n');
+};
+
+const ensureAwarenessSections = (raw) => {
+  const normalized = normalizeWhitespace(raw);
+  const lower = normalized.toLowerCase();
+  const hasAll = AWARENESS_REQUIRED_SECTIONS.every((s) => lower.includes(s.toLowerCase()));
+  if (hasAll) return toWordLimitedText(normalized, 600);
+  return AWARENESS_REQUIRED_SECTIONS.map((s) =>
+    `## ${s}\nNot enough signal in this snapshot to provide a confident analysis.`
+  ).join('\n\n');
+};
+
+const computeAwarenessCacheHash = (fields) =>
+  crypto.createHash('sha256').update(JSON.stringify(fields)).digest('hex').slice(0, 32);
+
+const callGeminiWithText = async ({ apiKey, model, promptText, systemPrompt }) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const response = await fetch(`${url}?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: 'user', parts: [{ text: promptText }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 1800 },
+    }),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    const error = new Error(`Gemini request failed (${response.status}): ${body || 'Unknown error'}`);
+    error.statusCode = response.status;
+    throw error;
+  }
+  const result = await response.json();
+  const text = parseGeminiText(result);
+  if (!text) throw new Error('Gemini returned an empty response.');
+  return text;
+};
+
+const handleAwarenessInsightReport = async (payload, request) => {
+  const uid = request.auth.uid;
+  const role = request.auth.token?.role;
+
+  // Access control: subscribers must have country entitlement
+  if (role !== 'admin') {
+    const userSnap = await admin.firestore().doc(`users/${uid}`).get();
+    const userData = userSnap.data() || {};
+    const assignedCountries = Array.isArray(userData.assignedCountries) ? userData.assignedCountries : [];
+    if (!assignedCountries.includes(String(payload.country || '').toLowerCase())) {
+      throw new HttpsError('permission-denied', 'You do not have access to this country context.');
+    }
+  }
+
+  const country = String(payload.country || '').toLowerCase();
+  const bankId = String(payload.bankId || '');
+  if (!country || !bankId) {
+    throw new HttpsError('invalid-argument', 'country and bankId are required.');
+  }
+  if (typeof payload.sampleSize !== 'number' || payload.sampleSize === 0) {
+    throw new HttpsError('invalid-argument', 'insufficient-data: sampleSize must be > 0.');
+  }
+
+  const methodologyVersion = String(payload.methodologyVersion || '1.0');
+  const compareBankId = String(payload.compareBankId || '');
+  const filtersHash = crypto.createHash('sha256')
+    .update(JSON.stringify(payload.filters || {}))
+    .digest('hex')
+    .slice(0, 16);
+  const cacheKeyHash = computeAwarenessCacheHash({
+    reportType: 'awareness_consideration',
+    userId: uid,
+    country,
+    bankId,
+    compareBankId,
+    methodologyVersion,
+    filtersHash,
+  });
+
+  const cacheRef = admin.firestore().doc(`aiInsightReports/${cacheKeyHash}`);
+  const cacheSnap = await cacheRef.get();
+  if (cacheSnap.exists()) {
+    const cached = cacheSnap.data();
+    if (cached.expiresAt && cached.expiresAt.toMillis() > Date.now()) {
+      return {
+        response: cached.response,
+        generatedAt: cached.generatedAt.toDate().toISOString(),
+        fromCache: true,
+      };
+    }
+  }
+
+  const apiKey = GEMINI_API_KEY.value();
+  if (!apiKey) throw new HttpsError('failed-precondition', 'GEMINI_API_KEY secret is not configured.');
+
+  const systemPrompt = buildAwarenessSystemPrompt();
+  const promptText = buildAwarenessUserPrompt(payload);
+
+  let rawText = '';
+  let lastError = null;
+  for (const model of DEFAULT_GEMINI_MODELS) {
+    try {
+      rawText = await callGeminiWithText({ apiKey, model, promptText, systemPrompt });
+      break;
+    } catch (err) {
+      const msg = String(err?.message || err);
+      if (msg.includes('(404)') || msg.includes('NOT_FOUND') || msg.includes('not supported')) {
+        lastError = err;
+        continue;
+      }
+      if (msg.includes('(429)') || msg.includes('RESOURCE_EXHAUSTED')) {
+        throw new HttpsError('resource-exhausted', msg);
+      }
+      throw new HttpsError('internal', msg);
+    }
+  }
+  if (!rawText) throw new HttpsError('internal', String(lastError?.message || 'No Gemini model available.'));
+
+  const finalResponse = ensureAwarenessSections(rawText);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const payloadHash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 32);
+
+  await cacheRef.set({
+    reportType: 'awareness_consideration',
+    userId: uid,
+    country,
+    bankId,
+    compareBankId: compareBankId || null,
+    methodologyVersion,
+    filtersHash,
+    payloadHash,
+    generatedAt: admin.firestore.Timestamp.fromDate(now),
+    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+    response: finalResponse,
+  });
+
+  return { response: finalResponse, generatedAt: now.toISOString(), fromCache: false };
+};
+
 exports.aiStrategyAdvisor = onCall({
   region: 'us-central1',
   secrets: [GEMINI_API_KEY],
@@ -2340,6 +2956,11 @@ exports.aiStrategyAdvisor = onCall({
   const payload = request.data?.payload;
   if (!payload || typeof payload !== 'object') {
     throw new HttpsError('invalid-argument', 'Invalid payload for AI Strategy Advisor.');
+  }
+
+  // Awareness Insight Report branch — handled separately from strategy advisor
+  if (payload.reportType === 'awareness_consideration') {
+    return handleAwarenessInsightReport(payload, request);
   }
 
   const requiredKeys = ['country', 'period', 'filters', 'metrics', 'previous_period', 'competitors', 'user_query'];
