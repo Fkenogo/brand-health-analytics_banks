@@ -163,6 +163,14 @@ describe('generateAwarenessReport', () => {
     await expect(generateAwarenessReport(MOCK_PAYLOAD, 'user123')).rejects.toMatchObject({ code: 'generation-failed' });
   });
 
+  it('throws generation-failed on permission-denied error', async () => {
+    const mockFn = vi.fn().mockRejectedValue(
+      Object.assign(new Error('permission-denied'), { code: 'functions/permission-denied' }),
+    );
+    vi.mocked(httpsCallable).mockReturnValue(mockFn as any);
+    await expect(generateAwarenessReport(MOCK_PAYLOAD, 'user123')).rejects.toMatchObject({ code: 'generation-failed' });
+  });
+
   it('does not throw when sampleSize > 0 and at least one metric is non-null', async () => {
     const mockFn = vi.fn().mockResolvedValue({
       data: { response: '## Market Awareness Position\n- ok', generatedAt: '2026-05-04T10:00:00Z', fromCache: false },

@@ -186,7 +186,7 @@ export async function generateAwarenessReport(
   try {
     const result = await callable({ payload, userId });
     const data = result.data;
-    if (!data?.response) throw new Error('Empty response from AI.');
+    if (!data?.response) throw makeTypedError('generation-failed', 'Empty response from AI.');
     return { response: data.response, generatedAt: data.generatedAt, fromCache: Boolean(data.fromCache) };
   } catch (error: unknown) {
     const code = getErrorCode(error);
