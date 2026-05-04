@@ -111,8 +111,8 @@ interface AwarenessPayloadArgs {
   totalAwareness: number | null;
   awarenessQuality: number | null;
   shareOfVoice: number | null;
-  awarenessDepthScore: number;
-  awarenessShareIndex: number;
+  awarenessDepthScore: number | null;
+  awarenessShareIndex: number | null;
   momGrowthPct: number | null;
   funnelAware: number | null;
   funnelSpontaneous: number | null;
@@ -125,7 +125,7 @@ interface AwarenessPayloadArgs {
 }
 
 const toNullable = (v: number | null | undefined): number | null =>
-  v === null || v === undefined || !Number.isFinite(v as number) ? null : (v as number);
+  v == null || !Number.isFinite(v) ? null : v;
 
 export function buildAwarenessReportPayload(args: AwarenessPayloadArgs): AwarenessReportPayload {
   return {
@@ -145,8 +145,8 @@ export function buildAwarenessReportPayload(args: AwarenessPayloadArgs): Awarene
       totalAwareness: toNullable(args.totalAwareness),
       awarenessQuality: toNullable(args.awarenessQuality),
       shareOfVoice: toNullable(args.shareOfVoice),
-      awarenessDepthScore: args.awarenessDepthScore,
-      awarenessShareIndex: args.awarenessShareIndex,
+      awarenessDepthScore: toNullable(args.awarenessDepthScore),
+      awarenessShareIndex: toNullable(args.awarenessShareIndex),
       momGrowthPct: toNullable(args.momGrowthPct),
     },
     funnel: {
@@ -156,7 +156,7 @@ export function buildAwarenessReportPayload(args: AwarenessPayloadArgs): Awarene
       aided: toNullable(args.funnelAided),
     },
     intent: args.intent ?? null,
-    rankings: args.rankings,
+    rankings: [...args.rankings],
     compareMetrics: args.compareBankId
       ? { topOfMind: toNullable(args.compareTopOfMind), awareness: toNullable(args.compareAwareness) }
       : null,

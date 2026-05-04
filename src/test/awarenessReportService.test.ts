@@ -86,4 +86,10 @@ describe('buildAwarenessReportPayload', () => {
     expect(payload.rankings).toHaveLength(2);
     expect(payload.rankings[0].rank).toBe(1);
   });
+
+  it('coerces NaN and Infinity metric values to null', () => {
+    const payload = buildAwarenessReportPayload({ ...BASE_ARGS, momGrowthPct: NaN, topOfMind: Infinity });
+    expect(payload.metrics.momGrowthPct).toBeNull();
+    expect(payload.metrics.topOfMind).toBeNull();
+  });
 });
