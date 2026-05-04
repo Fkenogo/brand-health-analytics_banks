@@ -173,7 +173,7 @@ export async function generateAwarenessReport(
   payload: AwarenessReportPayload,
   userId: string,
 ): Promise<{ response: string; generatedAt: string; fromCache: boolean }> {
-  const allMetricsNull = Object.values(payload.metrics).every((v) => v === null || v === 0);
+  const allMetricsNull = Object.values(payload.metrics).every((v) => v === null);
   if (payload.sampleSize === 0 || (payload.sampleSize > 0 && allMetricsNull)) {
     throw makeTypedError('insufficient-data', 'No data available for this filter combination.');
   }

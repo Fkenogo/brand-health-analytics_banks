@@ -135,6 +135,7 @@ describe('generateAwarenessReport', () => {
   it('throws insufficient-data when sampleSize is 0', async () => {
     const zeroPayload = buildAwarenessReportPayload({ ...BASE_ARGS, sampleSize: 0 });
     await expect(generateAwarenessReport(zeroPayload, 'user123')).rejects.toMatchObject({ code: 'insufficient-data' });
+    expect(vi.mocked(httpsCallable)).not.toHaveBeenCalled();
   });
 
   it('throws insufficient-data when all metric values are null', async () => {
@@ -145,6 +146,7 @@ describe('generateAwarenessReport', () => {
       awarenessShareIndex: null, momGrowthPct: null,
     });
     await expect(generateAwarenessReport({ ...nullPayload, sampleSize: 10 }, 'user123')).rejects.toMatchObject({ code: 'insufficient-data' });
+    expect(vi.mocked(httpsCallable)).not.toHaveBeenCalled();
   });
 
   it('throws rate-limited on resource-exhausted error', async () => {
@@ -159,5 +161,20 @@ describe('generateAwarenessReport', () => {
     vi.mocked(httpsCallable).mockReturnValue(mockFn as any);
 
     await expect(generateAwarenessReport(MOCK_PAYLOAD, 'user123')).rejects.toMatchObject({ code: 'generation-failed' });
+  });
+
+  it('does not throw when sampleSize > 0 and at least one metric is non-null', async () => {
+    const mockFn = vi.fn().mockResolvedValue({
+      data: { response: '## Market Awareness Position\n- ok', generatedAt: '2026-05-04T10:00:00Z', fromCache: false },
+    });
+    vi.mocked(httpsCallable).mockReturnValue(mockFn as any);
+    const partialPayload = buildAwarenessReportPayload({
+      ...BASE_ARGS,
+      topOfMind: 35,
+      spontaneous: null, totalAwareness: null, awarenessQuality: null,
+      shareOfVoice: null, awarenessDepthScore: null, awarenessShareIndex: null, momGrowthPct: null,
+    });
+    await expect(generateAwarenessReport(partialPayload, 'user123')).resolves.toBeDefined();
+    expect(mockFn).toHaveBeenCalledOnce();
   });
 });
