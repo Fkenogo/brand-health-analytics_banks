@@ -2885,7 +2885,7 @@ const handleAwarenessInsightReport = async (payload, request) => {
 
   const cacheRef = admin.firestore().doc(`aiInsightReports/${cacheKeyHash}`);
   const cacheSnap = await cacheRef.get();
-  if (cacheSnap.exists()) {
+  if (cacheSnap.exists) {
     const cached = cacheSnap.data();
     if (cached.expiresAt && cached.expiresAt.toMillis() > Date.now()) {
       return {
@@ -2915,9 +2915,9 @@ const handleAwarenessInsightReport = async (payload, request) => {
         continue;
       }
       if (msg.includes('(429)') || msg.includes('RESOURCE_EXHAUSTED')) {
-        throw new HttpsError('resource-exhausted', msg);
+        throw new HttpsError('resource-exhausted', 'AI request quota exceeded. Please try again later.');
       }
-      throw new HttpsError('internal', msg);
+      throw new HttpsError('internal', 'AI generation failed. Please try again.');
     }
   }
   if (!rawText) throw new HttpsError('internal', String(lastError?.message || 'No Gemini model available.'));
