@@ -206,14 +206,18 @@ Called in `SubscriberDashboardPage.tsx`, result passed as `awarenessPayload` pro
 
 #### 4.2.4 Firebase callable extension
 
-New branch inside the existing callable function:
+**Callable name:** `aiStrategyAdvisor` — defined in `functions/index.js` at line 2720, called via `httpsCallable(functions, 'aiStrategyAdvisor')` in `aiStrategyAdvisorService.ts` at line 153. The awareness report adds a branch inside this same callable. No new callable is deployed.
+
+New branch inside `aiStrategyAdvisor`:
 ```js
 if (payload.reportType === 'awareness_consideration') {
-  return handleAwarenessInsightReport(payload, context);
+  return handleAwarenessInsightReport(payload, request);
 }
 ```
 
-Internal helper: `handleAwarenessInsightReport(payload, context)`
+Internal helper: `handleAwarenessInsightReport(payload, request)`
+- **Auth check (already present):** callable throws `unauthenticated` if `request.auth` is absent.
+- **Access-control check (new):** before cache read, write, or generation, verify the authenticated user (`request.auth.uid`) has access to the requested `country` and `bankId`. Read the subscriber's profile from Firestore to confirm country entitlements and bank entitlements match the requested context. Throw `permission-denied` if not.
 - Computes canonical `cacheKeyHash` server-side from `{ reportType, userId, country, bankId, compareBankId, methodologyVersion, filtersHash }`.
 - Frontend-supplied hash (if any) is ignored for cache writes.
 - Reads `aiInsightReports/{cacheKeyHash}`.
