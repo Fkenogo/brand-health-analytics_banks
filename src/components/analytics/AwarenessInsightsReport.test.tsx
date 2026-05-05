@@ -98,3 +98,79 @@ describe('AwarenessInsightsReport — generated state', () => {
     expect(screen.getByText(/generated:/i)).toBeInTheDocument();
   });
 });
+
+describe('AwarenessInsightsReport — stale state', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('shows stale banner when payload context changes after generation', async () => {
+    vi.mocked(generateAwarenessReport).mockResolvedValue({
+      response: MOCK_RESPONSE, generatedAt: '2026-05-04T10:00:00Z', fromCache: false,
+    });
+    const { rerender } = render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);
+    fireEvent.click(screen.getByRole('button', { name: /generate insights/i }));
+    await waitFor(() => expect(screen.getByText('Market Awareness Position')).toBeInTheDocument());
+
+    // Change context (different bankId triggers a new hash)
+    const changedPayload = { ...MOCK_PAYLOAD, bankId: 'EQ_RW', bankName: 'Equity Bank' };
+    rerender(<AwarenessInsightsReport awarenessPayload={changedPayload} />);
+    expect(screen.getByText(/context changed/i)).toBeInTheDocument();
+  });
+
+  it('report body remains visible when stale', async () => {
+    vi.mocked(generateAwarenessReport).mockResolvedValue({
+      response: MOCK_RESPONSE, generatedAt: '2026-05-04T10:00:00Z', fromCache: false,
+    });
+    const { rerender } = render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);
+    fireEvent.click(screen.getByRole('button', { name: /generate insights/i }));
+    await waitFor(() => expect(screen.getByText('Market Awareness Position')).toBeInTheDocument());
+
+    rerender(<AwarenessInsightsReport awarenessPayload={{ ...MOCK_PAYLOAD, bankId: 'EQ_RW', bankName: 'Equity Bank' }} />);
+    // Report body still visible
+    expect(screen.getByText('Market Awareness Position')).toBeInTheDocument();
+  });
+});
+
+describe('AwarenessInsightsReport — error states', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('shows rate-limited message with no retry button', async () => {
+    vi.mocked(generateAwarenessReport).mockRejectedValue(
+      Object.assign(new Error('limit'), { code: 'rate-limited' }),
+    );
+    render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);
+    fireEvent.click(screen.getByRole('button', { name: /generate insights/i }));
+    await waitFor(() => expect(screen.getByText(/monthly insight limit/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
+  });
+
+  it('shows insufficient-data message with no retry button', async () => {
+    vi.mocked(generateAwarenessReport).mockRejectedValue(
+      Object.assign(new Error('no data'), { code: 'insufficient-data' }),
+    );
+    render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);
+    fireEvent.click(screen.getByRole('button', { name: /generate insights/i }));
+    await waitFor(() => expect(screen.getByText(/not enough data/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
+  });
+
+  it('shows generation-failed message with retry button', async () => {
+    vi.mocked(generateAwarenessReport).mockRejectedValue(
+      Object.assign(new Error('fail'), { code: 'generation-failed' }),
+    );
+    render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);
+    fireEvent.click(screen.getByRole('button', { name: /generate insights/i }));
+    await waitFor(() => expect(screen.getByText(/report generation failed/i)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+  });
+
+  it('Generate Insights button is visible again after an error', async () => {
+    vi.mocked(generateAwarenessReport).mockRejectedValue(
+      Object.assign(new Error('fail'), { code: 'generation-failed' }),
+    );
+    render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);
+    fireEvent.click(screen.getByRole('button', { name: /generate insights/i }));
+    await waitFor(() => expect(screen.getByText(/report generation failed/i)).toBeInTheDocument());
+    // After error, main button label should revert to "Generate Insights"
+    expect(screen.getByRole('button', { name: /generate insights/i })).toBeInTheDocument();
+  });
+});
