@@ -50,6 +50,8 @@ describe('AwarenessInsightsReport — idle state', () => {
 });
 
 describe('AwarenessInsightsReport — loading state', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
   it('disables button and shows spinner while loading', async () => {
     vi.mocked(generateAwarenessReport).mockImplementation(() => new Promise(() => {}));
     render(<AwarenessInsightsReport awarenessPayload={MOCK_PAYLOAD} />);

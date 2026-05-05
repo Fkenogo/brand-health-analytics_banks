@@ -81,25 +81,28 @@ export function AwarenessInsightsReport({ awarenessPayload }: AwarenessInsightsR
   const isStale = reportState.status === 'generated' && reportState.contextHash !== currentHash;
   const isLoading = reportState.status === 'loading';
 
+  const payloadRef = React.useRef(awarenessPayload);
+  payloadRef.current = awarenessPayload;
+
   const generate = useCallback(async () => {
+    const payload = payloadRef.current;
+    const hash = computeContextHash(payload);
     setReportState({ status: 'loading' });
     setIsExpanded(true);
     try {
-      const result = await generateAwarenessReport(awarenessPayload, userId);
+      const result = await generateAwarenessReport(payload, userId);
       setReportState({
         status: 'generated',
         response: result.response,
         generatedAt: result.generatedAt,
         fromCache: result.fromCache,
-        contextHash: currentHash,
+        contextHash: hash,
       });
-      setIsExpanded(true);
     } catch (err: unknown) {
       const code = ((err as { code?: string }).code ?? 'generation-failed') as AwarenessReportError;
       setReportState({ status: 'error', code });
-      setIsExpanded(true);
     }
-  }, [awarenessPayload, userId, currentHash]);
+  }, [userId, currentHash]);
 
   const buttonLabel = isLoading
     ? 'Generating…'
@@ -115,7 +118,7 @@ export function AwarenessInsightsReport({ awarenessPayload }: AwarenessInsightsR
         </h3>
         <button
           type="button"
-          disabled={isLoading}
+          disabled={isLoading || !userId}
           onClick={generate}
           className="rounded px-3 py-1 text-xs font-medium bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
