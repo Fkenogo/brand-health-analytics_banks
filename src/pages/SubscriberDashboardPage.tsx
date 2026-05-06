@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/context';
 import { hasPermission } from '@/auth/types';
 import { ANALYTICS_BASE_TYPES, BANKS, COUNTRY_CHOICES } from '@/constants';
 import { AnalyticsMetricValue, CountryCode, SurveyResponse } from '@/types';
+import { isIncludedInAnalytics } from '@/utils/survey/respondentInclusion';
 import {
   AwarenessMetricKey,
   AwarenessSectionInsightKey,
@@ -75,6 +76,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { aiStrategyAdvisorService, compressText, strategyAdvisorLimits, type StrategyAdvisorPayload } from '@/services/aiStrategyAdvisorService';
 import { CustomerSwitchingRadar } from '@/components/analytics/CustomerSwitchingRadar';
 import { CustomerMigrationMap } from '@/components/analytics/CustomerMigrationMap';
+import { AwarenessInsightsReport } from '@/components/analytics/AwarenessInsightsReport';
+import { buildAwarenessReportPayload } from '@/services/aiStrategyAdvisorService';
 import {
   BankMetrics,
   DemographicSummary,
@@ -113,6 +116,9 @@ import {
 } from '@/utils/brandEdgeScore';
 import { computeCustomerSwitchingRadar, type CustomerSwitchingRadarResult } from '@/utils/customerSwitchingRadar';
 import { computeCustomerMigrationMap, type CustomerMigrationMapResult } from '@/utils/customerMigrationMap';
+import { applyGuardedRendering } from '@/utils/sampleGuards';
+import { SampleGuardBadge } from '@/components/ui/SampleGuardBadge';
+import { SampleGuardFooter } from '@/components/ui/SampleGuardFooter';
 
 type SubscriberSection =
   | 'overview'
@@ -809,21 +815,45 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
         timeWindow,
       }
     : null;
-  const canUseOverviewAggregate = Boolean(activeCountry && selectedBankId && ageGroups.length === 0 && genders.length === 0);
+  const aggregateUnsupportedFilterReason = useMemo(() => {
+    const unsupported = [
+      ageGroups.length > 0 ? 'ageGroups' : null,
+      genders.length > 0 ? 'genders' : null,
+    ].filter(Boolean);
+    return unsupported.length > 0
+      ? `Aggregate does not support active filters: ${unsupported.join(', ')}. Using live-response analytics.`
+      : null;
+  }, [ageGroups, genders]);
+  const canUseOverviewAggregate = Boolean(activeCountry && selectedBankId && !aggregateUnsupportedFilterReason);
 
   useEffect(() => {
     const loadOverviewAggregate = async () => {
       if (!activeCountry || !selectedBankId || !canUseOverviewAggregate) {
         setOverviewAggregate(null);
-        setOverviewAggregateReason(null);
+        setOverviewAggregateReason(aggregateUnsupportedFilterReason);
+        if (activeCountry && selectedBankId && aggregateUnsupportedFilterReason) {
+          console.warn('[analytics_aggregate] aggregate_raw_fallback_triggered', {
+            event: 'aggregate_raw_fallback_triggered',
+            country: activeCountry,
+            bankId: selectedBankId,
+            timeWindow,
+            phase: 'filter',
+            failures: ['unsupported_active_filter'],
+            reason: aggregateUnsupportedFilterReason,
+          });
+        }
         return;
       }
 
       setLoadingOverviewAggregate(true);
       try {
-        const result = await analyticsAggregateService.getDashboardOverviewAggregateWithFallback(activeCountry, selectedBankId, timeWindow);
+        const result = await analyticsAggregateService.getDashboardOverviewAggregateWithFallback(activeCountry, selectedBankId, timeWindow, {
+          ageGroups,
+          genders,
+        });
         const aggregate = result.aggregate;
-        const isUsableAggregate = aggregate.integrity?.coverageComplete !== false
+        const isUsableAggregate = aggregate
+          && aggregate.integrity?.coverageComplete !== false
           && aggregate.integrity?.rebuildStatus !== 'rebuilding';
         setOverviewAggregate(isUsableAggregate ? aggregate : null);
         setOverviewAggregateReason(result.fallbackReason);
@@ -836,7 +866,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     };
 
     loadOverviewAggregate();
-  }, [activeCountry, selectedBankId, timeWindow, canUseOverviewAggregate]);
+  }, [activeCountry, selectedBankId, timeWindow, canUseOverviewAggregate, aggregateUnsupportedFilterReason, ageGroups, genders]);
 
   const scopedResponses = useMemo(() => {
     if (!filters) return [];
@@ -848,6 +878,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     return responses.filter((response) => {
       const country = (response.country || response.selected_country || null) as CountryCode | null;
       if (!country || country !== activeCountry) return false;
+      if (!isIncludedInAnalytics(response)) return false;
       if (ageGroups.length > 0 && (!response.b2_age || !ageGroups.includes(response.b2_age))) return false;
       if (genders.length > 0 && (!response.gender || !genders.includes(response.gender))) return false;
       return true;
@@ -1457,6 +1488,27 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     [scopedResponses, selectedBankId],
   );
 
+  const guardedAgeRows = useMemo(
+    () => applyGuardedRendering(demographicDiagnostics?.ageRows ?? [], 'table'),
+    [demographicDiagnostics],
+  );
+  const guardedGenderRows = useMemo(
+    () => applyGuardedRendering(demographicDiagnostics?.genderRows ?? [], 'table'),
+    [demographicDiagnostics],
+  );
+  const guardedEmploymentRows = useMemo(
+    () => applyGuardedRendering(demographicDiagnostics?.employmentRows ?? [], 'table'),
+    [demographicDiagnostics],
+  );
+  const guardedEducationRows = useMemo(
+    () => applyGuardedRendering(demographicDiagnostics?.educationRows ?? [], 'table'),
+    [demographicDiagnostics],
+  );
+  const guardedOpportunityRows = useMemo(
+    () => applyGuardedRendering(demographicDiagnostics?.opportunities ?? [], 'ranking'),
+    [demographicDiagnostics],
+  );
+
   const awarenessTopMetrics = useMemo(() => ({
     topOfMind: createMetric({
       value: selectedMetricsView?.topOfMind ?? null,
@@ -1618,6 +1670,53 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   const dashboardSourceReason = dashboardSource === 'aggregate'
     ? overviewAggregateReason
     : rawDataSourceReason;
+
+  const awarenessPayload = useMemo(() => buildAwarenessReportPayload({
+    country: activeCountry ?? '',
+    period: periodLabel,
+    bankId: selectedBankId,
+    bankName: selectedBankName,
+    compareBankId: compareBankId || null,
+    compareBankName: compareBankName || null,
+    filters: {
+      selected_brand: selectedBankId,
+      compare_brand: compareBankId || null,
+      time_window: timeWindow,
+    } as Record<string, unknown>,
+    sampleSize,
+    topOfMind: awarenessTopMetrics.topOfMind.value,
+    spontaneous: awarenessTopMetrics.spontaneous.value,
+    totalAwareness: awarenessTopMetrics.awareness.value,
+    awarenessQuality: awarenessTopMetrics.quality.value,
+    shareOfVoice: selectedAwarenessRow?.shareOfVoice ?? null,
+    awarenessDepthScore: awarenessDepthScore ?? null,
+    awarenessShareIndex: awarenessShareIndex ?? null,
+    momGrowthPct: awarenessMoMGrowthPct ?? null,
+    funnelAware: selectedMetricsView?.aware ?? null,
+    funnelSpontaneous: selectedMetricsView?.spontaneous ?? null,
+    funnelTopOfMind: selectedMetricsView?.topOfMind ?? null,
+    funnelAided: selectedMetricsView?.aided ?? null,
+    intent: intentSummary ? {
+      averageIntent: intentSummary.averageIntent,
+      highIntentPct: intentSummary.highIntentPct,
+      highIntentNonUserPct: intentSummary.highIntentNonUserPct,
+      lowIntentCurrentUserCount: intentSummary.lowIntentCurrentUserCount,
+      responseBase: intentSummary.responseBase,
+    } : null,
+    rankings: awarenessRankRows.map((r) => ({
+      bankName: r.bankName,
+      awareness: r.awareness,
+      topOfMind: r.topOfMind,
+      rank: r.rank,
+    })),
+    compareTopOfMind: compareAwarenessRow?.topOfMind ?? null,
+    compareAwareness: compareAwarenessRow?.awareness ?? null,
+  }), [
+    activeCountry, periodLabel, selectedBankId, selectedBankName, compareBankId, compareBankName,
+    timeWindow, sampleSize, awarenessTopMetrics, selectedAwarenessRow, awarenessDepthScore,
+    awarenessShareIndex, awarenessMoMGrowthPct, selectedMetricsView, intentSummary,
+    awarenessRankRows, compareAwarenessRow,
+  ]);
 
   const heroConfig = useMemo(() => {
     switch (section) {
@@ -2546,6 +2645,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <MiniBar label="Very Low (0-2)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.veryLowPct : null} color="bg-rose-500" />
                 </div>
               </div>
+              <AwarenessInsightsReport awarenessPayload={awarenessPayload} />
             </TabsContent>
 
             <TabsContent value="usage_behavior" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
@@ -3699,15 +3799,20 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </tr>
                           </thead>
                           <tbody>
-                            {demographicDiagnostics.ageRows.length > 0 ? demographicDiagnostics.ageRows.map((row) => (
-                              <tr key={`age-row-${row.segment}`} className="border-t border-white/5">
-                                <td className="py-2 pr-2">{row.segment}</td>
+                            {guardedAgeRows.length > 0 ? guardedAgeRows.map(({ data: row, dimmed, suppressMetrics }) => (
+                              <tr key={`age-row-${row.segment}`} className={`border-t border-white/5${dimmed ? ' opacity-40' : ''}`}>
+                                <td className="py-2 pr-2">
+                                  <span className="flex items-center gap-1.5">
+                                    {row.segment}
+                                    <SampleGuardBadge guard={row.guard} />
+                                  </span>
+                                </td>
                                 <td className="py-2 pr-2">{safePercent(row.samplePct)}</td>
-                                <td className="py-2 pr-2">{safePercent(row.awareness)}</td>
-                                <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
-                                <td className="py-2 pr-2">{safePercent(row.preferred)}</td>
-                                <td className="py-2 pr-2">{safeNumber(row.nps)}</td>
-                                <td className="py-2">{safeAverageIntent(row.avgIntent)}</td>
+                                <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.awareness)}</td>
+                                <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.currentUsage)}</td>
+                                <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.preferred)}</td>
+                                <td className="py-2 pr-2">{suppressMetrics ? '—' : safeNumber(row.nps)}</td>
+                                <td className="py-2">{suppressMetrics ? '—' : safeAverageIntent(row.avgIntent)}</td>
                               </tr>
                             )) : (
                               <tr>
@@ -3731,15 +3836,20 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </tr>
                           </thead>
                           <tbody>
-                            {demographicDiagnostics.genderRows.length > 0 ? demographicDiagnostics.genderRows.map((row) => (
-                              <tr key={`gender-row-${row.segment}`} className="border-t border-white/5">
-                                <td className="py-2 pr-2">{row.segment}</td>
+                            {guardedGenderRows.length > 0 ? guardedGenderRows.map(({ data: row, dimmed, suppressMetrics }) => (
+                              <tr key={`gender-row-${row.segment}`} className={`border-t border-white/5${dimmed ? ' opacity-40' : ''}`}>
+                                <td className="py-2 pr-2">
+                                  <span className="flex items-center gap-1.5">
+                                    {row.segment}
+                                    <SampleGuardBadge guard={row.guard} />
+                                  </span>
+                                </td>
                                 <td className="py-2 pr-2">{safePercent(row.samplePct)}</td>
-                                <td className="py-2 pr-2">{safePercent(row.awareness)}</td>
-                                <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
-                                <td className="py-2 pr-2">{safePercent(row.preferred)}</td>
-                                <td className="py-2 pr-2">{safeNumber(row.nps)}</td>
-                                <td className="py-2">{safePercent(row.multiBankRate)}</td>
+                                <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.awareness)}</td>
+                                <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.currentUsage)}</td>
+                                <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.preferred)}</td>
+                                <td className="py-2 pr-2">{suppressMetrics ? '—' : safeNumber(row.nps)}</td>
+                                <td className="py-2">{suppressMetrics ? '—' : safePercent(row.multiBankRate)}</td>
                               </tr>
                             )) : (
                               <tr>
@@ -3767,12 +3877,17 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             </thead>
                             <tbody>
-                              {demographicDiagnostics.employmentRows.length > 0 ? demographicDiagnostics.employmentRows.map((row) => (
-                                <tr key={`employment-row-${row.segment}`} className="border-t border-white/5">
-                                  <td className="py-2 pr-2">{row.segment}</td>
-                                  <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
-                                  <td className="py-2 pr-2">{safePercent(row.preferred)}</td>
-                                  <td className="py-2">{safeNumber(row.nps)}</td>
+                              {guardedEmploymentRows.length > 0 ? guardedEmploymentRows.map(({ data: row, dimmed, suppressMetrics }) => (
+                                <tr key={`employment-row-${row.segment}`} className={`border-t border-white/5${dimmed ? ' opacity-40' : ''}`}>
+                                  <td className="py-2 pr-2">
+                                    <span className="flex items-center gap-1.5">
+                                      {row.segment}
+                                      <SampleGuardBadge guard={row.guard} />
+                                    </span>
+                                  </td>
+                                  <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.currentUsage)}</td>
+                                  <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.preferred)}</td>
+                                  <td className="py-2">{suppressMetrics ? '—' : safeNumber(row.nps)}</td>
                                 </tr>
                               )) : (
                                 <tr>
@@ -3793,12 +3908,17 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             </thead>
                             <tbody>
-                              {demographicDiagnostics.educationRows.length > 0 ? demographicDiagnostics.educationRows.map((row) => (
-                                <tr key={`education-row-${row.segment}`} className="border-t border-white/5">
-                                  <td className="py-2 pr-2">{row.segment}</td>
-                                  <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
-                                  <td className="py-2 pr-2">{safePercent(row.preferred)}</td>
-                                  <td className="py-2">{safeNumber(row.nps)}</td>
+                              {guardedEducationRows.length > 0 ? guardedEducationRows.map(({ data: row, dimmed, suppressMetrics }) => (
+                                <tr key={`education-row-${row.segment}`} className={`border-t border-white/5${dimmed ? ' opacity-40' : ''}`}>
+                                  <td className="py-2 pr-2">
+                                    <span className="flex items-center gap-1.5">
+                                      {row.segment}
+                                      <SampleGuardBadge guard={row.guard} />
+                                    </span>
+                                  </td>
+                                  <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.currentUsage)}</td>
+                                  <td className="py-2 pr-2">{suppressMetrics ? '—' : safePercent(row.preferred)}</td>
+                                  <td className="py-2">{suppressMetrics ? '—' : safeNumber(row.nps)}</td>
                                 </tr>
                               )) : (
                                 <tr>
@@ -3829,7 +3949,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </tr>
                           </thead>
                           <tbody>
-                            {demographicDiagnostics.opportunities.length > 0 ? demographicDiagnostics.opportunities.map((row) => (
+                            {guardedOpportunityRows.length > 0 ? guardedOpportunityRows.map(({ data: row }) => (
                               <tr key={`${row.dimension}-${row.segment}`} className="border-t border-white/5">
                                 <td className="py-2 pr-2 capitalize">{row.dimension}</td>
                                 <td className="py-2 pr-2">{row.segment}</td>
@@ -3845,6 +3965,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             )}
                           </tbody>
                         </table>
+                        <SampleGuardFooter
+                          removedCount={(demographicDiagnostics?.opportunities.length ?? 0) - guardedOpportunityRows.length}
+                          context="ranking"
+                        />
                       </div>
                       <div className="mt-4">
                         <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">High-Value Segments</p>

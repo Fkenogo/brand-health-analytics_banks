@@ -45,6 +45,11 @@ vi.mock('@/services/aiStrategyAdvisorService', () => ({
     MONTHLY_QUERY_LIMIT: 10,
     SESSION_FOLLOW_UP_LIMIT: 5,
   },
+  buildAwarenessReportPayload: vi.fn().mockReturnValue({ reportType: 'awareness_consideration', sampleSize: 0, metrics: {}, funnel: {}, rankings: [], filters: {}, methodologyVersion: '1.0', country: '', period: '', bankId: '', bankName: '', compareBankId: null, compareBankName: null, intent: null, compareMetrics: null }),
+}));
+
+vi.mock('@/components/analytics/AwarenessInsightsReport', () => ({
+  AwarenessInsightsReport: () => null,
 }));
 
 vi.mock('@/components/analytics/CustomerSwitchingRadar', () => ({
