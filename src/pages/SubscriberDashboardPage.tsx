@@ -2762,7 +2762,12 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 </div>
                 <AwarenessInsightPanel insight={awarenessIntentInsight} label="Intent Analysis" />
               </div>
-              <AwarenessInsightsReport awarenessPayload={awarenessPayload} />
+              {adminMode && (
+                <div className="mt-6 border-t border-white/5 pt-6">
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">AI Analysis (Admin)</p>
+                  <AwarenessInsightsReport awarenessPayload={awarenessPayload} />
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="usage_behavior" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
