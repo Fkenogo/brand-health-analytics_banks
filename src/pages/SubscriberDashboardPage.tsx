@@ -78,7 +78,12 @@ import { CustomerSwitchingRadar } from '@/components/analytics/CustomerSwitching
 import { CustomerMigrationMap } from '@/components/analytics/CustomerMigrationMap';
 import { AwarenessInsightsReport } from '@/components/analytics/AwarenessInsightsReport';
 import { AwarenessInsightPanel } from '@/components/analytics/AwarenessInsightPanel';
-import { buildAwarenessMetricInsight } from '@/utils/awarenessInsights';
+import {
+  buildAwarenessMetricInsight,
+  buildAwarenessFunnelInsight,
+  buildAwarenessRankingInsight,
+  buildIntentInsight,
+} from '@/utils/awarenessInsights';
 import { buildAwarenessReportPayload } from '@/services/aiStrategyAdvisorService';
 import {
   BankMetrics,
@@ -1775,6 +1780,34 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     awarenessDepthScore, compareAwarenessDepthScore,
   ]);
 
+  const awarenessFunnelInsight = useMemo(() => buildAwarenessFunnelInsight({
+    aware: selectedMetricsView?.aware ?? null,
+    spontaneous: selectedMetricsView?.spontaneous ?? null,
+    topOfMind: selectedMetricsView?.topOfMind ?? null,
+    aided: selectedMetricsView?.aided ?? null,
+  }), [selectedMetricsView]);
+
+  const awarenessRankingInsight = useMemo(() => buildAwarenessRankingInsight({
+    rows: awarenessRankRows.map((r) => ({
+      bankId: r.bankId,
+      bankName: r.bankName,
+      awareness: r.awareness,
+      topOfMind: r.topOfMind,
+      rank: r.rank,
+      movement: r.movement ?? null,
+    })),
+    selectedBankId,
+    sampleSize,
+  }), [awarenessRankRows, selectedBankId, sampleSize]);
+
+  const awarenessIntentInsight = useMemo(() => intentSummary ? buildIntentInsight({
+    averageIntent: intentSummary.averageIntent,
+    highIntentPct: intentSummary.highIntentPct,
+    highIntentNonUserPct: intentSummary.highIntentNonUserPct,
+    lowIntentCurrentUserCount: intentSummary.lowIntentCurrentUserCount,
+    responseBase: intentSummary.responseBase,
+  }) : null, [intentSummary]);
+
   const heroConfig = useMemo(() => {
     switch (section) {
       case 'awareness_consideration':
@@ -2673,6 +2706,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       ]}
                     />
                   </div>
+                  <AwarenessInsightPanel insight={awarenessFunnelInsight} label="Funnel Analysis" />
                 </div>
                 <div className="dashboard-section">
                   <div className="flex items-center justify-between gap-2">
@@ -2705,6 +2739,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </tbody>
                     </table>
                   </div>
+                  <AwarenessInsightPanel insight={awarenessRankingInsight} label="Rankings Analysis" />
                 </div>
               </div>
               <div className="mt-6 dashboard-section">
@@ -2725,6 +2760,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <MiniBar label="Low (3-4)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.lowPct : null} color="bg-orange-500" />
                   <MiniBar label="Very Low (0-2)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.veryLowPct : null} color="bg-rose-500" />
                 </div>
+                <AwarenessInsightPanel insight={awarenessIntentInsight} label="Intent Analysis" />
               </div>
               <AwarenessInsightsReport awarenessPayload={awarenessPayload} />
             </TabsContent>
