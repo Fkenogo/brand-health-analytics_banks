@@ -77,6 +77,8 @@ import { aiStrategyAdvisorService, compressText, strategyAdvisorLimits, type Str
 import { CustomerSwitchingRadar } from '@/components/analytics/CustomerSwitchingRadar';
 import { CustomerMigrationMap } from '@/components/analytics/CustomerMigrationMap';
 import { AwarenessInsightsReport } from '@/components/analytics/AwarenessInsightsReport';
+import { AwarenessInsightPanel } from '@/components/analytics/AwarenessInsightPanel';
+import { buildAwarenessMetricInsight } from '@/utils/awarenessInsights';
 import { buildAwarenessReportPayload } from '@/services/aiStrategyAdvisorService';
 import {
   BankMetrics,
@@ -1718,6 +1720,61 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     awarenessRankRows, compareAwarenessRow,
   ]);
 
+  const awarenessMetricInsights = useMemo(() => ({
+    topOfMind: buildAwarenessMetricInsight({
+      key: 'top_of_mind',
+      value: awarenessTopMetrics.topOfMind.value,
+      compareValue: compareAwarenessRow?.topOfMind ?? null,
+      compareBankName: compareBankName || null,
+      sampleSize,
+    }),
+    spontaneous: buildAwarenessMetricInsight({
+      key: 'spontaneous_recall',
+      value: awarenessTopMetrics.spontaneous.value,
+      sampleSize,
+    }),
+    totalAwareness: buildAwarenessMetricInsight({
+      key: 'total_awareness',
+      value: awarenessTopMetrics.awareness.value,
+      compareValue: compareAwarenessRow?.awareness ?? null,
+      compareBankName: compareBankName || null,
+      sampleSize,
+    }),
+    awarenessQuality: buildAwarenessMetricInsight({
+      key: 'awareness_quality',
+      value: awarenessTopMetrics.quality.value,
+      sampleSize,
+    }),
+    shareOfVoice: buildAwarenessMetricInsight({
+      key: 'share_of_voice',
+      value: selectedAwarenessRow?.shareOfVoice ?? null,
+      compareValue: compareAwarenessRow?.shareOfVoice ?? null,
+      compareBankName: compareBankName || null,
+      sampleSize,
+    }),
+    momGrowth: buildAwarenessMetricInsight({
+      key: 'mom_growth',
+      value: awarenessMoMGrowthPct,
+      sampleSize,
+    }),
+    awarenessShareIndex: buildAwarenessMetricInsight({
+      key: 'awareness_share_index',
+      value: awarenessShareIndex,
+      sampleSize,
+    }),
+    awarenessDepthScore: buildAwarenessMetricInsight({
+      key: 'awareness_depth_score',
+      value: awarenessDepthScore,
+      compareValue: compareAwarenessDepthScore,
+      compareBankName: compareBankName || null,
+      sampleSize,
+    }),
+  }), [
+    awarenessTopMetrics, compareAwarenessRow, compareBankName, sampleSize,
+    selectedAwarenessRow, awarenessMoMGrowthPct, awarenessShareIndex,
+    awarenessDepthScore, compareAwarenessDepthScore,
+  ]);
+
   const heroConfig = useMemo(() => {
     switch (section) {
       case 'awareness_consideration':
@@ -2565,16 +2622,40 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
             <TabsContent value="awareness_consideration" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
               <div className="grid gap-4 md:grid-cols-4">
-                <Card title="Top of Mind" metricKey="top_of_mind" variant="primary" value={safePercent(awarenessTopMetrics.topOfMind.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.topOfMind, (value) => safePercent(value)), deltaText(awarenessDeltasView.topOfMind))} delta={compareDelta(awarenessTopMetrics.topOfMind) ?? awarenessDeltasView.topOfMind} sparklineValues={trendView.map((point) => point.topOfMind ?? null)} />
-                <Card title="Spontaneous Recall" metricKey="spontaneous_recall" variant="primary" value={safePercent(awarenessTopMetrics.spontaneous.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.spontaneous, (value) => safePercent(value)), deltaText(awarenessDeltasView.spontaneous))} delta={compareDelta(awarenessTopMetrics.spontaneous) ?? awarenessDeltasView.spontaneous} sparklineValues={trendView.map((point) => point.spontaneous ?? null)} />
-                <Card title="Total Awareness" metricKey="total_awareness" variant="primary" value={safePercent(awarenessTopMetrics.awareness.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.awareness, (value) => safePercent(value)), deltaText(awarenessDeltasView.awareness))} delta={compareDelta(awarenessTopMetrics.awareness) ?? awarenessDeltasView.awareness} sparklineValues={trendView.map((point) => point.awareness)} />
-                <Card title="Awareness Quality" metricKey="awareness_quality" variant="primary" value={safePercent(awarenessTopMetrics.quality.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.quality, (value) => safePercent(value)), `Top-of-Mind / aware · ${deltaText(awarenessDeltasView.quality)}`)} delta={compareDelta(awarenessTopMetrics.quality) ?? awarenessDeltasView.quality} />
+                <div>
+                  <Card title="Top of Mind" metricKey="top_of_mind" variant="primary" value={safePercent(awarenessTopMetrics.topOfMind.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.topOfMind, (value) => safePercent(value)), deltaText(awarenessDeltasView.topOfMind))} delta={compareDelta(awarenessTopMetrics.topOfMind) ?? awarenessDeltasView.topOfMind} sparklineValues={trendView.map((point) => point.topOfMind ?? null)} />
+                  <AwarenessInsightPanel insight={awarenessMetricInsights.topOfMind} />
+                </div>
+                <div>
+                  <Card title="Spontaneous Recall" metricKey="spontaneous_recall" variant="primary" value={safePercent(awarenessTopMetrics.spontaneous.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.spontaneous, (value) => safePercent(value)), deltaText(awarenessDeltasView.spontaneous))} delta={compareDelta(awarenessTopMetrics.spontaneous) ?? awarenessDeltasView.spontaneous} sparklineValues={trendView.map((point) => point.spontaneous ?? null)} />
+                  <AwarenessInsightPanel insight={awarenessMetricInsights.spontaneous} />
+                </div>
+                <div>
+                  <Card title="Total Awareness" metricKey="total_awareness" variant="primary" value={safePercent(awarenessTopMetrics.awareness.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.awareness, (value) => safePercent(value)), deltaText(awarenessDeltasView.awareness))} delta={compareDelta(awarenessTopMetrics.awareness) ?? awarenessDeltasView.awareness} sparklineValues={trendView.map((point) => point.awareness)} />
+                  <AwarenessInsightPanel insight={awarenessMetricInsights.totalAwareness} />
+                </div>
+                <div>
+                  <Card title="Awareness Quality" metricKey="awareness_quality" variant="primary" value={safePercent(awarenessTopMetrics.quality.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.quality, (value) => safePercent(value)), `Top-of-Mind / aware · ${deltaText(awarenessDeltasView.quality)}`)} delta={compareDelta(awarenessTopMetrics.quality) ?? awarenessDeltasView.quality} />
+                  <AwarenessInsightPanel insight={awarenessMetricInsights.awarenessQuality} />
+                </div>
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-4">
-                <Card title="Share of Voice" metricKey="share_of_voice" value={safePercent(selectedAwarenessRow?.shareOfVoice)} subtitle={compareSubtitle(compareBankName, compareAwarenessRow ? safePercent(compareAwarenessRow.shareOfVoice) : null, 'Top-of-Mind share in market')} delta={compareAwarenessRow && isFiniteMetricValue(selectedAwarenessRow?.shareOfVoice) ? selectedAwarenessRow.shareOfVoice - compareAwarenessRow.shareOfVoice : null} />
-                <Card title="MoM Growth" metricKey="mom_growth" value={pctGrowthValue(awarenessMoMGrowthPct)} subtitle={pctGrowthText(awarenessMoMGrowthPct)} />
-                <Card title="Awareness Share Index" metricKey="awareness_share_index" value={`${awarenessShareIndex}%`} subtitle="Your awareness / total market awareness" />
-                <Card title="Awareness Depth Score" metricKey="awareness_depth_score" value={`${awarenessDepthScore}/100`} subtitle={compareSubtitle(compareBankName, compareAwarenessDepthScore === null ? null : `${compareAwarenessDepthScore}/100`, 'Weighted: ToM×3 + Spontaneous×2 + AidedOnly×1')} delta={compareAwarenessDepthScore === null ? null : awarenessDepthScore - compareAwarenessDepthScore} />
+                <div>
+                  <Card title="Share of Voice" metricKey="share_of_voice" value={safePercent(selectedAwarenessRow?.shareOfVoice)} subtitle={compareSubtitle(compareBankName, compareAwarenessRow ? safePercent(compareAwarenessRow.shareOfVoice) : null, 'Top-of-Mind share in market')} delta={compareAwarenessRow && isFiniteMetricValue(selectedAwarenessRow?.shareOfVoice) ? selectedAwarenessRow.shareOfVoice - compareAwarenessRow.shareOfVoice : null} />
+                  <AwarenessInsightPanel insight={awarenessMetricInsights.shareOfVoice} />
+                </div>
+                <div>
+                  <Card title="MoM Growth" metricKey="mom_growth" value={pctGrowthValue(awarenessMoMGrowthPct)} subtitle={pctGrowthText(awarenessMoMGrowthPct)} />
+                  <AwarenessInsightPanel insight={awarenessMetricInsights.momGrowth} />
+                </div>
+                <div>
+                  <Card title="Awareness Share Index" metricKey="awareness_share_index" value={`${awarenessShareIndex}%`} subtitle="Your awareness / total market awareness" />
+                  <AwarenessInsightPanel insight={awarenessMetricInsights.awarenessShareIndex} />
+                </div>
+                <div>
+                  <Card title="Awareness Depth Score" metricKey="awareness_depth_score" value={`${awarenessDepthScore}/100`} subtitle={compareSubtitle(compareBankName, compareAwarenessDepthScore === null ? null : `${compareAwarenessDepthScore}/100`, 'Weighted: ToM×3 + Spontaneous×2 + AidedOnly×1')} delta={compareAwarenessDepthScore === null ? null : awarenessDepthScore - compareAwarenessDepthScore} />
+                  <AwarenessInsightPanel insight={awarenessMetricInsights.awarenessDepthScore} />
+                </div>
               </div>
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <div className="dashboard-section">
