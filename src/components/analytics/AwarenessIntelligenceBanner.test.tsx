@@ -5,7 +5,7 @@ import { AwarenessIntelligenceBanner } from './AwarenessIntelligenceBanner';
 import type { AwarenessInsightResult } from '@/utils/awarenessInsights';
 
 const mockSummary: AwarenessInsightResult = {
-  snapshot: 'Awareness pattern: Salience Leader. Strong top-of-mind and high awareness quality position this brand as a salience leader.',
+  snapshot: 'Awareness pattern: Salience Leader. Strong top-of-mind and high awareness quality — the brand converts its aware base into active recall effectively.',
   detail: 'AWARENESS PATTERN — SALIENCE LEADER: Strong top-of-mind...\n\nSTRATEGIC FOCUS: Defend the position.',
 };
 

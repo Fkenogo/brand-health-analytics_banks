@@ -26,30 +26,6 @@ function fmt(v: number | null): string {
   return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}%`;
 }
 
-/**
- * Splits a string at the first occurrence of `pattern` (case-insensitive) and
- * returns an array of [before, mid, after] so the caller can insert an opaque
- * element between mid's words, breaking it across DOM text nodes and preventing
- * getByText (which joins only direct text-node children) from matching the full
- * pattern phrase inside a paragraph that shouldn't be the pattern badge.
- */
-function splitAtPattern(
-  text: string,
-  pattern: string | null,
-): [string, string, string] | null {
-  if (!pattern) return null;
-  const idx = text.toLowerCase().indexOf(pattern.toLowerCase());
-  if (idx === -1) return null;
-  // Find the space inside the pattern to split there
-  const spaceIdx = pattern.indexOf(' ');
-  if (spaceIdx === -1) return null; // single-word pattern — no split possible
-  const splitOffset = idx + spaceIdx;
-  return [
-    text.slice(0, splitOffset),
-    ' ', // this becomes the content of an interstitial <span>
-    text.slice(splitOffset + 1),
-  ];
-}
 
 export const AwarenessIntelligenceBanner: React.FC<AwarenessIntelligenceBannerProps> = ({
   moduleSummary,
@@ -61,10 +37,6 @@ export const AwarenessIntelligenceBanner: React.FC<AwarenessIntelligenceBannerPr
 }) => {
   const pattern = extractPattern(moduleSummary?.snapshot);
   const takeaway = extractTakeaway(moduleSummary?.snapshot);
-
-  // If takeaway contains the pattern phrase (e.g. "salience leader") we split it
-  // across DOM nodes so getByText(/<pattern>/i) finds only the badge element.
-  const splitTakeaway = splitAtPattern(takeaway, pattern);
 
   const metrics = [
     { label: 'Total Awareness', value: fmt(totalAwareness) },
@@ -96,15 +68,7 @@ export const AwarenessIntelligenceBanner: React.FC<AwarenessIntelligenceBannerPr
 
       {takeaway && (
         <p className="mb-5 max-w-3xl text-sm leading-relaxed text-slate-300">
-          {splitTakeaway
-            ? (
-              <>
-                {splitTakeaway[0]}
-                <span>{splitTakeaway[1]}</span>
-                {splitTakeaway[2]}
-              </>
-            )
-            : takeaway}
+          {takeaway}
         </p>
       )}
 
