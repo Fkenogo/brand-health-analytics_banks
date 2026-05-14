@@ -79,6 +79,8 @@ import { CustomerMigrationMap } from '@/components/analytics/CustomerMigrationMa
 import { AwarenessInsightsReport } from '@/components/analytics/AwarenessInsightsReport';
 import { AwarenessInsightPanel } from '@/components/analytics/AwarenessInsightPanel';
 import { MetricRowAnalysisDrawer } from '@/components/analytics/MetricRowAnalysisDrawer';
+import { AwarenessIntelligenceBanner } from '@/components/analytics/AwarenessIntelligenceBanner';
+import { SectionAnalysisBlock } from '@/components/analytics/SectionAnalysisBlock';
 import {
   buildAwarenessMetricInsight,
   buildAwarenessFunnelInsight,
@@ -2663,7 +2665,15 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             </TabsContent>
 
             <TabsContent value="awareness_consideration" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
-              <div className="grid gap-4 md:grid-cols-4">
+              <AwarenessIntelligenceBanner
+                moduleSummary={awarenessModuleSummary}
+                totalAwareness={awarenessTopMetrics.awareness.value}
+                topOfMind={awarenessTopMetrics.topOfMind.value}
+                awarenessQuality={awarenessTopMetrics.quality.value}
+                country={activeCountry || ''}
+                sampleSize={sampleSize}
+              />
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className={awarenessMetricInsights.topOfMind ? 'kpi-card-has-footer' : undefined}>
                   <Card title="Top of Mind" metricKey="top_of_mind" variant="primary" value={safePercent(awarenessTopMetrics.topOfMind.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.topOfMind, (value) => safePercent(value)), deltaText(awarenessDeltasView.topOfMind))} delta={compareDelta(awarenessTopMetrics.topOfMind) ?? awarenessDeltasView.topOfMind} sparklineValues={trendView.map((point) => point.topOfMind ?? null)} />
                   {awarenessMetricInsights.topOfMind && (
@@ -2765,12 +2775,6 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 if (!cfg?.insight) return null;
                 return <MetricRowAnalysisDrawer insight={cfg.insight} title={cfg.title} definition={cfg.definition} onClose={() => setActiveAwarenessMetric(null)} />;
               })()}
-              {awarenessModuleSummary && (
-                <div className="mt-6">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Awareness Intelligence Summary</p>
-                  <AwarenessInsightPanel insight={awarenessModuleSummary} />
-                </div>
-              )}
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <div className="dashboard-section">
                   <div className="flex items-center justify-between gap-2">
@@ -2787,7 +2791,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       ]}
                     />
                   </div>
-                  <AwarenessInsightPanel insight={awarenessFunnelInsight} />
+                  <SectionAnalysisBlock title="Awareness Funnel Analysis" insight={awarenessFunnelInsight} />
                 </div>
                 <div className="dashboard-section">
                   <div className="flex items-center justify-between gap-2">
@@ -2820,7 +2824,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </tbody>
                     </table>
                   </div>
-                  <AwarenessInsightPanel insight={awarenessRankingInsight} />
+                  <SectionAnalysisBlock title="Brand Rankings Analysis" insight={awarenessRankingInsight} />
                 </div>
               </div>
               <div className="mt-6 dashboard-section">
@@ -2841,7 +2845,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <MiniBar label="Low (3-4)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.lowPct : null} color="bg-orange-500" />
                   <MiniBar label="Very Low (0-2)" value={intentSummary && intentSummary.responseBase > 0 ? intentSummary.veryLowPct : null} color="bg-rose-500" />
                 </div>
-                <AwarenessInsightPanel insight={awarenessIntentInsight} />
+                <SectionAnalysisBlock title="Future Intent & Consideration" insight={awarenessIntentInsight} />
               </div>
               {adminMode && (
                 <div className="mt-6 border-t border-white/5 pt-6">
