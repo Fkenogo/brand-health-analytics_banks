@@ -255,6 +255,23 @@
     background: #ffffff !important;
   }
 
+  .kpi-card-footer {
+    background: #ffffff;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid #f1f5f9;
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+    padding: 0.75rem 1.25rem 1rem;
+  }
+
+  .kpi-card-has-footer .kpi-card-primary,
+  .kpi-card-has-footer .kpi-card-secondary {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+
   .dashboard-tablist {
     background: transparent;
     border-bottom: 1px solid hsl(220 22% 28% / 0.5);
