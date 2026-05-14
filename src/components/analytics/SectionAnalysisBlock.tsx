@@ -40,6 +40,7 @@ export const SectionAnalysisBlock: React.FC<SectionAnalysisBlockProps> = ({
           </div>
           <button
             type="button"
+            aria-expanded={expanded}
             onClick={() => setExpanded((v) => !v)}
             className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors"
           >
@@ -52,7 +53,7 @@ export const SectionAnalysisBlock: React.FC<SectionAnalysisBlockProps> = ({
         <div className="border-t border-white/10 p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {sections.map((sec, idx) => (
-              <div key={idx} className="rounded-lg border border-white/8 bg-slate-900/50 p-3.5">
+              <div key={sec.heading ?? idx} className="rounded-lg border border-white/10 bg-slate-900/50 p-3.5">
                 {sec.heading && (
                   <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">
                     {sec.heading}
