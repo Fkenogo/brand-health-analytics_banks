@@ -90,6 +90,14 @@
     --accent-negative: #E05A5A;
     --accent-warning: #D9A441;
     --accent-neutral: #7A8CA5;
+
+    /* BrandEdge brand system */
+    --be-red: #E10613;
+    --be-charcoal: #1F2230;
+    --be-off-white: #F7F8FA;
+    --be-slate: #667085;
+    --be-border: #E4E7EC;
+    --be-surface-dark: #101828;
   }
 
   .dark {
@@ -223,7 +231,7 @@
 
   .kpi-card-primary {
     border-radius: var(--radius-lg);
-    padding: 1.25rem;
+    padding: 0.875rem 1rem;
     box-shadow: var(--shadow-2);
     background: #ffffff !important;
   }
@@ -235,7 +243,7 @@
 
   .kpi-card-secondary {
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: 0.875rem 1rem;
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: var(--shadow-1);
     background: #ffffff !important;
@@ -257,13 +265,13 @@
 
   .kpi-card-footer {
     background: #ffffff;
-    border-left: 1px solid rgba(255, 255, 255, 0.06);
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 1px solid #E4E7EC;
+    border-right: 1px solid #E4E7EC;
+    border-bottom: 1px solid #E4E7EC;
     border-top: 1px solid #f1f5f9;
     border-bottom-left-radius: var(--radius-lg);
     border-bottom-right-radius: var(--radius-lg);
-    padding: 0.75rem 1.25rem 1rem;
+    padding: 0.625rem 1rem 0.75rem;
   }
 
   .kpi-card-has-footer .kpi-card-primary,
@@ -287,7 +295,7 @@
   }
 
   .dashboard-tab-panel > .grid {
-    gap: 1.25rem !important;
+    gap: 1rem !important;
     align-items: stretch;
   }
 
