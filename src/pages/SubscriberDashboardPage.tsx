@@ -4351,7 +4351,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
       <button
         type="button"
         onClick={() => handleOpenAdvisor(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-blue-600 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-blue-950/60 hover:bg-blue-500"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-[#C1121F] px-4 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-[#3D0208]/50 hover:bg-[#E31B23]"
       >
         <BotMessageSquare className="h-4 w-4" />
         Ask Strategy Advisor
@@ -4362,7 +4362,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           <div className="flex h-full flex-col">
             <SheetHeader className="border-b border-white/10 px-5 py-4 text-left">
               <SheetTitle className="flex items-center gap-2 text-base text-white">
-                <Sparkles className="h-4 w-4 text-blue-300" />
+                <Sparkles className="h-4 w-4 text-[#E10613]/70" />
                 AI Strategy Advisor
               </SheetTitle>
               <SheetDescription className="text-xs text-slate-400">
@@ -4385,7 +4385,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     key={message.id}
                     className={`rounded-2xl p-3 text-sm ${
                       message.role === 'user'
-                        ? 'ml-8 border border-blue-500/30 bg-blue-500/10 text-blue-100'
+                        ? 'ml-8 border border-[#E10613]/25 bg-[#E10613]/10 text-slate-100'
                         : message.role === 'assistant'
                           ? 'mr-8 border border-white/10 bg-slate-900/60 text-slate-200'
                           : 'border border-slate-300 bg-slate-100 text-slate-600'
@@ -4421,13 +4421,13 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       : 'Ask about performance, risks, priorities, or competitor position...'
                   }
                   disabled={AI_ADVISOR_PLACEHOLDER_MODE}
-                  className="w-full resize-none rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500"
+                  className="w-full resize-none rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-[#E10613]/50"
                 />
                 <button
                   type="button"
                   onClick={() => void handleSubmitAdvisorQuestion()}
                   disabled={AI_ADVISOR_PLACEHOLDER_MODE || advisorLoading || !advisorQuestion.trim() || advisorUsage.used >= advisorUsage.limit}
-                  className="rounded-2xl bg-blue-600 p-3 text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-2xl bg-[#C1121F] p-3 text-white hover:bg-[#E31B23] disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label="Send strategy query"
                 >
                   {advisorLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -4499,7 +4499,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
               onClick={() => {
                 setUpgradeModalMode(null);
               }}
-              className="rounded-full border border-blue-500/40 bg-blue-500/15 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-blue-200 hover:border-blue-400"
+              className="rounded-full border border-[#E10613]/40 bg-[#E10613]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-red-200 hover:border-[#E10613]"
             >
               Upgrade to Standard
             </button>
