@@ -45,7 +45,10 @@ export const AwarenessIntelligenceBanner: React.FC<AwarenessIntelligenceBannerPr
   ];
 
   return (
-    <div className="rounded-2xl bg-[#1F2230] px-6 py-5">
+    <div
+      className="rounded-2xl px-5 py-4"
+      style={{ background: 'linear-gradient(135deg, #1F2230 0%, #200406 55%, #1F2230 100%)' }}
+    >
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
 
         {/* LEFT — strategic classification tag */}
