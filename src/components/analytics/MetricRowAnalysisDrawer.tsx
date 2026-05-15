@@ -28,19 +28,20 @@ export const MetricRowAnalysisDrawer: React.FC<MetricRowAnalysisDrawerProps> = (
   const sections = insight.detail.split('\n\n').filter(Boolean).map(parseSection);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-slate-800/60 shadow-xl">
+    <div className="rounded-xl bg-white shadow-lg" style={{ border: '1px solid #E4E7EC' }}>
+
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-white/10 px-6 py-4">
+      <div className="flex items-start justify-between px-6 py-4" style={{ borderBottom: '1px solid #E4E7EC' }}>
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#667085]">
             Detailed Analysis
           </p>
-          <h4 className="text-sm font-bold text-slate-200">{title}</h4>
+          <h4 className="text-sm font-bold text-[#1F2230]">{title}</h4>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-700 hover:text-slate-300 transition-colors text-sm"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-sm text-[#667085] transition-colors hover:bg-[#F7F8FA] hover:text-[#1F2230]"
           aria-label="Close analysis"
         >
           ✕
@@ -49,9 +50,9 @@ export const MetricRowAnalysisDrawer: React.FC<MetricRowAnalysisDrawerProps> = (
 
       {/* Metric definition strip */}
       {definition && (
-        <div className="border-b border-white/10 px-6 py-2.5">
-          <p className="text-[11px] text-slate-500">
-            <span className="font-semibold uppercase tracking-wider text-slate-600">
+        <div className="bg-[#F7F8FA] px-6 py-2.5" style={{ borderBottom: '1px solid #E4E7EC' }}>
+          <p className="text-[11px] text-[#667085]">
+            <span className="font-semibold uppercase tracking-wider text-[#1F2230]">
               What this measures:{' '}
             </span>
             {definition}
@@ -59,34 +60,34 @@ export const MetricRowAnalysisDrawer: React.FC<MetricRowAnalysisDrawerProps> = (
         </div>
       )}
 
-      {/* Two-zone body — stacks vertically on mobile, side-by-side on lg+ */}
-      <div className="flex flex-col gap-5 p-6 lg:flex-row">
-        {/* Left zone: executive snapshot */}
-        <div className="flex-shrink-0 lg:w-72 xl:w-80">
-          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-5 py-4 h-full">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-indigo-400">
-              Executive Takeaway
-            </p>
-            <p className="text-sm font-medium leading-relaxed text-slate-200">
-              {insight.snapshot}
-            </p>
-          </div>
-        </div>
+      {/* Executive Takeaway — full width */}
+      <div className="px-6 py-4" style={{ borderBottom: '1px solid #E4E7EC' }}>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#667085]">
+          Executive Takeaway
+        </p>
+        <p className="max-w-2xl text-sm font-medium leading-relaxed text-[#1F2230]">{insight.snapshot}</p>
+      </div>
 
-        {/* Right zone: section grid */}
-        <div className="flex-1 grid gap-3 sm:grid-cols-2 content-start">
+      {/* 2-column section grid — items-start prevents equal-height stretching */}
+      <div className="p-6">
+        <div className="grid gap-3 sm:grid-cols-2 items-start">
           {sections.map((sec, idx) => (
-            <div key={sec.heading ?? idx} className="rounded-lg border border-white/10 bg-slate-900/50 p-3.5">
+            <div
+              key={sec.heading ?? idx}
+              className="rounded-lg bg-[#F7F8FA] p-4 self-start"
+              style={{ border: '1px solid #E4E7EC' }}
+            >
               {sec.heading && (
-                <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[#1F2230]">
                   {sec.heading}
                 </p>
               )}
-              <p className="text-xs leading-relaxed text-slate-400">{sec.body}</p>
+              <p className="text-xs leading-relaxed text-[#667085] max-w-prose">{sec.body}</p>
             </div>
           ))}
         </div>
       </div>
+
     </div>
   );
 };
