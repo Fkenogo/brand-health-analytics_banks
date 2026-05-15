@@ -221,10 +221,10 @@ const MetricInfoIcon: React.FC<{ metricKey: DashboardMetricKey }> = ({ metricKey
           type="button"
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}
-          className="text-slate-500 hover:text-slate-200"
+          className="flex h-[18px] w-[18px] items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-[#E10613]/10 hover:text-[#E10613]"
           aria-label={`About ${content.title}`}
         >
-          <CircleHelp className="h-3.5 w-3.5" />
+          <CircleHelp className="h-4 w-4" />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -433,20 +433,20 @@ const Card: React.FC<{
           : 'kpi-card-secondary bg-slate-800/55'
     }`}
   >
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex items-center justify-between gap-1.5">
       <div className="flex items-center gap-1">
-        <p className={`text-slate-400 uppercase tracking-wide ${variant === 'primary' ? 'text-xs font-semibold' : 'text-xs'}`}>{title}</p>
+        <p className={`uppercase tracking-wide text-slate-500 ${variant === 'primary' ? 'text-[11px] font-semibold' : 'text-[10px]'}`}>{title}</p>
         {metricKey ? <MetricInfoIcon metricKey={metricKey} /> : null}
       </div>
       <DeltaBadge delta={delta} />
     </div>
-    <div className="mt-2 flex items-end justify-between gap-2">
-      <p className={`${variant === 'primary' ? 'text-5xl' : variant === 'diagnostic' ? 'text-2xl' : 'text-3xl'} font-bold text-slate-800 transition-all duration-200 motion-safe:animate-[fadeIn_160ms_ease-out]`}>
+    <div className="mt-1 flex items-end justify-between gap-2">
+      <p className={`${variant === 'primary' ? 'text-4xl' : variant === 'diagnostic' ? 'text-xl' : 'text-2xl'} font-bold text-slate-800 transition-all duration-200 motion-safe:animate-[fadeIn_160ms_ease-out]`}>
         {value}
       </p>
       <Sparkline values={sparklineValues} accent={delta && delta < 0 ? 'red' : 'blue'} />
     </div>
-    {subtitle ? <p className="mt-1 text-xs text-slate-500 leading-relaxed">{subtitle}</p> : null}
+    {subtitle ? <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{subtitle}</p> : null}
   </div>
 );
 
