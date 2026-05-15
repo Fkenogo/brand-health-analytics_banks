@@ -231,9 +231,10 @@
 
   .kpi-card-primary {
     border-radius: var(--radius-lg);
-    padding: 0.875rem 1rem;
-    box-shadow: var(--shadow-2);
+    padding: 0.625rem 1rem;
+    box-shadow: var(--shadow-1);
     background: #ffffff !important;
+    border-color: #E4E7EC !important;
   }
 
   .kpi-card-primary:hover {
@@ -243,8 +244,8 @@
 
   .kpi-card-secondary {
     border-radius: var(--radius-md);
-    padding: 0.875rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #E4E7EC;
     box-shadow: var(--shadow-1);
     background: #ffffff !important;
   }
@@ -278,6 +279,16 @@
   .kpi-card-has-footer .kpi-card-secondary {
     border-bottom-left-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
+  }
+
+  .kpi-card-has-footer {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .kpi-card-has-footer .dashboard-kpi-card {
+    flex: 1;
+    height: auto;
   }
 
   .dashboard-tablist {
