@@ -4351,7 +4351,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
       <button
         type="button"
         onClick={() => handleOpenAdvisor(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-[#C1121F] px-4 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-[#3D0208]/50 hover:bg-[#E31B23]"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-[#C1121F] px-4 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-red-950/50 hover:bg-[#E31B23]"
       >
         <BotMessageSquare className="h-4 w-4" />
         Ask Strategy Advisor
