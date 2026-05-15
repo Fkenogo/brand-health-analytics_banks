@@ -2678,8 +2678,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <Card title="Top of Mind" metricKey="top_of_mind" variant="primary" value={safePercent(awarenessTopMetrics.topOfMind.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.topOfMind, (value) => safePercent(value)), deltaText(awarenessDeltasView.topOfMind))} delta={compareDelta(awarenessTopMetrics.topOfMind) ?? awarenessDeltasView.topOfMind} sparklineValues={trendView.map((point) => point.topOfMind ?? null)} />
                   {awarenessMetricInsights.topOfMind && (
                     <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-500">{awarenessMetricInsights.topOfMind.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'topOfMind' ? null : 'topOfMind')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors">{activeAwarenessMetric === 'topOfMind' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.topOfMind.snapshot}</p>
+                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'topOfMind' ? null : 'topOfMind')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'topOfMind' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
                     </div>
                   )}
                 </div>
@@ -2687,8 +2687,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <Card title="Spontaneous Recall" metricKey="spontaneous_recall" variant="primary" value={safePercent(awarenessTopMetrics.spontaneous.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.spontaneous, (value) => safePercent(value)), deltaText(awarenessDeltasView.spontaneous))} delta={compareDelta(awarenessTopMetrics.spontaneous) ?? awarenessDeltasView.spontaneous} sparklineValues={trendView.map((point) => point.spontaneous ?? null)} />
                   {awarenessMetricInsights.spontaneous && (
                     <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-500">{awarenessMetricInsights.spontaneous.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'spontaneous' ? null : 'spontaneous')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors">{activeAwarenessMetric === 'spontaneous' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.spontaneous.snapshot}</p>
+                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'spontaneous' ? null : 'spontaneous')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'spontaneous' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
                     </div>
                   )}
                 </div>
@@ -2696,8 +2696,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <Card title="Total Awareness" metricKey="total_awareness" variant="primary" value={safePercent(awarenessTopMetrics.awareness.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.awareness, (value) => safePercent(value)), deltaText(awarenessDeltasView.awareness))} delta={compareDelta(awarenessTopMetrics.awareness) ?? awarenessDeltasView.awareness} sparklineValues={trendView.map((point) => point.awareness)} />
                   {awarenessMetricInsights.totalAwareness && (
                     <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-500">{awarenessMetricInsights.totalAwareness.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'totalAwareness' ? null : 'totalAwareness')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors">{activeAwarenessMetric === 'totalAwareness' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.totalAwareness.snapshot}</p>
+                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'totalAwareness' ? null : 'totalAwareness')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'totalAwareness' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
                     </div>
                   )}
                 </div>
@@ -2705,8 +2705,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <Card title="Awareness Quality" metricKey="awareness_quality" variant="primary" value={safePercent(awarenessTopMetrics.quality.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.quality, (value) => safePercent(value)), `Top-of-Mind / aware · ${deltaText(awarenessDeltasView.quality)}`)} delta={compareDelta(awarenessTopMetrics.quality) ?? awarenessDeltasView.quality} />
                   {awarenessMetricInsights.awarenessQuality && (
                     <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-500">{awarenessMetricInsights.awarenessQuality.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessQuality' ? null : 'awarenessQuality')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors">{activeAwarenessMetric === 'awarenessQuality' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.awarenessQuality.snapshot}</p>
+                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessQuality' ? null : 'awarenessQuality')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'awarenessQuality' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
                     </div>
                   )}
                 </div>
@@ -2729,8 +2729,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <Card title="Share of Voice" metricKey="share_of_voice" value={safePercent(selectedAwarenessRow?.shareOfVoice)} subtitle={compareSubtitle(compareBankName, compareAwarenessRow ? safePercent(compareAwarenessRow.shareOfVoice) : null, 'Top-of-Mind share in market')} delta={compareAwarenessRow && isFiniteMetricValue(selectedAwarenessRow?.shareOfVoice) ? selectedAwarenessRow.shareOfVoice - compareAwarenessRow.shareOfVoice : null} />
                   {awarenessMetricInsights.shareOfVoice && (
                     <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-500">{awarenessMetricInsights.shareOfVoice.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'shareOfVoice' ? null : 'shareOfVoice')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors">{activeAwarenessMetric === 'shareOfVoice' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.shareOfVoice.snapshot}</p>
+                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'shareOfVoice' ? null : 'shareOfVoice')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'shareOfVoice' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
                     </div>
                   )}
                 </div>
@@ -2738,8 +2738,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <Card title="MoM Growth" metricKey="mom_growth" value={pctGrowthValue(awarenessMoMGrowthPct)} subtitle={pctGrowthText(awarenessMoMGrowthPct)} />
                   {awarenessMetricInsights.momGrowth && (
                     <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-500">{awarenessMetricInsights.momGrowth.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'momGrowth' ? null : 'momGrowth')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors">{activeAwarenessMetric === 'momGrowth' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.momGrowth.snapshot}</p>
+                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'momGrowth' ? null : 'momGrowth')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'momGrowth' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
                     </div>
                   )}
                 </div>
@@ -2747,8 +2747,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <Card title="Awareness Share Index" metricKey="awareness_share_index" value={`${awarenessShareIndex}%`} subtitle="Your awareness / total market awareness" />
                   {awarenessMetricInsights.awarenessShareIndex && (
                     <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-500">{awarenessMetricInsights.awarenessShareIndex.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessShareIndex' ? null : 'awarenessShareIndex')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors">{activeAwarenessMetric === 'awarenessShareIndex' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.awarenessShareIndex.snapshot}</p>
+                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessShareIndex' ? null : 'awarenessShareIndex')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'awarenessShareIndex' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
                     </div>
                   )}
                 </div>
@@ -2756,8 +2756,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <Card title="Awareness Depth Score" metricKey="awareness_depth_score" value={`${awarenessDepthScore}/100`} subtitle={compareSubtitle(compareBankName, compareAwarenessDepthScore === null ? null : `${compareAwarenessDepthScore}/100`, 'Weighted: ToM×3 + Spontaneous×2 + AidedOnly×1')} delta={compareAwarenessDepthScore === null ? null : awarenessDepthScore - compareAwarenessDepthScore} />
                   {awarenessMetricInsights.awarenessDepthScore && (
                     <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-500">{awarenessMetricInsights.awarenessDepthScore.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessDepthScore' ? null : 'awarenessDepthScore')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors">{activeAwarenessMetric === 'awarenessDepthScore' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.awarenessDepthScore.snapshot}</p>
+                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessDepthScore' ? null : 'awarenessDepthScore')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'awarenessDepthScore' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
                     </div>
                   )}
                 </div>
