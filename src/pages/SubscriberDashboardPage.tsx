@@ -516,8 +516,7 @@ const ExecutiveHero: React.FC<{
   delta: number | null;
   summary: string;
   rightCards: Array<{ label: string; value: string; tone?: 'positive' | 'negative' | 'neutral' }>;
-  tone?: 'default' | 'momentum';
-}> = ({ label, score, delta, summary, rightCards, tone = 'default' }) => (
+}> = ({ label, score, delta, summary, rightCards }) => (
   <div className="grid gap-8 md:grid-cols-3">
     <div className="rounded-3xl bg-gradient-to-br from-[#5A0B10] via-[#8E1018] to-[#C1121F] p-10 text-white md:col-span-2">
       <p className="text-sm font-semibold uppercase tracking-wide text-red-100">{label}</p>
@@ -2487,7 +2486,6 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 delta={heroConfig.delta}
                 summary={heroConfig.summary}
                 rightCards={heroConfig.rightCards}
-                tone={heroConfig.tone}
               />
             </div>
 
