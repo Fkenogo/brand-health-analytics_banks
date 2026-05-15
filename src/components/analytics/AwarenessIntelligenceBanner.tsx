@@ -45,42 +45,50 @@ export const AwarenessIntelligenceBanner: React.FC<AwarenessIntelligenceBannerPr
   ];
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-800/60 px-6 py-5">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-indigo-400" aria-hidden="true">◈</span>
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+    <div className="rounded-2xl bg-[#1F2230] px-6 py-5">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+
+        {/* LEFT — strategic classification tag */}
+        <div className="flex-shrink-0 lg:w-48">
+          {pattern ? (
+            <div className="mb-3 inline-block rounded border border-[#E10613]/30 bg-[#E10613]/10 px-2.5 py-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-[#E10613]">{pattern}</span>
+            </div>
+          ) : (
+            <div className="mb-3 inline-block rounded border border-white/10 bg-white/5 px-2.5 py-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-[#667085]">INTELLIGENCE</span>
+            </div>
+          )}
+          <p className="text-[10px] font-medium uppercase tracking-widest text-[#667085]">
+            {country} · N={sampleSize}
+          </p>
+        </div>
+
+        {/* CENTER — executive narrative */}
+        <div className="min-w-0 flex-1">
+          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#667085]">
+            <span className="text-[#E10613]" aria-hidden="true">◈</span>
             Awareness Intelligence
-          </span>
+          </p>
+          {takeaway ? (
+            <p className="text-sm leading-relaxed text-[#F7F8FA]">{takeaway}</p>
+          ) : (
+            <p className="text-sm text-[#667085]">No intelligence data available.</p>
+          )}
         </div>
-        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-600">
-          {country} · N={sampleSize}
-        </span>
-      </div>
 
-      {pattern && (
-        <div className="mb-3 inline-block rounded-md border border-indigo-500/30 bg-indigo-500/20 px-2.5 py-1">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-300">
-            {pattern}
-          </span>
-        </div>
-      )}
-
-      {takeaway && (
-        <p className="mb-5 max-w-3xl text-sm leading-relaxed text-slate-300">
-          {takeaway}
-        </p>
-      )}
-
-      <div className="grid grid-cols-3 gap-3">
-        {metrics.map(({ label, value }) => (
-          <div key={label} className="rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-              {label}
-            </p>
-            <p className="text-2xl font-black text-slate-100">{value}</p>
+        {/* RIGHT — compact stats column */}
+        <div className="flex-shrink-0 lg:w-52">
+          <div className="grid grid-cols-3 gap-2 lg:grid-cols-1 lg:gap-2">
+            {metrics.map(({ label, value }) => (
+              <div key={label} className="rounded-lg border border-white/10 bg-[#101828] px-3 py-2.5">
+                <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-widest text-[#667085]">{label}</p>
+                <p className="text-xl font-black text-[#F7F8FA]">{value}</p>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
       </div>
     </div>
   );
