@@ -324,7 +324,7 @@ const SectionInsightsTrigger: React.FC<{ sectionKey: DashboardSectionInsightKey;
 type CardVariant = 'primary' | 'secondary' | 'diagnostic';
 type SurfaceMode = 'executive-dark' | 'soft-neutral';
 const SURFACE_MODE_STORAGE_KEY = 'subscriber-dashboard-surface-mode';
-const ACCENT_PRIMARY = '#4F8CFF';
+const ACCENT_PRIMARY = '#E10613';
 const ACCENT_POSITIVE = '#059669';
 const ACCENT_NEGATIVE = '#F43F5E';
 const ACCENT_NEUTRAL = '#94A3B8';
@@ -480,7 +480,7 @@ const FunnelSteps: React.FC<{ steps: Array<{ label: string; value: number; color
         const previous = idx > 0 ? steps[idx - 1] : null;
         const conversion = previous && previous.value > 0 ? Math.round((step.value / previous.value) * 100) : null;
         const dropOff = previous ? Math.max(previous.value - step.value, 0) : null;
-        const stageColors = [ACCENT_PRIMARY, '#6E8DC5', '#85A3D6', ACCENT_POSITIVE];
+        const stageColors = [ACCENT_PRIMARY, '#667085', '#94A3B8', ACCENT_POSITIVE];
         const stageColor = step.color.startsWith('#') ? step.color : stageColors[idx % stageColors.length];
         const dropPct = previous && previous.value > 0 ? (dropOff / previous.value) * 100 : 0;
         const dropColor = dropPct >= 25 ? ACCENT_NEGATIVE : ACCENT_NEUTRAL;
@@ -519,13 +519,13 @@ const ExecutiveHero: React.FC<{
   tone?: 'default' | 'momentum';
 }> = ({ label, score, delta, summary, rightCards, tone = 'default' }) => (
   <div className="grid gap-8 md:grid-cols-3">
-    <div className={`rounded-3xl bg-gradient-to-br p-10 text-white md:col-span-2 ${tone === 'momentum' ? 'from-blue-700 to-blue-600' : 'from-blue-600 to-blue-500'}`}>
-      <p className="text-sm font-semibold uppercase tracking-wide text-blue-100">{label}</p>
+    <div className="rounded-3xl bg-gradient-to-br from-[#5A0B10] via-[#8E1018] to-[#C1121F] p-10 text-white md:col-span-2">
+      <p className="text-sm font-semibold uppercase tracking-wide text-red-100">{label}</p>
       <p className="mt-4 text-6xl font-bold">{score}</p>
-      <p className="mt-4 text-sm font-medium" style={{ color: delta === null ? '#DBEAFE' : delta > 0 ? '#A7F3D0' : delta < 0 ? '#FECACA' : '#DBEAFE' }}>
+      <p className="mt-4 text-sm font-medium" style={{ color: delta === null ? 'rgba(255,255,255,0.65)' : delta > 0 ? '#A7F3D0' : delta < 0 ? '#FECACA' : 'rgba(255,255,255,0.65)' }}>
         {delta === null ? 'No previous period delta' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}pp vs previous period`}
       </p>
-      <p className="mt-3 text-sm text-blue-100">{summary}</p>
+      <p className="mt-3 text-sm text-red-100">{summary}</p>
     </div>
     <div className="grid gap-6">
       {rightCards.map((item) => (
