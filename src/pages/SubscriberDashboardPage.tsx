@@ -277,7 +277,7 @@ const SectionInsightsTrigger: React.FC<{ sectionKey: DashboardSectionInsightKey;
       <DialogTrigger asChild>
         <button
           type="button"
-          className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-semibold text-slate-300 hover:border-blue-500"
+          className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-semibold text-slate-300 hover:border-[#E10613]/50"
         >
           {ctaLabel}
         </button>
@@ -286,13 +286,13 @@ const SectionInsightsTrigger: React.FC<{ sectionKey: DashboardSectionInsightKey;
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">{content.title}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 border-l-2 border-blue-400/45 pl-5 text-sm leading-relaxed">
+        <div className="space-y-4 border-l-2 border-[#E10613]/40 pl-5 text-sm leading-relaxed">
           <div className="rounded-xl bg-slate-800/70 p-4">
             <p className="text-xs font-semibold text-slate-300">Interpretation Thresholds</p>
             <ul className="mt-2 space-y-2.5 text-slate-200">
               {content.interpretationThresholds.map((item) => (
                 <li key={item} className="flex items-start gap-2">
-                  <ChevronRight className="mt-0.5 h-3.5 w-3.5 text-blue-300" />
+                  <ChevronRight className="mt-0.5 h-3.5 w-3.5 text-[#E10613]" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -2309,7 +2309,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             <button
               type="button"
               onClick={() => setSurfaceMode((prev) => (prev === 'executive-dark' ? 'soft-neutral' : 'executive-dark'))}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-blue-500"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-[#E10613]/50"
             >
               <Palette className="h-3.5 w-3.5" />
               {surfaceMode === 'executive-dark' ? 'Soft Neutral Mode' : 'Dark Executive Mode'}
@@ -2318,13 +2318,13 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
               <>
                 <button
                   onClick={() => navigate('/survey')}
-                  className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-blue-500"
+                  className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-[#E10613]/50"
                 >
                   Survey Access
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-blue-500">
+                    <button className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-[#E10613]/50">
                       Admin Modules
                     </button>
                   </DropdownMenuTrigger>
@@ -2346,7 +2346,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             ) : null}
             <button
               onClick={handleExit}
-              className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-blue-500"
+              className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-[#E10613]/50"
             >
               Log Out
             </button>
@@ -2419,7 +2419,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 <button
                   onClick={exportCurrentView}
                   disabled={exportControlDisabled}
-                  className="w-full rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide disabled:opacity-50"
+                  className="w-full rounded-lg bg-[#C1121F] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-[#E31B23] disabled:opacity-50"
                 >
                 Export view
               </button>
@@ -2441,7 +2441,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <button
                     key={age}
                     onClick={() => toggleFilter(age, ageGroups, setAgeGroups)}
-                    className={`rounded-full border px-3 py-1 text-xs ${ageGroups.includes(age) ? 'border-blue-500 bg-blue-500/20 text-blue-200' : 'border-white/10 text-slate-300'}`}
+                    className={`rounded-full border px-3 py-1 text-xs ${ageGroups.includes(age) ? 'border-[#E10613] bg-[#E10613]/15 text-red-200' : 'border-white/10 text-slate-300'}`}
                   >
                     {age}
                   </button>
@@ -2455,7 +2455,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <button
                     key={gender}
                     onClick={() => toggleFilter(gender, genders, setGenders)}
-                    className={`rounded-full border px-3 py-1 text-xs uppercase ${genders.includes(gender) ? 'border-blue-500 bg-blue-500/20 text-blue-200' : 'border-white/10 text-slate-300'}`}
+                    className={`rounded-full border px-3 py-1 text-xs uppercase ${genders.includes(gender) ? 'border-[#E10613] bg-[#E10613]/15 text-red-200' : 'border-white/10 text-slate-300'}`}
                   >
                     {gender}
                   </button>
@@ -2547,7 +2547,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     type="button"
                     onClick={exportCurrentView}
                     disabled={exportControlDisabled}
-                    className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:border-blue-500 disabled:opacity-50"
+                    className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:border-[#E10613]/50 disabled:opacity-50"
                   >
                     Export Summary
                   </button>
@@ -2570,7 +2570,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <td className="py-2 pr-2">{deltaText(awarenessDeltasView.awareness)}</td>
                         <td className="py-2 pr-2">Increase top-of-mind conversion from the awareness base</td>
                         <td className="py-2">
-                          <button type="button" onClick={() => requestSection('awareness_consideration')} className="text-blue-300 hover:text-blue-200">View Report</button>
+                          <button type="button" onClick={() => requestSection('awareness_consideration')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
                         </td>
                       </tr>
                       <tr className="border-t border-white/5">
@@ -2579,7 +2579,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <td className="py-2 pr-2">Highest friction: {safeText(usageDiagnostics?.highestFrictionStage, EMPTY_COPY.noData)}</td>
                         <td className="py-2 pr-2">Reduce drop-off at the highest-friction stage</td>
                         <td className="py-2">
-                          <button type="button" onClick={() => requestSection('usage_behavior')} className="text-blue-300 hover:text-blue-200">View Report</button>
+                          <button type="button" onClick={() => requestSection('usage_behavior')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
                         </td>
                       </tr>
                       <tr className="border-t border-white/5">
@@ -2588,7 +2588,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <td className="py-2 pr-2">{isFiniteMetricValue(loyaltyDiagnosticsView?.segmentPcts.Rejectors) ? `${safePercent(loyaltyDiagnosticsView?.segmentPcts.Rejectors)} rejectors` : EMPTY_COPY.noData}</td>
                         <td className="py-2 pr-2">Increase committed share by converting potential and favors; reduce rejectors</td>
                         <td className="py-2">
-                          <button type="button" onClick={() => requestSection('loyalty_satisfaction')} className="text-blue-300 hover:text-blue-200">View Report</button>
+                          <button type="button" onClick={() => requestSection('loyalty_satisfaction')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
                         </td>
                       </tr>
                       <tr className="border-t border-white/5">
@@ -2597,7 +2597,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <td className="py-2 pr-2">{safeText(momentumDiagnosticsView?.velocityLabel, EMPTY_COPY.noData)}</td>
                         <td className="py-2 pr-2">Prioritize the highest-ROI momentum driver gap</td>
                         <td className="py-2">
-                          <button type="button" onClick={() => requestSection('brand_momentum')} className="text-blue-300 hover:text-blue-200">View Report</button>
+                          <button type="button" onClick={() => requestSection('brand_momentum')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
                         </td>
                       </tr>
                       <tr className="border-t border-white/5">
@@ -2606,7 +2606,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <td className="py-2 pr-2">{isFiniteMetricValue(competitiveDiagnostics?.winLoss.overallWinRate) ? `${hasObservedWinLoss ? 'Observed Win Rate' : 'Proxy Balance'} ${safePercent(competitiveDiagnostics?.winLoss.overallWinRate)}` : EMPTY_COPY.noData}</td>
                         <td className="py-2 pr-2">Respond to the strongest competitive risk signal</td>
                         <td className="py-2">
-                          <button type="button" onClick={() => requestSection('competitive_intelligence')} className="text-blue-300 hover:text-blue-200">View Report</button>
+                          <button type="button" onClick={() => requestSection('competitive_intelligence')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
                         </td>
                       </tr>
                       <tr className="border-t border-white/5">
@@ -2615,7 +2615,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <td className="py-2 pr-2">{demographicDiagnostics?.opportunities[0]?.priority ? `${safeText(demographicDiagnostics?.opportunities[0]?.priority)} priority gap` : EMPTY_COPY.noData}</td>
                         <td className="py-2 pr-2">Target cohorts with the largest usage gap and strongest potential</td>
                         <td className="py-2">
-                          <button type="button" onClick={() => requestSection('demographics')} className="text-blue-300 hover:text-blue-200">View Report</button>
+                          <button type="button" onClick={() => requestSection('demographics')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
                         </td>
                       </tr>
                       <tr className="border-t border-white/5">
@@ -2624,7 +2624,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <td className="py-2 pr-2">{trendsDiagnostics?.signal.isSignificantSignal ? 'Significant trend signal' : 'No significant signal'}</td>
                         <td className="py-2 pr-2">Act on stable trend signals and monitor volatility risk</td>
                         <td className="py-2">
-                          <button type="button" onClick={() => requestSection('trends_forecasts')} className="text-blue-300 hover:text-blue-200">View Report</button>
+                          <button type="button" onClick={() => requestSection('trends_forecasts')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
                         </td>
                       </tr>
                     </tbody>
@@ -4437,7 +4437,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 <button
                   type="button"
                   onClick={() => handleDownloadExecutiveBrief()}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-200 hover:border-blue-500"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-200 hover:border-[#E10613]/50"
                 >
                   <FileDown className="h-3.5 w-3.5" />
                   Download Executive Strategy Brief
@@ -4445,7 +4445,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 <button
                   type="button"
                   onClick={resetAdvisorSession}
-                  className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:border-blue-500"
+                  className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:border-[#E10613]/50"
                 >
                   Start New Session
                 </button>
@@ -4515,7 +4515,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             <button
               type="button"
               onClick={() => setUpgradeModalMode(null)}
-              className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-slate-300 hover:border-blue-500"
+              className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-slate-300 hover:border-[#E10613]/50"
             >
               Close
             </button>
