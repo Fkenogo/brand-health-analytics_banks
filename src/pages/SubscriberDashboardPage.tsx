@@ -81,6 +81,12 @@ import { AwarenessInsightPanel } from '@/components/analytics/AwarenessInsightPa
 import { MetricRowAnalysisDrawer } from '@/components/analytics/MetricRowAnalysisDrawer';
 import { AwarenessIntelligenceBanner } from '@/components/analytics/AwarenessIntelligenceBanner';
 import { SectionAnalysisBlock } from '@/components/analytics/SectionAnalysisBlock';
+import { UsageIntelligenceBanner } from '@/components/analytics/UsageIntelligenceBanner';
+import {
+  buildTrialInsight,
+  buildRetentionInsight,
+  buildPreferenceInsight,
+} from '@/utils/usageInsights';
 import {
   buildAwarenessMetricInsight,
   buildAwarenessFunnelInsight,
@@ -737,6 +743,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     return storedMode === 'soft-neutral' ? 'soft-neutral' : 'executive-dark';
   });
   const [activeAwarenessMetric, setActiveAwarenessMetric] = useState<string | null>(null);
+  const [activeUsageMetric, setActiveUsageMetric] = useState<'retention' | 'bumo' | null>(null);
   const [showAdminAI, setShowAdminAI] = useState(false);
 
   const canExport = !isFreeTier && (adminMode ? true : hasPermission(state.user || null, 'reports:export'));
@@ -1818,6 +1825,32 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     awarenessPayload ? buildAwarenessModuleSummary(awarenessPayload) : null,
   [awarenessPayload]);
 
+  const trialInsight = useMemo(() => usageDiagnostics ? buildTrialInsight({
+    trialRate: usageDiagnostics.trialRate,
+    awareCount: usageDiagnostics.awareCount,
+    everCount: usageDiagnostics.everCount,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
+  const retentionInsight = useMemo(() => usageDiagnostics ? buildRetentionInsight({
+    retentionRate: usageDiagnostics.retentionRate,
+    churnRate: usageDiagnostics.churnRate,
+    lapseRate: usageDiagnostics.lapseRate,
+    everCount: usageDiagnostics.everCount,
+    currentCount: usageDiagnostics.currentCount,
+    retentionMedian: usageDiagnostics.retentionMedian,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
+  const preferenceInsight = useMemo(() => usageDiagnostics ? buildPreferenceInsight({
+    preferenceRate: usageDiagnostics.preferenceRate,
+    bumoPenetration: usageDiagnostics.bumoPenetration,
+    preferredCount: usageDiagnostics.preferredCount,
+    currentCount: usageDiagnostics.currentCount,
+    positionLabel: usageDiagnostics.positionLabel,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
   const heroConfig = useMemo(() => {
     switch (section) {
       case 'awareness_consideration':
@@ -2886,14 +2919,22 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.currentUsage.compare ? safePercent(usageToplineMetrics.currentUsage.compare.value) : null, isFiniteMetricValue(usageToplineMetrics?.currentUsage.count) ? `${safeCount(usageToplineMetrics?.currentUsage.count)} respondents` : EMPTY_COPY.noDataInSlice)}
                       delta={usageToplineMetrics?.currentUsage.compare?.delta ?? null}
                     />
-                    <Card
-                      title="Preferred"
-                      metricKey="bumo"
-                      variant="primary"
-                      value={safePercent(usageToplineMetrics?.preferred.value)}
-                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.preferred.compare ? safePercent(usageToplineMetrics.preferred.compare.value) : null, isFiniteMetricValue(usageToplineMetrics?.preferred.count) ? `${safeCount(usageToplineMetrics?.preferred.count)} respondents` : EMPTY_COPY.noDataInSlice)}
-                      delta={usageToplineMetrics?.preferred.compare?.delta ?? null}
-                    />
+                    <div className={preferenceInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Preferred"
+                        metricKey="bumo"
+                        variant="primary"
+                        value={safePercent(usageToplineMetrics?.preferred.value)}
+                        subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.preferred.compare ? safePercent(usageToplineMetrics.preferred.compare.value) : null, isFiniteMetricValue(usageToplineMetrics?.preferred.count) ? `${safeCount(usageToplineMetrics?.preferred.count)} respondents` : EMPTY_COPY.noDataInSlice)}
+                        delta={usageToplineMetrics?.preferred.compare?.delta ?? null}
+                      />
+                      {preferenceInsight && (
+                        <div className="kpi-card-footer">
+                          <p className="text-[11px] leading-snug text-slate-600">{preferenceInsight.snapshot}</p>
+                          <button type="button" onClick={() => setActiveUsageMetric((p) => p === 'bumo' ? null : 'bumo')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeUsageMetric === 'bumo' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                        </div>
+                      )}
+                    </div>
                     <Card
                       title="Consideration"
                       metricKey="future_consideration_rate"
@@ -2911,14 +2952,28 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     />
                   </div>
 
+                  {(() => {
+                    if (activeUsageMetric !== 'bumo' || !preferenceInsight) return null;
+                    return <MetricRowAnalysisDrawer insight={preferenceInsight} title="Preferred (BUMO Penetration)" definition="Percentage of aware respondents who name this bank as their primary/most-used bank" onClose={() => setActiveUsageMetric(null)} />;
+                  })()}
+                  <AwarenessInsightPanel insight={trialInsight} />
+
                   <div className="mt-6 grid gap-4 md:grid-cols-4">
-                    <Card
-                      title="Retention"
-                      metricKey="retention_rate"
-                      value={safePercent(usageToplineMetrics?.retention.value)}
-                      subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.retention.compare ? safePercent(usageToplineMetrics.retention.compare.value) : null, 'Current / ever used')}
-                      delta={usageToplineMetrics?.retention.compare?.delta ?? null}
-                    />
+                    <div className={retentionInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Retention"
+                        metricKey="retention_rate"
+                        value={safePercent(usageToplineMetrics?.retention.value)}
+                        subtitle={compareSubtitle(compareBankName, usageToplineMetrics?.retention.compare ? safePercent(usageToplineMetrics.retention.compare.value) : null, 'Current / ever used')}
+                        delta={usageToplineMetrics?.retention.compare?.delta ?? null}
+                      />
+                      {retentionInsight && (
+                        <div className="kpi-card-footer">
+                          <p className="text-[11px] leading-snug text-slate-600">{retentionInsight.snapshot}</p>
+                          <button type="button" onClick={() => setActiveUsageMetric((p) => p === 'retention' ? null : 'retention')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeUsageMetric === 'retention' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
+                        </div>
+                      )}
+                    </div>
                     <Card
                       title="Churn"
                       metricKey="churn_rate"
@@ -2935,6 +2990,12 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     />
                     <Card title="Multi-Banking" metricKey="multi_banking_rate" value={`${usageDiagnostics.multiBankingPct}%`} subtitle={`Average banks per user: ${usageDiagnostics.avgBanksPerUser}`} />
                   </div>
+
+                  {(() => {
+                    if (activeUsageMetric !== 'retention' || !retentionInsight) return null;
+                    return <MetricRowAnalysisDrawer insight={retentionInsight} title="Retention Rate" definition="Percentage of respondents who have ever used the bank who are currently active users" onClose={() => setActiveUsageMetric(null)} />;
+                  })()}
+                  <AwarenessInsightPanel insight={retentionInsight} />
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
                     <div className={`dashboard-section ${(trendsDiagnostics.volatility.label || '').toLowerCase().includes('high') ? 'dashboard-risk-warning' : ''}`}>
@@ -4351,7 +4412,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
       <button
         type="button"
         onClick={() => handleOpenAdvisor(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-[#C1121F] px-4 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-red-950/50 hover:bg-[#E31B23]"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-[#C1121F] px-4 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-[#3D0208]/50 hover:bg-[#E31B23]"
       >
         <BotMessageSquare className="h-4 w-4" />
         Ask Strategy Advisor
