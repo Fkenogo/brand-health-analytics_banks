@@ -83,9 +83,15 @@ import { AwarenessIntelligenceBanner } from '@/components/analytics/AwarenessInt
 import { SectionAnalysisBlock } from '@/components/analytics/SectionAnalysisBlock';
 import { UsageIntelligenceBanner } from '@/components/analytics/UsageIntelligenceBanner';
 import {
+  buildUsageModuleInsight,
   buildTrialInsight,
   buildRetentionInsight,
   buildPreferenceInsight,
+  buildMultiBankingInsight,
+  buildUsageFunnelInsight,
+  buildDropoffInsight,
+  buildSegmentationInsight,
+  buildConversionChainInsight,
 } from '@/utils/usageInsights';
 import {
   buildAwarenessMetricInsight,
@@ -1851,6 +1857,58 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     sampleSize: usageDiagnostics.sample,
   }) : null, [usageDiagnostics]);
 
+  const usageModuleSummary = useMemo(() => usageDiagnostics ? buildUsageModuleInsight({
+    trialRate: usageDiagnostics.trialRate,
+    retentionRate: usageDiagnostics.retentionRate,
+    preferenceRate: usageDiagnostics.preferenceRate,
+    funnelHealthDiagnosis: usageDiagnostics.funnelHealthDiagnosis,
+    positionLabel: usageDiagnostics.positionLabel,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
+  const usageFunnelInsight = useMemo(() => usageDiagnostics ? buildUsageFunnelInsight({
+    trialRate: usageDiagnostics.trialRate,
+    retentionRate: usageDiagnostics.retentionRate,
+    preferenceRate: usageDiagnostics.preferenceRate,
+    funnelHealthDiagnosis: usageDiagnostics.funnelHealthDiagnosis,
+    highestFrictionStage: usageDiagnostics.highestFrictionStage,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
+  const conversionChainInsight = useMemo(() => usageDiagnostics ? buildConversionChainInsight({
+    trialRate: usageDiagnostics.trialRate,
+    retentionRate: usageDiagnostics.retentionRate,
+    preferenceRate: usageDiagnostics.preferenceRate,
+    opportunities: usageDiagnostics.opportunities,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
+  const multiBankingInsight = useMemo(() => usageDiagnostics ? buildMultiBankingInsight({
+    multiBankingPct: usageDiagnostics.multiBankingPct,
+    singleBankerPct: usageDiagnostics.singleBankerPct,
+    dualBankerPct: usageDiagnostics.dualBankerPct,
+    primaryPositionInMultiPct: usageDiagnostics.primaryPositionInMultiPct,
+    avgBanksPerUser: usageDiagnostics.avgBanksPerUser,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
+  const dropoffInsight = useMemo(() => usageDiagnostics ? buildDropoffInsight({
+    dropoffStages: usageDiagnostics.dropoffStages,
+    highestFrictionStage: usageDiagnostics.highestFrictionStage,
+    funnelHealthDiagnosis: usageDiagnostics.funnelHealthDiagnosis,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
+  const segmentationInsight = useMemo(() => usageDiagnostics ? buildSegmentationInsight({
+    nonTriersCount: usageDiagnostics.nonTriersCount,
+    lapsedUsersCount: usageDiagnostics.lapsedUsersCount,
+    secondaryUsersCount: usageDiagnostics.secondaryUsersCount,
+    primaryUsersCount: usageDiagnostics.primaryUsersCount,
+    awareCount: usageDiagnostics.awareCount,
+    opportunities: usageDiagnostics.opportunities,
+    sampleSize: usageDiagnostics.sample,
+  }) : null, [usageDiagnostics]);
+
   const heroConfig = useMemo(() => {
     switch (section) {
       case 'awareness_consideration':
@@ -2902,7 +2960,15 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             <TabsContent value="usage_behavior" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
               {usageDiagnostics ? (
                 <>
-                  <div className="grid gap-4 md:grid-cols-5">
+                  <UsageIntelligenceBanner
+                    moduleSummary={usageModuleSummary}
+                    retentionRate={usageDiagnostics.retentionRate}
+                    bumoPenetration={usageDiagnostics.bumoPenetration}
+                    multiBankingPct={usageDiagnostics.multiBankingPct}
+                    positionLabel={usageDiagnostics.positionLabel}
+                    sampleSize={sampleSize}
+                  />
+                  <div className="mt-6 grid gap-4 md:grid-cols-5">
                     <Card
                       title="Ever Used"
                       metricKey="ever_used"
@@ -3022,6 +3088,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       <p className="mt-3 text-xs text-slate-500">
                         Counts: Aware {safeCount(usageDiagnostics.awareCount)} {'->'} Ever {safeCount(usageDiagnostics.everCount)} {'->'} Current {safeCount(usageDiagnostics.currentCount)} {'->'} Preferred {safeCount(usageDiagnostics.preferredCount)}
                       </p>
+                      <SectionAnalysisBlock title="Usage Funnel Analysis" insight={usageFunnelInsight} />
                     </div>
 
                     <div className="dashboard-section">
@@ -3035,6 +3102,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <MiniBar label="Churn" value={usageDiagnostics.churnRate} color="bg-rose-500" />
                         <MiniBar label="Preference capture" value={usageDiagnostics.preferenceRate} color="bg-amber-500" />
                       </div>
+                      <SectionAnalysisBlock title="Conversion Chain Analysis" insight={conversionChainInsight} />
                     </div>
                   </div>
 
@@ -3053,6 +3121,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <MiniBar label="Dual-bankers" value={usageDiagnostics.currentCount > 0 ? usageDiagnostics.dualBankerPct : null} color="bg-violet-500" />
                         <MiniBar label="3+ bank users" value={usageDiagnostics.currentCount > 0 ? usageDiagnostics.multiBankerPct : null} color="bg-cyan-500" />
                       </div>
+                      <SectionAnalysisBlock title="Multi-Banking Analysis" insight={multiBankingInsight} />
                     </div>
 
                     <div className="dashboard-section">
@@ -3215,6 +3284,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Drop-Off Analysis" insight={dropoffInsight} />
                     </div>
                   </div>
 
@@ -3226,6 +3296,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <p className="mt-4 text-sm text-slate-300">{usageDiagnostics.funnelHealthDiagnosis}</p>
                       <p className="mt-2 text-xs text-slate-500">Highest friction stage: {safeText(usageDiagnostics.highestFrictionStage, 'No diagnosed stage')}</p>
+                      <SectionAnalysisBlock title="Funnel Health Analysis" insight={segmentationInsight} />
                     </div>
 
                     <div className="dashboard-section">
