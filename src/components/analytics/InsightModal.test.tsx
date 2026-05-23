@@ -29,9 +29,9 @@ describe('InsightModal', () => {
     expect(screen.getByText('Aided Awareness')).toBeInTheDocument();
   });
 
-  it('renders "Detailed Analysis" label', () => {
+  it('renders workspace label', () => {
     render(<InsightModal {...defaultProps} />);
-    expect(screen.getByText('Detailed Analysis')).toBeInTheDocument();
+    expect(screen.getByText('Executive Intelligence Workspace')).toBeInTheDocument();
   });
 
   it('renders "Executive Takeaway" and snapshot text', () => {
@@ -68,9 +68,9 @@ describe('InsightModal', () => {
 
   it('click outside backdrop calls onClose', () => {
     const onClose = vi.fn();
-    const { container } = render(<InsightModal {...defaultProps} onClose={onClose} />);
-    // The backdrop is the first child of the container (the fixed overlay div)
-    const backdrop = container.firstChild as HTMLElement;
+    render(<InsightModal {...defaultProps} onClose={onClose} />);
+    // Portal renders into document.body — the backdrop is the dialog's parent element
+    const backdrop = screen.getByRole('dialog').parentElement as HTMLElement;
     fireEvent.click(backdrop);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
