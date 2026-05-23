@@ -78,7 +78,7 @@ import { CustomerSwitchingRadar } from '@/components/analytics/CustomerSwitching
 import { CustomerMigrationMap } from '@/components/analytics/CustomerMigrationMap';
 import { AwarenessInsightsReport } from '@/components/analytics/AwarenessInsightsReport';
 import { AwarenessInsightPanel } from '@/components/analytics/AwarenessInsightPanel';
-import { MetricRowAnalysisDrawer } from '@/components/analytics/MetricRowAnalysisDrawer';
+import { KpiCardAnalysisFooter } from '@/components/analytics/KpiCardAnalysisFooter';
 import { AwarenessIntelligenceBanner } from '@/components/analytics/AwarenessIntelligenceBanner';
 import { SectionAnalysisBlock } from '@/components/analytics/SectionAnalysisBlock';
 import { UsageIntelligenceBanner } from '@/components/analytics/UsageIntelligenceBanner';
@@ -92,6 +92,7 @@ import {
   buildDropoffInsight,
   buildSegmentationInsight,
   buildConversionChainInsight,
+  buildCompetitiveOverlapInsight,
 } from '@/utils/usageInsights';
 import {
   buildAwarenessMetricInsight,
@@ -748,8 +749,6 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     const storedMode = window.localStorage.getItem(SURFACE_MODE_STORAGE_KEY);
     return storedMode === 'soft-neutral' ? 'soft-neutral' : 'executive-dark';
   });
-  const [activeAwarenessMetric, setActiveAwarenessMetric] = useState<string | null>(null);
-  const [activeUsageMetric, setActiveUsageMetric] = useState<'retention' | 'bumo' | null>(null);
   const [showAdminAI, setShowAdminAI] = useState(false);
 
   const canExport = !isFreeTier && (adminMode ? true : hasPermission(state.user || null, 'reports:export'));
@@ -1909,6 +1908,15 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     sampleSize: usageDiagnostics.sample,
   }) : null, [usageDiagnostics]);
 
+  const competitiveOverlapInsight = useMemo(
+    () => usageDiagnostics ? buildCompetitiveOverlapInsight({
+      overlapRows: usageDiagnostics.overlapRows,
+      currentCount: usageDiagnostics.currentCount,
+      sampleSize: usageDiagnostics.sample,
+    }) : null,
+    [usageDiagnostics],
+  );
+
   const heroConfig = useMemo(() => {
     switch (section) {
       case 'awareness_consideration':
@@ -2766,104 +2774,54 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 <div className={awarenessMetricInsights.topOfMind ? 'kpi-card-has-footer' : undefined}>
                   <Card title="Top of Mind" metricKey="top_of_mind" variant="primary" value={safePercent(awarenessTopMetrics.topOfMind.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.topOfMind, (value) => safePercent(value)), deltaText(awarenessDeltasView.topOfMind))} delta={compareDelta(awarenessTopMetrics.topOfMind) ?? awarenessDeltasView.topOfMind} sparklineValues={trendView.map((point) => point.topOfMind ?? null)} />
                   {awarenessMetricInsights.topOfMind && (
-                    <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.topOfMind.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'topOfMind' ? null : 'topOfMind')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'topOfMind' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                    </div>
+                    <KpiCardAnalysisFooter insight={awarenessMetricInsights.topOfMind} title="Top of Mind" definition={AWARENESS_METRIC_CONTENT.top_of_mind.definition} />
                   )}
                 </div>
                 <div className={awarenessMetricInsights.spontaneous ? 'kpi-card-has-footer' : undefined}>
                   <Card title="Spontaneous Recall" metricKey="spontaneous_recall" variant="primary" value={safePercent(awarenessTopMetrics.spontaneous.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.spontaneous, (value) => safePercent(value)), deltaText(awarenessDeltasView.spontaneous))} delta={compareDelta(awarenessTopMetrics.spontaneous) ?? awarenessDeltasView.spontaneous} sparklineValues={trendView.map((point) => point.spontaneous ?? null)} />
                   {awarenessMetricInsights.spontaneous && (
-                    <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.spontaneous.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'spontaneous' ? null : 'spontaneous')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'spontaneous' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                    </div>
+                    <KpiCardAnalysisFooter insight={awarenessMetricInsights.spontaneous} title="Spontaneous Recall" definition={AWARENESS_METRIC_CONTENT.spontaneous_recall.definition} />
                   )}
                 </div>
                 <div className={awarenessMetricInsights.totalAwareness ? 'kpi-card-has-footer' : undefined}>
                   <Card title="Total Awareness" metricKey="total_awareness" variant="primary" value={safePercent(awarenessTopMetrics.awareness.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.awareness, (value) => safePercent(value)), deltaText(awarenessDeltasView.awareness))} delta={compareDelta(awarenessTopMetrics.awareness) ?? awarenessDeltasView.awareness} sparklineValues={trendView.map((point) => point.awareness)} />
                   {awarenessMetricInsights.totalAwareness && (
-                    <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.totalAwareness.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'totalAwareness' ? null : 'totalAwareness')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'totalAwareness' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                    </div>
+                    <KpiCardAnalysisFooter insight={awarenessMetricInsights.totalAwareness} title="Total Awareness" definition={AWARENESS_METRIC_CONTENT.total_awareness.definition} />
                   )}
                 </div>
                 <div className={awarenessMetricInsights.awarenessQuality ? 'kpi-card-has-footer' : undefined}>
                   <Card title="Awareness Quality" metricKey="awareness_quality" variant="primary" value={safePercent(awarenessTopMetrics.quality.value)} subtitle={compareSubtitle(compareBankName, compareDisplayValue(awarenessTopMetrics.quality, (value) => safePercent(value)), `Top-of-Mind / aware · ${deltaText(awarenessDeltasView.quality)}`)} delta={compareDelta(awarenessTopMetrics.quality) ?? awarenessDeltasView.quality} />
                   {awarenessMetricInsights.awarenessQuality && (
-                    <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.awarenessQuality.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessQuality' ? null : 'awarenessQuality')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'awarenessQuality' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                    </div>
+                    <KpiCardAnalysisFooter insight={awarenessMetricInsights.awarenessQuality} title="Awareness Quality" definition={AWARENESS_METRIC_CONTENT.awareness_quality.definition} />
                   )}
                 </div>
               </div>
-              {(() => {
-                const row1Keys = ['topOfMind', 'spontaneous', 'totalAwareness', 'awarenessQuality'];
-                if (!activeAwarenessMetric || !row1Keys.includes(activeAwarenessMetric)) return null;
-                const row1Configs: Record<string, { insight: AwarenessInsightResult | null; title: string; definition: string }> = {
-                  topOfMind: { insight: awarenessMetricInsights.topOfMind, title: 'Top of Mind', definition: AWARENESS_METRIC_CONTENT.top_of_mind.definition },
-                  spontaneous: { insight: awarenessMetricInsights.spontaneous, title: 'Spontaneous Recall', definition: AWARENESS_METRIC_CONTENT.spontaneous_recall.definition },
-                  totalAwareness: { insight: awarenessMetricInsights.totalAwareness, title: 'Total Awareness', definition: AWARENESS_METRIC_CONTENT.total_awareness.definition },
-                  awarenessQuality: { insight: awarenessMetricInsights.awarenessQuality, title: 'Awareness Quality', definition: AWARENESS_METRIC_CONTENT.awareness_quality.definition },
-                };
-                const cfg = row1Configs[activeAwarenessMetric];
-                if (!cfg?.insight) return null;
-                return <MetricRowAnalysisDrawer insight={cfg.insight} title={cfg.title} definition={cfg.definition} onClose={() => setActiveAwarenessMetric(null)} />;
-              })()}
               <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className={awarenessMetricInsights.shareOfVoice ? 'kpi-card-has-footer' : undefined}>
                   <Card title="Share of Voice" metricKey="share_of_voice" value={safePercent(selectedAwarenessRow?.shareOfVoice)} subtitle={compareSubtitle(compareBankName, compareAwarenessRow ? safePercent(compareAwarenessRow.shareOfVoice) : null, 'Top-of-Mind share in market')} delta={compareAwarenessRow && isFiniteMetricValue(selectedAwarenessRow?.shareOfVoice) ? selectedAwarenessRow.shareOfVoice - compareAwarenessRow.shareOfVoice : null} />
                   {awarenessMetricInsights.shareOfVoice && (
-                    <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.shareOfVoice.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'shareOfVoice' ? null : 'shareOfVoice')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'shareOfVoice' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                    </div>
+                    <KpiCardAnalysisFooter insight={awarenessMetricInsights.shareOfVoice} title="Share of Voice" definition={AWARENESS_METRIC_CONTENT.share_of_voice.definition} />
                   )}
                 </div>
                 <div className={awarenessMetricInsights.momGrowth ? 'kpi-card-has-footer' : undefined}>
                   <Card title="MoM Growth" metricKey="mom_growth" value={pctGrowthValue(awarenessMoMGrowthPct)} subtitle={pctGrowthText(awarenessMoMGrowthPct)} />
                   {awarenessMetricInsights.momGrowth && (
-                    <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.momGrowth.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'momGrowth' ? null : 'momGrowth')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'momGrowth' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                    </div>
+                    <KpiCardAnalysisFooter insight={awarenessMetricInsights.momGrowth} title="MoM Growth" definition={AWARENESS_METRIC_CONTENT.mom_growth.definition} />
                   )}
                 </div>
                 <div className={awarenessMetricInsights.awarenessShareIndex ? 'kpi-card-has-footer' : undefined}>
                   <Card title="Awareness Share Index" metricKey="awareness_share_index" value={`${awarenessShareIndex}%`} subtitle="Your awareness / total market awareness" />
                   {awarenessMetricInsights.awarenessShareIndex && (
-                    <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.awarenessShareIndex.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessShareIndex' ? null : 'awarenessShareIndex')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'awarenessShareIndex' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                    </div>
+                    <KpiCardAnalysisFooter insight={awarenessMetricInsights.awarenessShareIndex} title="Awareness Share Index" definition={AWARENESS_METRIC_CONTENT.awareness_share_index.definition} />
                   )}
                 </div>
                 <div className={awarenessMetricInsights.awarenessDepthScore ? 'kpi-card-has-footer' : undefined}>
                   <Card title="Awareness Depth Score" metricKey="awareness_depth_score" value={`${awarenessDepthScore}/100`} subtitle={compareSubtitle(compareBankName, compareAwarenessDepthScore === null ? null : `${compareAwarenessDepthScore}/100`, 'Weighted: ToM×3 + Spontaneous×2 + AidedOnly×1')} delta={compareAwarenessDepthScore === null ? null : awarenessDepthScore - compareAwarenessDepthScore} />
                   {awarenessMetricInsights.awarenessDepthScore && (
-                    <div className="kpi-card-footer">
-                      <p className="text-[11px] leading-snug text-slate-600">{awarenessMetricInsights.awarenessDepthScore.snapshot}</p>
-                      <button type="button" onClick={() => setActiveAwarenessMetric((p) => p === 'awarenessDepthScore' ? null : 'awarenessDepthScore')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeAwarenessMetric === 'awarenessDepthScore' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                    </div>
+                    <KpiCardAnalysisFooter insight={awarenessMetricInsights.awarenessDepthScore} title="Awareness Depth Score" definition={AWARENESS_METRIC_CONTENT.awareness_depth_score.definition} />
                   )}
                 </div>
               </div>
-              {(() => {
-                const row2Keys = ['shareOfVoice', 'momGrowth', 'awarenessShareIndex', 'awarenessDepthScore'];
-                if (!activeAwarenessMetric || !row2Keys.includes(activeAwarenessMetric)) return null;
-                const row2Configs: Record<string, { insight: AwarenessInsightResult | null; title: string; definition: string }> = {
-                  shareOfVoice: { insight: awarenessMetricInsights.shareOfVoice, title: 'Share of Voice', definition: AWARENESS_METRIC_CONTENT.share_of_voice.definition },
-                  momGrowth: { insight: awarenessMetricInsights.momGrowth, title: 'MoM Growth', definition: AWARENESS_METRIC_CONTENT.mom_growth.definition },
-                  awarenessShareIndex: { insight: awarenessMetricInsights.awarenessShareIndex, title: 'Awareness Share Index', definition: AWARENESS_METRIC_CONTENT.awareness_share_index.definition },
-                  awarenessDepthScore: { insight: awarenessMetricInsights.awarenessDepthScore, title: 'Awareness Depth Score', definition: AWARENESS_METRIC_CONTENT.awareness_depth_score.definition },
-                };
-                const cfg = row2Configs[activeAwarenessMetric];
-                if (!cfg?.insight) return null;
-                return <MetricRowAnalysisDrawer insight={cfg.insight} title={cfg.title} definition={cfg.definition} onClose={() => setActiveAwarenessMetric(null)} />;
-              })()}
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <div className="dashboard-section">
                   <div className="flex items-center justify-between gap-2">
@@ -2995,10 +2953,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         delta={usageToplineMetrics?.preferred.compare?.delta ?? null}
                       />
                       {preferenceInsight && (
-                        <div className="kpi-card-footer">
-                          <p className="text-[11px] leading-snug text-slate-600">{preferenceInsight.snapshot}</p>
-                          <button type="button" onClick={() => setActiveUsageMetric((p) => p === 'bumo' ? null : 'bumo')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeUsageMetric === 'bumo' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                        </div>
+                        <KpiCardAnalysisFooter insight={preferenceInsight} title="Preferred (BUMO Penetration)" definition="Percentage of aware respondents who name this bank as their primary/most-used bank" />
                       )}
                     </div>
                     <Card
@@ -3018,11 +2973,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     />
                   </div>
 
-                  {(() => {
-                    if (activeUsageMetric !== 'bumo' || !preferenceInsight) return null;
-                    return <MetricRowAnalysisDrawer insight={preferenceInsight} title="Preferred (BUMO Penetration)" definition="Percentage of aware respondents who name this bank as their primary/most-used bank" onClose={() => setActiveUsageMetric(null)} />;
-                  })()}
-                  <AwarenessInsightPanel insight={trialInsight} />
+                  <AwarenessInsightPanel insight={trialInsight} title="Trial Rate Analysis" />
 
                   <div className="mt-6 grid gap-4 md:grid-cols-4">
                     <div className={retentionInsight ? 'kpi-card-has-footer' : undefined}>
@@ -3034,10 +2985,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         delta={usageToplineMetrics?.retention.compare?.delta ?? null}
                       />
                       {retentionInsight && (
-                        <div className="kpi-card-footer">
-                          <p className="text-[11px] leading-snug text-slate-600">{retentionInsight.snapshot}</p>
-                          <button type="button" onClick={() => setActiveUsageMetric((p) => p === 'retention' ? null : 'retention')} className="mt-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#E10613] hover:text-[#B5040F] transition-colors">{activeUsageMetric === 'retention' ? 'CLOSE ANALYSIS ▲' : 'VIEW DETAILED ANALYSIS ▼'}</button>
-                        </div>
+                        <KpiCardAnalysisFooter insight={retentionInsight} title="Retention Rate" definition="Percentage of respondents who have ever used the bank who are currently active users" />
                       )}
                     </div>
                     <Card
@@ -3057,11 +3005,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     <Card title="Multi-Banking" metricKey="multi_banking_rate" value={`${usageDiagnostics.multiBankingPct}%`} subtitle={`Average banks per user: ${usageDiagnostics.avgBanksPerUser}`} />
                   </div>
 
-                  {(() => {
-                    if (activeUsageMetric !== 'retention' || !retentionInsight) return null;
-                    return <MetricRowAnalysisDrawer insight={retentionInsight} title="Retention Rate" definition="Percentage of respondents who have ever used the bank who are currently active users" onClose={() => setActiveUsageMetric(null)} />;
-                  })()}
-                  <AwarenessInsightPanel insight={retentionInsight} />
+                  <AwarenessInsightPanel insight={retentionInsight} title="Retention Rate Analysis" />
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
                     <div className={`dashboard-section ${(trendsDiagnostics.volatility.label || '').toLowerCase().includes('high') ? 'dashboard-risk-warning' : ''}`}>
@@ -3150,6 +3094,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Competitive Overlap Intelligence" insight={competitiveOverlapInsight} />
                     </div>
                   </div>
 

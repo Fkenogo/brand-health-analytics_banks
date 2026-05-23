@@ -1,5 +1,5 @@
 import type { AwarenessInsightResult } from '@/utils/awarenessInsights';
-import type { UsageDropoffStage, UsageOpportunity } from '@/utils/subscriberDashboard';
+import type { UsageDropoffStage, UsageOpportunity, UsageOverlapRow } from '@/utils/subscriberDashboard';
 
 // ─── Local helpers (rewritten — do not import from awarenessInsights) ────────
 
@@ -464,4 +464,49 @@ export function buildConversionChainInsight(args: {
     : `STRATEGIC PRIORITY: Concentrate intervention at the ${weakestLink.name} stage for one full planning cycle. The multiplicative nature of the conversion chain means fixing the binding constraint first produces compounding gains downstream — parallel low-intensity work across all stages produces less total throughput improvement than sequenced, focused effort on the weakest link.`;
 
   return { snapshot, detail: s(ranking, balance, priority) + smplSection(sampleSize) };
+}
+
+// ─── 10. Competitive overlap insight ─────────────────────────────────────────
+
+export function buildCompetitiveOverlapInsight(args: {
+  overlapRows: UsageOverlapRow[];
+  currentCount: number;
+  sampleSize: number;
+}): AwarenessInsightResult | null {
+  const { overlapRows, currentCount, sampleSize } = args;
+  if (sampleSize === 0 || overlapRows.length === 0 || currentCount === 0) return null;
+
+  const sorted = [...overlapRows].sort((a, b) => b.overlapPct - a.overlapPct);
+  const top = sorted[0];
+  const highOverlapCount = sorted.filter((r) => r.overlapPct >= 40).length;
+  const avgOverlap = sorted.reduce((sum, r) => sum + r.overlapPct, 0) / sorted.length;
+
+  // Classify the competitive pressure profile
+  type OverlapProfile = 'Fragmented Risk' | 'Concentrated Rivalry' | 'Broad Competitive Exposure' | 'Contained Competition';
+  const profile: OverlapProfile =
+    highOverlapCount >= 3 ? 'Fragmented Risk'
+    : highOverlapCount >= 1 && top.overlapPct >= 50 ? 'Concentrated Rivalry'
+    : avgOverlap >= 30 ? 'Broad Competitive Exposure'
+    : 'Contained Competition';
+
+  const snapshotMap: Record<OverlapProfile, string> = {
+    'Fragmented Risk': `Fragmented Risk: ${highOverlapCount} competitors each hold 40%+ overlap with this bank's current user base — no single rival dominates, but the total multi-banking surface is large, creating broad retention vulnerability across the competitive set.`,
+    'Concentrated Rivalry': `Concentrated Rivalry: ${top.bankName} accounts for the dominant overlap position at ${top.overlapPct}% of current users — the majority of competitive switching risk is concentrated in a single rival relationship, making it the primary retention battleground.`,
+    'Broad Competitive Exposure': `Broad Competitive Exposure: average overlap of ${avgOverlap.toFixed(1)}% across ${sorted.length} competitors indicates that a significant share of current users are active across multiple banks — the competitive landscape is uniformly contested rather than concentrated.`,
+    'Contained Competition': `Contained Competition: average overlap of ${avgOverlap.toFixed(1)}% across tracked competitors is relatively low — most current users do not appear to hold active accounts at rival banks, suggesting the user base has comparatively lower multi-banking exposure.`,
+  };
+
+  const snapshot = `${profile}: ${snapshotMap[profile]}`;
+
+  const topBlock = `TOP COMPETITOR: ${top.bankName} represents the highest-overlap rival, shared by ${top.overlapCount} current users (${top.overlapPct}% of the active base). This user segment simultaneously holds accounts at both institutions — they are not churned customers but active multi-bankers, meaning competitive displacement risk is concentrated here. Users in this overlap segment are comparing service quality, fees, and product depth on a daily basis.`;
+
+  const landscapeRows = sorted.slice(0, 5).map((r) => `${r.bankName}: ${r.overlapPct}% (${r.overlapCount} users)`).join(' · ');
+  const landscape = `COMPETITIVE LANDSCAPE: Overlap by competitor — ${landscapeRows}. Overlap percentage reflects the share of this bank's current users who also hold an active account at each competitor. A figure above 40% flags a primary retention threat; 20-40% flags a secondary threat worth monitoring; below 20% is ambient noise in a multi-bank market.`;
+
+  const implication = `STRATEGIC IMPLICATION: High overlap with a specific rival does not automatically signal imminent churn — it signals competitive attention is contested in that relationship. The relevant intervention question is: what is the primary-bank designation rate within each overlap segment? If users who overlap with ${top.bankName} show lower preference-capture rates, that rival is actively winning share-of-wallet. If preference capture is maintained, the overlap represents switching optionality held by loyal customers, which is a lower-urgency risk requiring brand reinforcement rather than defensive pricing.`;
+
+  return {
+    snapshot: snapshotMap[profile],
+    detail: s(topBlock, landscape, implication) + smplSection(sampleSize),
+  };
 }

@@ -44,7 +44,7 @@ describe('SectionAnalysisBlock', () => {
     expect(screen.queryByText('FUNNEL PROFILE')).toBeNull();
   });
 
-  it('shows section headings after clicking expand', () => {
+  it('opens modal with section headings after clicking expand', () => {
     render(<SectionAnalysisBlock title="Funnel Analysis" insight={mockInsight} />);
     fireEvent.click(screen.getByRole('button', { name: /VIEW DETAILED ANALYSIS/i }));
     expect(screen.getByText('FUNNEL PROFILE')).toBeInTheDocument();
@@ -52,16 +52,17 @@ describe('SectionAnalysisBlock', () => {
     expect(screen.getByText('COMPETITIVE POSITION')).toBeInTheDocument();
   });
 
-  it('shows COLLAPSE ANALYSIS button when expanded', () => {
+  it('button label stays VIEW DETAILED ANALYSIS after clicking (modal pattern, no toggle)', () => {
     render(<SectionAnalysisBlock title="Funnel Analysis" insight={mockInsight} />);
     fireEvent.click(screen.getByRole('button', { name: /VIEW DETAILED ANALYSIS/i }));
-    expect(screen.getByRole('button', { name: /COLLAPSE ANALYSIS/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /VIEW DETAILED ANALYSIS/i })).toBeInTheDocument();
   });
 
-  it('collapses section grid when COLLAPSE ANALYSIS is clicked', () => {
+  it('modal closes and hides section grid when close button is clicked', () => {
     render(<SectionAnalysisBlock title="Funnel Analysis" insight={mockInsight} />);
     fireEvent.click(screen.getByRole('button', { name: /VIEW DETAILED ANALYSIS/i }));
-    fireEvent.click(screen.getByRole('button', { name: /COLLAPSE ANALYSIS/i }));
+    expect(screen.getByText('FUNNEL PROFILE')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Close analysis/i }));
     expect(screen.queryByText('FUNNEL PROFILE')).toBeNull();
   });
 
