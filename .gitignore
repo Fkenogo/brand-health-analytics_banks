@@ -25,3 +25,32 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ── Security hardening added 2026-05-25 ────────────────────────────────
+# === ENVIRONMENT FILES ===
+*.env
+
+# === FIREBASE SERVICE ACCOUNTS ===
+*firebase*adminsdk*.json
+*adminsdk*.json
+service-account*.json
+*service_account*.json
+firebase-credentials.json
+*credentials*.json
+*client_secret*.json
+
+# === SECRETS ===
+*.pem
+*.key
+*.p12
+secrets.json
+
+# === BUILD OUTPUTS ===
+build/
+.next/
+out/
+coverage/
+
+# === FIREBASE CACHE ===
+.firebase/
+
