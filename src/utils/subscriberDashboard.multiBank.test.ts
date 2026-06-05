@@ -126,4 +126,35 @@ describe('multi-bank competition diagnostics', () => {
     expect(metrics.selected.multiBankUsageShare).toBe(100);
     expect(metrics.compare?.multiBankUsageShare).toBe(100);
   });
+
+  it('excludes screened-out respondents from the dashboard analytics base', () => {
+    const rows: SurveyResponse[] = [
+      baseResponse({
+        response_id: 'eligible',
+        selected_country: 'rwanda',
+        country: 'rwanda',
+        b2_age: '25-34',
+        gender: 'female',
+      }),
+      baseResponse({
+        response_id: 'screened',
+        selected_country: 'rwanda',
+        country: 'rwanda',
+        _status: 'terminated',
+        b1_recency: 'this_week',
+        b2_age: 'below_18',
+      }),
+    ];
+
+    const filters: SubscriberFilters = {
+      country: 'rwanda',
+      bankId: 'a',
+      timeWindow: 'all',
+      ageGroups: [],
+      genders: [],
+    };
+
+    const filtered = filterResponsesForDashboard(rows, filters);
+    expect(filtered.map((row) => row.response_id)).toEqual(['eligible']);
+  });
 });

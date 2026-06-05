@@ -4,15 +4,8 @@ import { SurveyResponse } from '@/types';
 import { aliasStore } from '@/utils/aliasStore';
 import { ALL_BANKS } from '@/constants';
 import { responseService } from '@/services/responseService';
+import { collectRecognitionReviewRows, type RecognitionReviewRow } from '@/utils/recognitionMonitoring';
 
-interface EntryAggregate {
-  entry: string;
-  count: number;
-  countries: Record<string, number>;
-  sources: Record<string, number>;
-}
-
-const normalizeEntry = (value: string) => value.trim();
 const STATUS_KEY = 'bank_insights_unrecognized_status';
 type EntryStatus = 'new' | 'resolved' | 'ignored' | 'flagged';
 
@@ -47,35 +40,7 @@ const AdminUnrecognizedEntriesPage: React.FC = () => {
     load();
   }, []);
 
-  const aggregates = useMemo(() => {
-    const map = new Map<string, EntryAggregate>();
-    responses.forEach(response => {
-      const country = response.country || response.selected_country || 'unknown';
-
-      if (!response.c1_recognized_bank_id && response.c1_top_of_mind) {
-        const entry = normalizeEntry(response.c1_top_of_mind);
-        if (entry) {
-          const existing = map.get(entry) || { entry, count: 0, countries: {}, sources: {} };
-          existing.count += 1;
-          existing.countries[country] = (existing.countries[country] || 0) + 1;
-          existing.sources.top_of_mind = (existing.sources.top_of_mind || 0) + 1;
-          map.set(entry, existing);
-        }
-      }
-
-      (response.c2_unrecognized_entries || []).forEach(raw => {
-        const entry = normalizeEntry(raw);
-        if (!entry) return;
-        const existing = map.get(entry) || { entry, count: 0, countries: {}, sources: {} };
-        existing.count += 1;
-        existing.countries[country] = (existing.countries[country] || 0) + 1;
-        existing.sources.spontaneous = (existing.sources.spontaneous || 0) + 1;
-        map.set(entry, existing);
-      });
-    });
-
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [responses]);
+  const aggregates = useMemo(() => collectRecognitionReviewRows(responses), [responses]);
 
   const updateStatus = (entry: string, status: EntryStatus) => {
     const next = { ...statusMap, [entry]: status };
@@ -90,18 +55,26 @@ const AdminUnrecognizedEntriesPage: React.FC = () => {
     return 'unrecognized';
   };
 
-  const sampleEntries: EntryAggregate[] = [
+  const sampleEntries: RecognitionReviewRow[] = [
     {
+      key: 'unrecognized::top_of_mind::k c b bank::',
       entry: 'K C B Bank',
       count: 3,
       countries: { rwanda: 2, uganda: 1 },
       sources: { top_of_mind: 2, spontaneous: 1 },
+      issueType: 'unrecognized',
     },
     {
-      entry: 'Equi ty',
+      key: 'low_confidence::top_of_mind::stanchrt::STAN_UG',
+      issueType: 'low_confidence',
+      entry: 'Stanchrt',
       count: 1,
-      countries: { rwanda: 1 },
-      sources: { spontaneous: 1 },
+      countries: { uganda: 1 },
+      sources: { top_of_mind: 1 },
+      matchedBankId: 'STAN_UG',
+      matchedBankName: 'StanChart',
+      averageConfidence: 0.82,
+      minConfidence: 0.82,
     },
   ];
 
@@ -113,7 +86,7 @@ const AdminUnrecognizedEntriesPage: React.FC = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Admin Console</p>
             <h1 className="text-3xl font-black">Recognition Exceptions</h1>
             <p className="mt-2 text-sm text-slate-400">
-              System-generated exceptions (unrecognized names, suspicious inputs, low-confidence matches).
+              System-generated review queue for unmatched awareness entries and low-confidence top-of-mind matches.
             </p>
           </div>
           <button
@@ -152,7 +125,7 @@ const AdminUnrecognizedEntriesPage: React.FC = () => {
               </div>
             )}
             {(aggregates.length > 0 ? aggregates : showSample ? sampleEntries : []).map(entry => (
-              <div key={entry.entry} className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3">
+              <div key={entry.key} className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-white">{entry.entry}</span>
                   <div className="flex items-center gap-2">
@@ -161,7 +134,7 @@ const AdminUnrecognizedEntriesPage: React.FC = () => {
                       {statusMap[entry.entry] || 'new'}
                     </span>
                     <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-slate-400">
-                      {classifyEntry(entry.entry)}
+                      {entry.issueType === 'low_confidence' ? 'low confidence' : classifyEntry(entry.entry)}
                     </span>
                   </div>
                 </div>
@@ -176,6 +149,16 @@ const AdminUnrecognizedEntriesPage: React.FC = () => {
                       {source.replace('_', ' ')}: {count}
                     </span>
                   ))}
+                  {entry.matchedBankName && (
+                    <span className="rounded-full border border-amber-500/20 px-2 py-1 text-amber-200">
+                      matched: {entry.matchedBankName}
+                    </span>
+                  )}
+                  {entry.averageConfidence !== undefined && (
+                    <span className="rounded-full border border-amber-500/20 px-2 py-1 text-amber-200">
+                      avg confidence: {Math.round(entry.averageConfidence * 100)}%
+                    </span>
+                  )}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <select

@@ -9,6 +9,24 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { ADMIN_BOOTSTRAP_TIMEOUT_MS, getCanonicalAdminUrl, shouldRedirectAdminToCanonicalHost } from '@/utils/adminHost';
+
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+    }
+  }
+};
 
 const AdminLogin: React.FC = () => {
   const { state, login, logout } = useAuth();
@@ -21,8 +39,22 @@ const AdminLogin: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [adminExists, setAdminExists] = useState<boolean | null>(null);
   const [checkingAdmins, setCheckingAdmins] = useState(true);
+  const [canonicalRedirectUrl] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    if (!shouldRedirectAdminToCanonicalHost(window.location.hostname)) return null;
+    return getCanonicalAdminUrl(window.location.pathname, window.location.search);
+  });
   const [confirmPassword, setConfirmPassword] = useState('');
   const passwordResetSuccess = searchParams.get('recovery') === 'password-reset-success';
+
+  useEffect(() => {
+    if (!canonicalRedirectUrl) return;
+    const timer = window.setTimeout(() => {
+      window.location.replace(canonicalRedirectUrl);
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [canonicalRedirectUrl]);
 
   useEffect(() => {
     if (state.isAuthenticated && state.user?.role === 'admin') {
@@ -32,17 +64,46 @@ const AdminLogin: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
+      if (canonicalRedirectUrl) {
+        setCheckingAdmins(false);
+        return;
+      }
+
       try {
-        const snap = await getDoc(doc(db, 'config', 'bootstrap'));
+        const snap = await withTimeout(
+          getDoc(doc(db, 'config', 'bootstrap')),
+          ADMIN_BOOTSTRAP_TIMEOUT_MS,
+          'Admin setup check timed out.',
+        );
         setAdminExists(snap.exists());
       } catch (err) {
-        setAdminExists(false);
+        setAdminExists(true);
+        setError(err instanceof Error ? err.message : 'Admin setup check failed.');
       } finally {
         setCheckingAdmins(false);
       }
     };
-    load();
-  }, []);
+    void load();
+  }, [canonicalRedirectUrl]);
+
+  if (canonicalRedirectUrl) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 px-6">
+        <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-900/60 p-8 text-center shadow-2xl">
+          <h1 className="text-2xl font-black text-white">Admin access has moved</h1>
+          <p className="mt-3 text-sm text-slate-300">
+            Admin login is served from the BrandEdge primary domain. Redirecting you now.
+          </p>
+          <a
+            href={canonicalRedirectUrl}
+            className="mt-6 inline-flex rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-400"
+          >
+            Continue to BrandEdge Admin
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -177,11 +238,11 @@ const AdminLogin: React.FC = () => {
             </div>
           )}
 
-          {error && (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+            {error}
+          </div>
+        )}
 
           <button
             type="submit"

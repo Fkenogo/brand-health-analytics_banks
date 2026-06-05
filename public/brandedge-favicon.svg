@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="BrandEdge">
+  <defs>
+    <linearGradient id="brandedge-bg" x1="24" y1="20" x2="220" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f172a" />
+      <stop offset="1" stop-color="#1e40af" />
+    </linearGradient>
+    <linearGradient id="brandedge-lens" x1="72" y1="52" x2="170" y2="154" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67e8f9" />
+      <stop offset="1" stop-color="#38bdf8" />
+    </linearGradient>
+    <linearGradient id="brandedge-handle" x1="154" y1="150" x2="220" y2="222" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fafc" />
+      <stop offset="1" stop-color="#cbd5e1" />
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#brandedge-bg)" />
+  <circle cx="110" cy="108" r="58" fill="none" stroke="url(#brandedge-lens)" stroke-width="28" />
+  <path d="M154 154l48 48" fill="none" stroke="url(#brandedge-handle)" stroke-linecap="round" stroke-width="26" />
+  <path d="M132 88a28 28 0 0 0-28-16" fill="none" stroke="#e0f2fe" stroke-linecap="round" stroke-width="12" opacity="0.95" />
+</svg>

@@ -15,6 +15,11 @@ const mocks = vi.hoisted(() => ({
   storedResponsesMock: [] as Array<Record<string, unknown>>,
   canSubmitSurveyMock: { canSubmit: true as boolean, nextAllowedDate: undefined as Date | undefined },
   recordSubmissionMock: vi.fn(),
+  trackSurveyEventMock: vi.fn(),
+  getActiveSessionMock: vi.fn(() => null),
+  persistActiveSessionMock: vi.fn(),
+  clearActiveSessionMock: vi.fn(),
+  updateLastSeenMock: vi.fn(),
 }));
 
 vi.mock('@/auth/context', async () => {
@@ -29,7 +34,14 @@ vi.mock('@/auth/context', async () => {
 
 vi.mock('@/services/questionnaireService', () => ({
   questionnaireService: {
-    getActive: vi.fn(async () => mocks.activeQuestionnaireMock),
+    getActive: vi.fn(async () => {
+      if (!mocks.activeQuestionnaireMock) return null;
+      const actual = await vi.importActual<typeof import('@/services/questionnaireService')>('@/services/questionnaireService');
+      return {
+        ...mocks.activeQuestionnaireMock,
+        questions: actual.hydrateRuntimeQuestionnaireQuestions(mocks.activeQuestionnaireMock.questions as never[]),
+      };
+    }),
     getByWaveTag: vi.fn(async () => null),
   },
 }));
@@ -50,6 +62,24 @@ vi.mock('@/auth/utils', () => ({
 vi.mock('@/utils/storage', () => ({
   getResponses: () => mocks.storedResponsesMock,
   saveResponse: vi.fn(),
+}));
+
+vi.mock('@/services/responseService', () => ({
+  responseService: {
+    submitPublicResponse: vi.fn(async () => ({ ok: true })),
+    submitPublicFollowUpContact: vi.fn(async () => ({ ok: true })),
+    listResponses: vi.fn(async () => []),
+  },
+}));
+
+vi.mock('@/services/surveyTelemetryService', () => ({
+  surveyTelemetryService: {
+    track: mocks.trackSurveyEventMock,
+    getActiveSession: mocks.getActiveSessionMock,
+    persistActiveSession: mocks.persistActiveSessionMock,
+    clearActiveSession: mocks.clearActiveSessionMock,
+    updateLastSeen: mocks.updateLastSeenMock,
+  },
 }));
 
 describe('survey country routes', () => {
@@ -114,6 +144,8 @@ describe('survey country routes', () => {
     );
     fireEvent.click(screen.getByRole('checkbox'));
     expect(screen.getByRole('button', { name: /Begin Questionnaire/i })).toBeDisabled();
+    expect(screen.getByText(/Thank you for your feedback\. You can take this survey again after/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Thanks for joining the panel/i)).not.toBeInTheDocument();
     anonymous.unmount();
 
     mocks.authStateMock = {
@@ -154,7 +186,7 @@ describe('survey country routes', () => {
       expect(screen.getByText(/When was the last time you used a commercial bank/i)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /This week/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^This week$/i }));
     fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
 
     await waitFor(() => {
@@ -184,17 +216,17 @@ describe('survey country routes', () => {
       expect(screen.getByText(/When was the last time you used a commercial bank/i)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Longer than 3 months/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Longer than 3 months$/i }));
     fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/targeting recent banking users/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/targeting recent banking users/i).length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Finish/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Thank you!/i)).toBeInTheDocument();
+      expect(screen.getByText(/Thank you for your feedback/i)).toBeInTheDocument();
     });
 
     expect(screen.queryByText(/Missing: b2_age/i)).not.toBeInTheDocument();
@@ -302,7 +334,7 @@ describe('survey country routes', () => {
       expect(screen.getByText(/When was the last time you used a commercial bank/i)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /this week/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^This week$/i }));
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }));
     fireEvent.click(screen.getByRole('button', { name: /^25-34$/i }));
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }));
@@ -320,6 +352,106 @@ describe('survey country routes', () => {
 
     expect(screen.getByText(/Already captured/i)).toBeInTheDocument();
   });
+
+  it('shows inline consent validation instead of leaving begin feeling broken', async () => {
+    mocks.activeQuestionnaireMock = null;
+    render(
+      <MemoryRouter initialEntries={['/survey/rwanda']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Begin Questionnaire/i }));
+
+    expect(screen.getByText(/Please confirm your consent to continue/i)).toBeInTheDocument();
+    expect(screen.getByText(/Please tick the box below to begin/i)).toBeInTheDocument();
+  });
+
+  it('shows the age question after recency and blocks progression until it is answered', async () => {
+    mocks.activeQuestionnaireMock = null;
+    render(
+      <MemoryRouter initialEntries={['/survey/rwanda']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Begin Questionnaire/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/When was the last time you used a commercial bank/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^This week$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Which of the following age categories do you fall in/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: /Complete Survey/i })).toBeDisabled();
+    expect(screen.queryByText(/This survey is for respondents 18 years and older/i)).not.toBeInTheDocument();
+  }, 15000);
+
+  it('terminates only when the respondent explicitly answers below 18', async () => {
+    mocks.activeQuestionnaireMock = null;
+    render(
+      <MemoryRouter initialEntries={['/survey/rwanda']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Begin Questionnaire/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/When was the last time you used a commercial bank/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^This week$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Which of the following age categories do you fall in/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Below 18$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/This survey is for respondents 18 years and older/i).length).toBeGreaterThan(0);
+    });
+  }, 15000);
+
+  it('continues normally when the respondent answers 18 or older', async () => {
+    mocks.activeQuestionnaireMock = null;
+    render(
+      <MemoryRouter initialEntries={['/survey/rwanda']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Begin Questionnaire/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/When was the last time you used a commercial bank/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^This week$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Which of the following age categories do you fall in/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^25-34$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Which bank from your country comes to your mind FIRST/i)).toBeInTheDocument();
+    });
+  }, 15000);
 
   it('redirects /survey/start back to the generic country selection entry', () => {
     mocks.activeQuestionnaireMock = null;

@@ -264,6 +264,7 @@ describe('analyticsAggregateService', () => {
             country: 'rwanda',
             dateBucket: '2026-03-08',
             responseCount: 10,
+            analyticsIncludedCount: 10,
             completedCount: 9,
             terminatedCount: 1,
             suspiciousCount: 0,
@@ -323,6 +324,189 @@ describe('analyticsAggregateService', () => {
     await expect(
       analyticsAggregateService.rebuildDashboardAggregates('rwanda'),
     ).rejects.toThrow('Aggregate processing failed on the backend.');
+  });
+
+  it('returns null aggregate when callable reports integrity validation failure', async () => {
+    const getAggregateFn = vi.fn().mockRejectedValue({
+      code: 'functions/failed-precondition',
+      message: 'Overview aggregate integrity validation failed. Use raw dashboard analytics for this filter context.',
+    });
+    const rebuildFn = vi.fn();
+
+    httpsCallableMock
+      .mockReturnValueOnce(getAggregateFn)
+      .mockReturnValueOnce(rebuildFn);
+
+    const { analyticsAggregateService } = await import('@/services/analyticsAggregateService');
+    const result = await analyticsAggregateService.getDashboardOverviewAggregateWithFallback('burundi', 'BANCOBU', 'all');
+
+    expect(result.aggregate).toBeNull();
+    expect(result.fallbackReason).toContain('integrity validation failed');
+  });
+
+  it('returns null aggregate when Firestore bucket has bank counts exceeding the denominator', async () => {
+    const getAggregateFn = vi.fn().mockRejectedValue({
+      code: 'functions/permission-denied',
+      message: 'Subscriber access is required.',
+    });
+    const rebuildFn = vi.fn();
+
+    httpsCallableMock
+      .mockReturnValueOnce(getAggregateFn)
+      .mockReturnValueOnce(rebuildFn);
+
+    getDocMock.mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        rebuildStatus: 'ready',
+        coverageComplete: true,
+        supportedMetrics: [],
+        supportedFilters: { country: true, selectedBank: true, timeWindow: true, ageGroups: false, genders: false },
+        supportedModules: { overview: true, awareness: true, usageTopline: true, usageDeep: false, momentum: false, trends: false, competitive: false },
+        supportedCompareMetrics: [],
+      }),
+    });
+
+    getDocsMock.mockResolvedValue({
+      docs: [
+        {
+          data: () => ({
+            country: 'burundi',
+            dateBucket: '2026-03-27',
+            responseCount: 40,
+            analyticsIncludedCount: 43,
+            completedCount: 40,
+            terminatedCount: 0,
+            suspiciousCount: 0,
+            repeatCount: 0,
+            fastCount: 0,
+            duplicateCount: 0,
+            banks: {
+              BANCOBU: {
+                awareCount: 57,
+                topOfMindCount: 10,
+                spontaneousCount: 30,
+                aidedCount: 20,
+                everUsedCount: 15,
+                currentUsingCount: 10,
+                preferredCount: 8,
+                considerCount: 5,
+              },
+            },
+          }),
+        },
+      ],
+    });
+
+    const { analyticsAggregateService } = await import('@/services/analyticsAggregateService');
+    const result = await analyticsAggregateService.getDashboardOverviewAggregateWithFallback('burundi', 'BANCOBU', 'all');
+
+    expect(result.aggregate).toBeNull();
+  });
+
+  it('returns null aggregate when active ageGroups filter is unsupported by the aggregate contract', async () => {
+    const getAggregateFn = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        aggregate: {
+          country: 'burundi',
+          bankId: 'BANCOBU',
+          timeWindow: 'all',
+          generatedAt: '2026-04-01T00:00:00.000Z',
+          contract: {
+            aggregateSchemaVersion: 3,
+            methodologyVersion: 'v1',
+            supportedMetrics: ['aware', 'currentUsing'],
+            supportedFilters: { country: true, selectedBank: true, timeWindow: true, ageGroups: false, genders: false },
+            supportedModules: { overview: true, awareness: true, usageTopline: true, usageDeep: false, momentum: false, trends: false, competitive: false },
+            supportedCompareMetrics: [],
+          },
+          integrity: { rebuildStatus: 'ready', coverageComplete: true, rebuiltAt: '2026-04-01T00:00:00.000Z' },
+          sampleSize: 62,
+          statusCounts: { completed: 62, terminated: 13 },
+          flagCounts: { suspicious: 0, repeat: 0, fast: 0, duplicate: 0 },
+          selectedMetrics: null,
+          marketRows: [],
+          monthOverMonth: {
+            current: null,
+            previous: null,
+            deltas: { awareness: null, topOfMind: null, spontaneous: null, quality: null, usage: null },
+          },
+          monthlyTrend: [],
+        },
+      },
+    });
+    const rebuildFn = vi.fn();
+
+    httpsCallableMock
+      .mockReturnValueOnce(getAggregateFn)
+      .mockReturnValueOnce(rebuildFn);
+
+    const { analyticsAggregateService } = await import('@/services/analyticsAggregateService');
+    const result = await analyticsAggregateService.getDashboardOverviewAggregateWithFallback(
+      'burundi',
+      'BANCOBU',
+      'all',
+      { ageGroups: ['25-34'] },
+    );
+
+    expect(result.aggregate).toBeNull();
+    expect(result.fallbackReason).toContain('integrity validation failed');
+  });
+
+  it('accepts a valid aggregate and returns it without fallback when all invariants pass', async () => {
+    const getAggregateFn = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        aggregate: {
+          country: 'burundi',
+          bankId: 'BAN_BI',
+          timeWindow: 'all',
+          generatedAt: '2026-05-02T16:36:35.000Z',
+          contract: {
+            aggregateSchemaVersion: 3,
+            methodologyVersion: 'v1',
+            supportedMetrics: ['aware', 'topOfMind', 'currentUsing', 'preferred', 'everUsed', 'considerationRate', 'trialRate', 'retentionRate', 'churnRate', 'preferenceRate'],
+            supportedFilters: { country: true, selectedBank: true, timeWindow: true, ageGroups: false, genders: false },
+            supportedModules: { overview: true, awareness: true, usageTopline: true, usageDeep: false, momentum: false, trends: false, competitive: false },
+            supportedCompareMetrics: ['aware', 'currentUsing'],
+          },
+          integrity: { rebuildStatus: 'ready', coverageComplete: true, rebuiltAt: '2026-05-02T16:36:35.000Z' },
+          sampleSize: 62,
+          statusCounts: { completed: 62, terminated: 13, included: 62, screenedOut: 13, under18: 0 },
+          flagCounts: { suspicious: 0, repeat: 0, fast: 0, duplicate: 0 },
+          selectedMetrics: null,
+          marketRows: [
+            {
+              bankId: 'BAN_BI', bankName: 'BANCOBU', sample: 62,
+              awareCount: 57, everUsedCount: 15, currentUsingCount: 12, preferredCount: 8, considerCount: 30,
+              awareness: 92, topOfMind: 20, everUsed: 24, currentUsage: 19, preferredUsage: 13,
+              consideration: 48, trialRate: 26, retentionRate: 80, churnRate: 20, preferenceRate: 67,
+              nps: 5, preferred: 13, marketShare: 13, shareOfVoice: 15, rank: 1, movement: null,
+            },
+          ],
+          monthOverMonth: {
+            current: null,
+            previous: null,
+            deltas: { awareness: null, topOfMind: null, spontaneous: null, quality: null, usage: null },
+          },
+          monthlyTrend: [],
+        },
+      },
+    });
+    const rebuildFn = vi.fn();
+
+    httpsCallableMock
+      .mockReturnValueOnce(getAggregateFn)
+      .mockReturnValueOnce(rebuildFn);
+
+    const { analyticsAggregateService } = await import('@/services/analyticsAggregateService');
+    const result = await analyticsAggregateService.getDashboardOverviewAggregateWithFallback('burundi', 'BAN_BI', 'all');
+
+    expect(result.aggregate).not.toBeNull();
+    expect(result.fallbackReason).toBeNull();
+    expect(result.aggregate!.sampleSize).toBe(62);
+    expect(result.source).toBe('callable');
   });
 
   it('routes destructive survey reset requests through the backend callable', async () => {

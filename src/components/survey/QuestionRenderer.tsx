@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import { Question, Language, SurveyResponse, CountryCode } from '@/types';
 import { UI_STRINGS, RATING_DESCRIPTORS } from '@/constants';
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, Lock, XCircle } from 'lucide-react';
 import { parseSpontaneousBanks, processAwarenessData, recognizeTopOfMindBank, type RecognitionResult, type SpontaneousResult } from '@/utils/bankRecognition';
+import { getSurveyThemeTokens } from '@/utils/surveyTheme';
 
 interface QuestionRendererProps {
   question: Question;
@@ -27,18 +28,119 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
 }) => {
   const choices = question.filterChoices ? question.filterChoices(formData) : question.choices || [];
   const country = (formData.selected_country || 'rwanda') as CountryCode;
+  const surveyTheme = getSurveyThemeTokens(country, null);
+  const isUgandaTheme = surveyTheme.variant === 'uganda' && !isHighContrast;
+  const isRecognitionInput = question.id === 'c1_top_of_mind' || question.id === 'c2_spontaneous';
+  const [recognitionInputValue, setRecognitionInputValue] = useState(() => String(value || ''));
+  const [settledRecognitionInput, setSettledRecognitionInput] = useState(() => String(value || ''));
+  const [isRecognitionFocused, setIsRecognitionFocused] = useState(false);
+  const recognitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+  const lastQuestionIdRef = useRef(question.id);
+  const onChangeRef = useRef(onChange);
+  const onMetaChangeRef = useRef(onMetaChange);
+  const lastAwarenessPatchRef = useRef<string | null>(null);
+  const lastRecognitionEmitRef = useRef<string>(String(value || ''));
+  const selectedFillStyle = (selected: boolean): React.CSSProperties | undefined => (
+    selected && !isHighContrast && !isUgandaTheme && themeColor
+      ? { backgroundColor: themeColor, borderColor: themeColor }
+      : undefined
+  );
+  const accentPillStyle = !isHighContrast && !isUgandaTheme && themeColor
+    ? { borderColor: `${themeColor}40`, color: themeColor, backgroundColor: `${themeColor}10` }
+    : undefined;
+  const unselectedCardClass = isHighContrast
+    ? 'bg-black border-yellow-400/40 text-yellow-100 hover:border-yellow-400 hover:bg-yellow-400/10'
+    : isUgandaTheme
+      ? 'bg-slate-950/80 border-slate-300/45 text-slate-100 hover:border-[#F5C542] hover:bg-slate-900/95 active:border-[#FFD45C]'
+      : 'bg-slate-950/75 border-white/20 text-slate-100 hover:border-slate-300 hover:bg-slate-900';
+  const selectedCardClass = isHighContrast
+    ? 'border-yellow-400 bg-yellow-400 text-black shadow-lg shadow-yellow-400/20'
+    : isUgandaTheme
+      ? 'border-[#D9A514] bg-[#F5C542] text-[#0B1A2B] shadow-xl shadow-[#F5C542]/25 hover:bg-[#FFD45C]'
+      : 'border-blue-400 bg-blue-600 text-white shadow-xl shadow-blue-950/40';
+  const unselectedIndicatorClass = isHighContrast
+    ? 'border-yellow-300/70 bg-black'
+    : isUgandaTheme
+      ? 'border-slate-300/85 bg-slate-950/90 text-slate-200'
+      : 'border-slate-300/80 bg-slate-950/90';
+  const selectedIndicatorClass = isUgandaTheme
+    ? 'border-[#0B1A2B] bg-[#0B1A2B]/10 text-[#0B1A2B]'
+    : 'border-white bg-white text-slate-950';
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    onMetaChangeRef.current = onMetaChange;
+  }, [onMetaChange]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (recognitionTimerRef.current) {
+        clearTimeout(recognitionTimerRef.current);
+        recognitionTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (lastQuestionIdRef.current !== question.id) {
+      const nextValue = String(value || '');
+      lastQuestionIdRef.current = question.id;
+      setIsRecognitionFocused(false);
+      lastRecognitionEmitRef.current = nextValue;
+      lastAwarenessPatchRef.current = null;
+      if (recognitionTimerRef.current) {
+        clearTimeout(recognitionTimerRef.current);
+        recognitionTimerRef.current = null;
+      }
+      setRecognitionInputValue(nextValue);
+      setSettledRecognitionInput(nextValue);
+      return;
+    }
+    if (!isRecognitionInput) return;
+    const nextValue = String(value || '');
+    if (isRecognitionFocused) return;
+    setRecognitionInputValue((current) => (current === nextValue ? current : nextValue));
+    setSettledRecognitionInput((current) => (current === nextValue ? current : nextValue));
+  }, [isRecognitionInput, isRecognitionFocused, value, question.id]);
+
+  useEffect(() => {
+    if (!isRecognitionInput) return;
+    if (recognitionTimerRef.current) {
+      clearTimeout(recognitionTimerRef.current);
+    }
+    recognitionTimerRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      setSettledRecognitionInput(recognitionInputValue);
+      recognitionTimerRef.current = null;
+    }, 180);
+    return () => {
+      if (recognitionTimerRef.current) {
+        clearTimeout(recognitionTimerRef.current);
+        recognitionTimerRef.current = null;
+      }
+    };
+  }, [isRecognitionInput, recognitionInputValue, question.id]);
+
+  const isRecognitionSettling = isRecognitionInput && recognitionInputValue !== settledRecognitionInput;
+  const recognitionFeedbackInput = isRecognitionSettling ? recognitionInputValue : settledRecognitionInput;
+  const shouldHoldRecognitionWarning = isRecognitionSettling || recognitionFeedbackInput.trim().length < 3;
+
   const topResult = useMemo<RecognitionResult | null>(() => {
     if (question.id !== 'c1_top_of_mind') return null;
-    return recognizeTopOfMindBank(String(value || ''), country);
-  }, [question.id, value, country]);
+    return recognizeTopOfMindBank(settledRecognitionInput, country);
+  }, [question.id, settledRecognitionInput, country]);
 
   const spontResult = useMemo<SpontaneousResult | null>(() => {
     if (question.id !== 'c2_spontaneous') return null;
     const topBank = recognizeTopOfMindBank(String(formData.c1_top_of_mind || ''), country);
-    return parseSpontaneousBanks(String(value || ''), country, {
+    return parseSpontaneousBanks(settledRecognitionInput, country, {
       excludeBankIds: topBank.bankId ? [topBank.bankId] : [],
     });
-  }, [question.id, value, formData.c1_top_of_mind, country]);
+  }, [question.id, settledRecognitionInput, formData.c1_top_of_mind, country]);
 
   const capturedTopBank = useMemo<RecognitionResult | null>(() => {
     if (question.id !== 'c2_spontaneous') return null;
@@ -47,7 +149,7 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
 
   const updateAwarenessMeta = React.useCallback((topInput: string, spontInput: string, assistedSelections: string[]) => {
     const data = processAwarenessData(topInput, spontInput, assistedSelections, country);
-    onMetaChange?.({
+    const nextPatch: Partial<SurveyResponse> = {
       c1_recognized_bank_id: data.top_of_mind.recognized_bank_id,
       c1_recognition_confidence: data.top_of_mind.recognition_confidence,
       c2_recognized_bank_ids: data.spontaneous.recognized_bank_ids,
@@ -63,20 +165,24 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
       spontaneous_awareness_bank_ids: data.spontaneous.recognized_bank_ids,
       assisted_awareness_bank_ids: assistedSelections,
       total_awareness_bank_ids: data.total_awareness,
-    });
-  }, [country, onMetaChange]);
+    };
+    const patchKey = JSON.stringify(nextPatch);
+    if (lastAwarenessPatchRef.current === patchKey) return;
+    lastAwarenessPatchRef.current = patchKey;
+    onMetaChangeRef.current?.(nextPatch);
+  }, [country]);
 
   useEffect(() => {
     if (question.id !== 'c1_top_of_mind') return;
-    const input = String(value || '');
+    const input = settledRecognitionInput;
     updateAwarenessMeta(input, String(formData.c2_spontaneous || ''), Array.isArray(formData.c3_aware_banks) ? formData.c3_aware_banks : []);
-  }, [question.id, value, country, formData.c2_spontaneous, formData.c3_aware_banks, updateAwarenessMeta]);
+  }, [question.id, settledRecognitionInput, country, formData.c2_spontaneous, formData.c3_aware_banks, updateAwarenessMeta]);
 
   useEffect(() => {
     if (question.id !== 'c2_spontaneous') return;
-    const input = String(value || '');
+    const input = settledRecognitionInput;
     updateAwarenessMeta(String(formData.c1_top_of_mind || ''), input, Array.isArray(formData.c3_aware_banks) ? formData.c3_aware_banks : []);
-  }, [question.id, value, country, formData.c1_top_of_mind, formData.c3_aware_banks, updateAwarenessMeta]);
+  }, [question.id, settledRecognitionInput, country, formData.c1_top_of_mind, formData.c3_aware_banks, updateAwarenessMeta]);
 
   const lockedBanks = useMemo(() => {
     const top = recognizeTopOfMindBank(String(formData.c1_top_of_mind || ''), country);
@@ -97,7 +203,7 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
       onChange(merged);
       updateAwarenessMeta(String(formData.c1_top_of_mind || ''), String(formData.c2_spontaneous || ''), merged);
     }
-  }, [question.id, value, lockedBanks, formData.c1_top_of_mind, formData.c2_spontaneous]);
+  }, [question.id, value, lockedBanks, formData.c1_top_of_mind, formData.c2_spontaneous, onChange, updateAwarenessMeta]);
 
   const renderScale = () => (
     <div className="space-y-4">
@@ -115,12 +221,20 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           <button
             key={num}
             onClick={() => onChange(num)}
-            className={`h-14 rounded-xl font-black text-sm transition-all flex flex-col items-center justify-center border relative overflow-hidden ${
+            className={`h-14 rounded-xl font-black text-sm transition-all flex flex-col items-center justify-center border-2 relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
               value === num 
-                ? (isHighContrast ? 'bg-yellow-400 border-yellow-400 text-black scale-105 z-10' : 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20 scale-105 z-10') 
-                : (isHighContrast ? 'bg-black border-yellow-400/30 text-yellow-400' : 'glass-card border-white/5 text-slate-500 active:bg-white/5')
+                ? (isHighContrast
+                    ? 'bg-yellow-400 border-yellow-400 text-black scale-105 z-10'
+                    : isUgandaTheme
+                      ? 'bg-[#F5C542] border-[#D9A514] text-[#0B1A2B] shadow-lg shadow-[#F5C542]/20 scale-105 z-10'
+                      : 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20 scale-105 z-10')
+                : (isHighContrast
+                    ? 'bg-black border-yellow-400/40 text-yellow-200 hover:border-yellow-300'
+                    : isUgandaTheme
+                      ? 'bg-slate-950/80 border-slate-300/45 text-slate-100 hover:border-[#F5C542] active:bg-slate-900'
+                      : 'bg-slate-950/75 border-white/20 text-slate-100 hover:border-slate-300 active:bg-slate-900')
             }`}
-            style={value === num && themeColor ? { backgroundColor: themeColor, borderColor: themeColor } : {}}
+            style={selectedFillStyle(value === num)}
           >
             <span className="text-lg">{num}</span>
           </button>
@@ -133,7 +247,7 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
              <span className={`text-[10px] font-black uppercase tracking-widest py-2 px-6 rounded-full border ${
                isHighContrast ? 'bg-yellow-400/10 border-yellow-400 text-yellow-400' : 'bg-blue-400/10 border-blue-400/20 text-blue-400'
              }`}
-             style={themeColor ? { borderColor: `${themeColor}40`, color: themeColor, backgroundColor: `${themeColor}10` } : {}}
+             style={isUgandaTheme ? { borderColor: '#D9A514', color: '#F5C542', backgroundColor: 'rgba(245, 197, 66, 0.14)' } : accentPillStyle}
              >
                 {value}: {RATING_DESCRIPTORS[value]?.[lang] || 'Selected'}
              </span>
@@ -186,22 +300,26 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
                   <td className="p-3 text-sm font-semibold text-white min-w-[120px]">
                     {choice.label[lang]}
                   </td>
-                  {ratings.map(num => {
+                {ratings.map(num => {
                     const isSelected = currentValue[choice.value] === num;
                     return (
                       <td key={num} className="text-center p-1">
                         <button
                           onClick={() => handleRatingChange(choice.value, num)}
-                          className={`w-7 h-7 rounded-full transition-all flex items-center justify-center mx-auto text-xs font-bold ${
+                          className={`w-10 h-10 rounded-full transition-all flex items-center justify-center mx-auto text-xs font-bold border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                             isSelected
                               ? (isHighContrast 
-                                  ? 'bg-yellow-400 text-black' 
-                                  : 'bg-blue-600 text-white shadow-lg')
+                                  ? 'bg-yellow-400 border-yellow-400 text-black'
+                                  : isUgandaTheme
+                                    ? 'bg-[#F5C542] border-[#D9A514] text-[#0B1A2B] shadow-lg shadow-[#F5C542]/20'
+                                    : 'bg-blue-600 border-blue-300 text-white shadow-lg')
                               : (isHighContrast 
-                                  ? 'border border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10' 
-                                  : 'border border-white/10 text-slate-500 hover:bg-white/5')
+                                  ? 'border-yellow-400/50 text-yellow-200 hover:bg-yellow-400/10'
+                                  : isUgandaTheme
+                                    ? 'border-slate-300/45 bg-slate-950/80 text-slate-100 hover:border-[#F5C542] hover:bg-slate-900'
+                                    : 'border-white/25 bg-slate-950/75 text-slate-100 hover:border-slate-300 hover:bg-slate-900')
                           }`}
-                          style={isSelected && themeColor ? { backgroundColor: themeColor } : {}}
+                          style={selectedFillStyle(isSelected)}
                         >
                           {isSelected ? '✓' : ''}
                         </button>
@@ -247,16 +365,16 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
             <button 
               key={choice.value} 
               onClick={() => onChange(choice.value)}
-              className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all ${
+              className={`w-full flex items-center justify-between gap-4 p-5 rounded-2xl border-2 transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                 value === choice.value 
-                  ? (isHighContrast ? 'border-yellow-400 bg-yellow-400 text-black' : 'border-blue-500 bg-blue-600 text-white shadow-xl') 
-                  : (isHighContrast ? 'border-yellow-400/20 text-slate-400' : 'glass-card border-white/5 text-slate-400 active:bg-white/5')
+                  ? selectedCardClass
+                  : unselectedCardClass
               }`}
-              style={value === choice.value && !isHighContrast && themeColor ? { backgroundColor: themeColor, borderColor: themeColor } : {}}
+              style={selectedFillStyle(value === choice.value)}
             >
               <span className="text-sm font-bold">{choice.label[lang]}</span>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${value === choice.value ? 'border-white' : 'border-slate-700'}`}>
-                {value === choice.value && <div className="w-2 h-2 rounded-full bg-current" />}
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${value === choice.value ? selectedIndicatorClass : unselectedIndicatorClass}`}>
+                {value === choice.value && <div className="w-2.5 h-2.5 rounded-full bg-current" />}
               </div>
             </button>
           ))}
@@ -297,15 +415,15 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
                     updateAwarenessMeta(String(formData.c1_top_of_mind || ''), String(formData.c2_spontaneous || ''), merged);
                   }
                 }}
-                className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${
+                className={`flex items-center justify-between gap-4 p-5 rounded-2xl border-2 transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                   isSelected 
-                    ? (isHighContrast ? 'border-yellow-400 bg-yellow-400 text-black' : 'border-indigo-500 bg-indigo-600 text-white') 
-                    : (isHighContrast ? 'border-yellow-400/20 text-slate-400' : 'glass-card border-white/5 text-slate-400 active:bg-white/5')
+                    ? selectedCardClass
+                    : unselectedCardClass
                 } ${isLocked ? 'opacity-90 cursor-not-allowed' : ''}`}
-                style={isSelected && !isHighContrast && themeColor ? { backgroundColor: themeColor, borderColor: themeColor } : {}}
+                style={selectedFillStyle(isSelected)}
               >
                 <span className="text-xs font-bold">{choice.label[lang]}</span>
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${isSelected ? 'border-white' : 'border-slate-700'}`}>
+                <div className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 ${isSelected ? selectedIndicatorClass : unselectedIndicatorClass}`}>
                   {isLocked ? <Lock size={12} /> : isSelected && <Check size={14} />}
                 </div>
               </button>
@@ -317,23 +435,67 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
     case 'text':
     case 'date':
       if (question.id === 'c1_top_of_mind' || question.id === 'c2_spontaneous') {
+        const handleRecognitionChange = (nextValue: string) => {
+          setRecognitionInputValue(nextValue);
+          if (lastRecognitionEmitRef.current === nextValue) return;
+          lastRecognitionEmitRef.current = nextValue;
+          startTransition(() => {
+            onChangeRef.current(nextValue);
+          });
+        };
+
         return (
           <div className="space-y-4">
             <input 
               type="text"
-              value={value || ''}
+              value={recognitionInputValue}
               placeholder={UI_STRINGS.typeAnswer[lang]}
-              onChange={(e) => onChange(e.target.value)}
-              className={`w-full h-16 px-6 rounded-2xl border outline-none font-bold transition-all ${
-                isHighContrast ? 'bg-black border-yellow-400 text-white focus:bg-yellow-400/10' : 'glass-card border-white/10 text-white focus:border-blue-500'
+              onChange={(e) => handleRecognitionChange(e.target.value)}
+              onFocus={() => setIsRecognitionFocused(true)}
+              onBlur={() => {
+                setIsRecognitionFocused(false);
+                if (recognitionTimerRef.current) {
+                  clearTimeout(recognitionTimerRef.current);
+                  recognitionTimerRef.current = null;
+                }
+                setSettledRecognitionInput(recognitionInputValue);
+                lastRecognitionEmitRef.current = recognitionInputValue;
+              }}
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="words"
+              enterKeyHint="next"
+              className={`w-full h-16 px-6 rounded-2xl border-2 outline-none font-bold transition-all ${
+                isHighContrast
+                  ? 'bg-black border-yellow-400 text-white focus:bg-yellow-400/10'
+                  : isUgandaTheme
+                    ? 'bg-slate-950/80 border-slate-300/45 text-white focus:bg-slate-900'
+                    : 'bg-slate-950/75 border-white/20 text-white focus:border-blue-400 focus:bg-slate-900'
               }`}
-              style={!isHighContrast && themeColor ? { borderColor: `${themeColor}40` } : {}}
+              style={
+                isUgandaTheme
+                  ? { borderColor: 'rgba(203, 213, 225, 0.45)', caretColor: surveyTheme.primaryFill }
+                  : !isHighContrast && themeColor
+                    ? { borderColor: `${themeColor}40` }
+                    : undefined
+              }
             />
-            <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 text-sm text-slate-300">
+            <div
+              className={`rounded-2xl border p-4 text-sm ${
+                isUgandaTheme
+                  ? 'text-slate-100'
+                  : 'border-white/5 bg-white/[0.03] text-slate-300'
+              }`}
+              style={isUgandaTheme ? { borderColor: 'rgba(217, 165, 20, 0.35)', backgroundColor: 'rgba(245, 197, 66, 0.08)' } : undefined}
+            >
               {question.id === 'c1_top_of_mind' ? (
-                !String(value || '').trim() ? (
+                !recognitionInputValue.trim() ? (
                   <div className="text-slate-400">
                     Type one bank name and it will be recognized immediately.
+                  </div>
+                ) : shouldHoldRecognitionWarning ? (
+                  <div className="text-slate-300">
+                    Keep typing the bank name. We will match spelling variations automatically.
                   </div>
                 ) : (
                 topResult?.recognized ? (
@@ -350,28 +512,32 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
               ) : spontResult ? (
                 <div className="space-y-2">
                   {capturedTopBank?.recognized && (
-                    <div className="flex items-center gap-2 text-blue-300">
+                    <div className={`flex items-center gap-2 ${isUgandaTheme ? 'text-[#F5C542]' : 'text-blue-300'}`}>
                       <Lock size={16} />
                       Already captured from Q1: {capturedTopBank.standardName || capturedTopBank.input}
                     </div>
                   )}
-                  {String(value || '').trim() ? (
+                  {!recognitionInputValue.trim() ? (
+                    <div className="text-slate-400">
+                      Enter additional bank names separated by commas or new lines.
+                    </div>
+                  ) : isRecognitionSettling ? (
+                    <div className="text-slate-300">
+                      Keep typing bank names. We will recognize each entry after a short pause.
+                    </div>
+                  ) : (
                     <div className="flex items-center gap-2 text-emerald-400">
                       <CheckCircle2 size={16} />
                       Recognized in this answer: {spontResult.recognized_banks.length}
                     </div>
-                  ) : (
-                    <div className="text-slate-400">
-                      Enter additional bank names separated by commas or new lines.
-                    </div>
                   )}
                   {spontResult.excluded_entries && spontResult.excluded_entries.length > 0 && (
-                    <div className="flex items-center gap-2 text-blue-300">
+                    <div className={`flex items-center gap-2 ${isUgandaTheme ? 'text-[#F5C542]' : 'text-blue-300'}`}>
                       <Lock size={16} />
                       Already captured in Q1: {spontResult.excluded_entries.join(', ')}
                     </div>
                   )}
-                  {spontResult.unrecognized_entries.length > 0 && (
+                  {!isRecognitionSettling && spontResult.unrecognized_entries.length > 0 && (
                     <div className="flex items-center gap-2 text-rose-400">
                       <XCircle size={16} />
                       Unrecognized: {spontResult.unrecognized_entries.join(', ')}
@@ -392,8 +558,8 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           value={value || ''}
           placeholder={UI_STRINGS.typeAnswer[lang]}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full h-16 px-6 rounded-2xl border outline-none font-bold transition-all ${
-            isHighContrast ? 'bg-black border-yellow-400 text-white focus:bg-yellow-400/10' : 'glass-card border-white/10 text-white focus:border-blue-500'
+          className={`w-full h-16 px-6 rounded-2xl border-2 outline-none font-bold transition-all ${
+            isHighContrast ? 'bg-black border-yellow-400 text-white focus:bg-yellow-400/10' : 'bg-slate-950/75 border-white/20 text-white focus:border-blue-400 focus:bg-slate-900'
           }`}
           style={!isHighContrast && themeColor ? { borderColor: `${themeColor}40` } : {}}
         />
@@ -405,8 +571,8 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           <select 
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className={`w-full h-16 px-6 rounded-2xl border appearance-none outline-none font-bold transition-all ${
-              isHighContrast ? 'bg-black border-yellow-400 text-white' : 'glass-card border-white/10 text-white'
+            className={`w-full h-16 px-6 rounded-2xl border-2 appearance-none outline-none font-bold transition-all ${
+              isHighContrast ? 'bg-black border-yellow-400 text-white' : 'bg-slate-950/75 border-white/20 text-white focus:border-blue-400'
             }`}
           >
             <option value="">{UI_STRINGS.selectOption[lang]}</option>

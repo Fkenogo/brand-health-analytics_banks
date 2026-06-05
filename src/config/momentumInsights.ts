@@ -15,7 +15,9 @@ export type MomentumMetricKey =
 export type MomentumSectionInsightKey =
   | 'momentum_drivers'
   | 'momentum_trends'
-  | 'competitive_momentum';
+  | 'competitive_momentum'
+  | 'scenario_sensitivity'
+  | 'trajectory_forecast';
 
 export const MOMENTUM_METRIC_CONTENT: Record<MomentumMetricKey, MetricInsightContent> = {
   momentum_score: {
@@ -108,5 +110,25 @@ export const MOMENTUM_SECTION_INSIGHTS: Record<MomentumSectionInsightKey, Sectio
       'Component-level gaps reveal where competitors outperform you.',
     ],
     keyInsight: 'Use component-level gaps to target the exact levers needed to close momentum rank distance.',
+  },
+  scenario_sensitivity: {
+    title: 'Scenario Sensitivity: How to Interpret',
+    interpretationThresholds: [
+      'The highest +10 Gain shows which component moves the total score most.',
+      'Priority Score = (gap × weight) / difficulty — higher means better return on effort.',
+      'A component with high gain but high difficulty may rank lower than an easier win.',
+      'Use this table to decide where to concentrate improvement resources.',
+    ],
+    keyInsight: 'Focus effort on the component with the highest momentum gain per unit of difficulty.',
+  },
+  trajectory_forecast: {
+    title: 'Momentum Trajectory Forecast',
+    interpretationThresholds: [
+      'Forecast requires at least 4 valid monthly periods to calculate.',
+      'Rising projected scores indicate that recent trends will carry forward if unchanged.',
+      'Falling projected scores signal that current conditions will erode momentum.',
+      'Treat projections as directional, not precise — they reflect the current trend slope.',
+    ],
+    keyInsight: 'A rising forecast is a signal to sustain current performance. A falling forecast is a signal to act before the score drops.',
   },
 };

@@ -2,6 +2,7 @@ import { getResponses } from './storage';
 import { BANKS } from '../constants';
 import { normalizeResponse, calculateMetrics, determineLoyaltySegment } from './analytics/DataProcessor';
 import { AnalyticSurveyResponse } from './analytics/types';
+import { isIncludedInAnalytics } from './survey/respondentInclusion';
 
 // Simulated API Delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -112,7 +113,7 @@ const filterResponses = (responses: AnalyticSurveyResponse[], filters: Record<st
 export const fetchDashboardMetrics = async (bankId: string, filters: Record<string, unknown>): Promise<DashboardMetrics> => {
   await delay(600); 
   
-  const allRaw = getResponses();
+  const allRaw = getResponses().filter(isIncludedInAnalytics);
   const allNormalized = allRaw.map(normalizeResponse);
   const filtered = filterResponses(allNormalized, filters);
   const total = filtered.length || 1;
@@ -218,7 +219,7 @@ export const fetchTrendData = async (bankId: string): Promise<TrendData[]> => {
 
 export const fetchCompetitorData = async (country?: string): Promise<CompetitorData[]> => {
   await delay(800);
-  const allRaw = getResponses();
+  const allRaw = getResponses().filter(isIncludedInAnalytics);
   const allNormalized = allRaw.map(normalizeResponse);
   const filtered = country ? allNormalized.filter(r => r.country === country) : allNormalized;
   const total = filtered.length || 1;
@@ -263,4 +264,3 @@ export const fetchNPSDrivers = async (bankId: string): Promise<NPSDriver[]> => {
     { attribute: 'Fee Transparency', performance: 61, importance: 0.65, impact: 'positive', rank: 4 }
   ];
 };
-

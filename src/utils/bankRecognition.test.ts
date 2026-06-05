@@ -60,6 +60,32 @@ describe('Bank Recognition Engine', () => {
       expect(result.standardName).toBe(null);
       expect(result.confidence).toBe(0);
     });
+
+    it('should recognize Uganda bank exact matches and typo variants', () => {
+      expect(recognizeTopOfMindBank('kcb', 'uganda').bankId).toBe('KCB_UG');
+      expect(recognizeTopOfMindBank('equity', 'uganda').bankId).toBe('EQU_UG');
+      expect(recognizeTopOfMindBank('stanbic', 'uganda').bankId).toBe('STB_UG');
+      expect(recognizeTopOfMindBank('stanbik', 'uganda').bankId).toBe('STB_UG');
+      expect(recognizeTopOfMindBank('stambic', 'uganda').bankId).toBe('STB_UG');
+      expect(recognizeTopOfMindBank('centenary', 'uganda').bankId).toBe('CEN_UG');
+      expect(recognizeTopOfMindBank('centernary', 'uganda').bankId).toBe('CEN_UG');
+      expect(recognizeTopOfMindBank('dfcu', 'uganda').bankId).toBe('DFCU_UG');
+      expect(recognizeTopOfMindBank('ncba', 'uganda').bankId).toBe('NCBA_UG');
+      expect(recognizeTopOfMindBank('absa', 'uganda').bankId).toBe('ABSA_UG');
+    });
+
+    it('should rank ambiguous Uganda stan variants to the intended bank', () => {
+      expect(recognizeTopOfMindBank('stanbik', 'uganda').standardName).toBe('Stanbic');
+      expect(recognizeTopOfMindBank('stanchart', 'uganda').bankId).toBe('STAN_UG');
+      expect(recognizeTopOfMindBank('standard chartered', 'uganda').bankId).toBe('STAN_UG');
+    });
+
+    it('should preserve representative Rwanda and Burundi matches', () => {
+      expect(recognizeTopOfMindBank('kcb', 'rwanda').bankId).toBe('KCB_RW');
+      expect(recognizeTopOfMindBank('ecobank', 'rwanda').bankId).toBe('ECO_RW');
+      expect(recognizeTopOfMindBank('kcb', 'burundi').bankId).toBe('KCB_BI');
+      expect(recognizeTopOfMindBank('ecobank', 'burundi').bankId).toBe('ECO_BI');
+    });
   });
 
   describe('parseSpontaneousBanks', () => {
@@ -100,6 +126,23 @@ describe('Bank Recognition Engine', () => {
       expect(result.recognized_banks).toHaveLength(2);
       expect(result.unrecognized_entries).toHaveLength(1);
       expect(result.unrecognized_entries).toContain('Fake Bank');
+    });
+
+    it('should dedupe repeated recognized banks and excluded entries', () => {
+      const result = parseSpontaneousBanks('KCB, kcb, BK, KCB', 'rwanda', {
+        excludeBankIds: ['KCB_RW'],
+      });
+
+      expect(result.recognized_bank_ids).toEqual(['BK_RW']);
+      expect(result.excluded_entries).toEqual(['KCB']);
+    });
+
+    it('should improve Uganda spontaneous recognition for realistic multi-entry inputs', () => {
+      expect(parseSpontaneousBanks('ncba, stanbic', 'uganda').recognized_bank_ids).toEqual(expect.arrayContaining(['NCBA_UG', 'STB_UG']));
+      expect(parseSpontaneousBanks('dfcu, centenary', 'uganda').recognized_bank_ids).toEqual(expect.arrayContaining(['DFCU_UG', 'CEN_UG']));
+      expect(parseSpontaneousBanks('equity, kcb', 'uganda').recognized_bank_ids).toEqual(expect.arrayContaining(['EQU_UG', 'KCB_UG']));
+      expect(parseSpontaneousBanks('dfcu, centernary', 'uganda').recognized_bank_ids).toEqual(expect.arrayContaining(['DFCU_UG', 'CEN_UG']));
+      expect(parseSpontaneousBanks('stanbik, ncba', 'uganda').recognized_bank_ids).toEqual(expect.arrayContaining(['STB_UG', 'NCBA_UG']));
     });
   });
 
@@ -150,6 +193,15 @@ describe('Bank Recognition Engine', () => {
       expect(result.total).toContain('ACC_RW');
       expect(result.total).toContain('GTB_RW');
       expect(result.total).toContain('KCB_RW');
+    });
+
+    it('should exclude top-of-mind duplicates from Uganda spontaneous awareness and keep total deduped', () => {
+      const result = processAwarenessData('kcb', 'equity, kcb, stanbik', [], 'uganda');
+
+      expect(result.top_of_mind.recognized_bank_id).toBe('KCB_UG');
+      expect(result.spontaneous.recognized_bank_ids).toEqual(expect.arrayContaining(['EQU_UG', 'STB_UG']));
+      expect(result.spontaneous.recognized_bank_ids).not.toContain('KCB_UG');
+      expect(result.total_awareness).toEqual(expect.arrayContaining(['KCB_UG', 'EQU_UG', 'STB_UG']));
     });
   });
 

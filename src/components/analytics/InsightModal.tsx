@@ -69,7 +69,7 @@ export const InsightModal: React.FC<InsightModalProps> = ({
         >
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[#667085]">
-              Executive Intelligence Workspace
+              Detailed Analysis
             </p>
             <h4 className="text-base font-bold text-[#1F2230]">{title}</h4>
           </div>
@@ -115,7 +115,7 @@ export const InsightModal: React.FC<InsightModalProps> = ({
 
           {/* Section grid */}
           <div className="p-6 sm:p-8">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 items-start">
+            <div className="grid gap-4 sm:grid-cols-2 items-start">
               {sections.map((sec, idx) => (
                 <div
                   key={sec.heading ?? idx}
@@ -132,8 +132,7 @@ export const InsightModal: React.FC<InsightModalProps> = ({
                 </div>
               ))}
             </div>
-            {/* Bottom padding ensures last card is never clipped */}
-            <div className="h-8 sm:h-12" aria-hidden="true" />
+            <div className="h-6" aria-hidden="true" />
           </div>
         </div>
       </div>

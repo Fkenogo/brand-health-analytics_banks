@@ -1,10 +1,11 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocsFromServer, query, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from '@/lib/firebase';
 import type { SubscriptionPlan } from '@/types/subscriptionPlans';
-import { getVisibleSubscriptionPlans } from '@/utils/subscriptionPlans';
+import { buildDefaultSubscriptionPlans, getVisibleSubscriptionPlans } from '@/utils/subscriptionPlans';
 
 const SUBSCRIPTION_PLANS_COLLECTION = 'subscriptionPlans';
+const PUBLIC_PLAN_FETCH_TIMEOUT_MS = 6500;
 
 const listSubscriptionPlansAdminCallable = httpsCallable<
   Record<string, never>,
@@ -34,6 +35,12 @@ export type AdminPlanAccessDiagnosis =
   | { kind: 'empty'; message: string }
   | { kind: 'unknown'; message: string };
 
+export interface PublicPlanLoadResult {
+  plans: SubscriptionPlan[];
+  source: 'firestore' | 'fallback';
+  fallbackReason: string | null;
+}
+
 const permissionErrorMessages = ['missing or insufficient permissions', 'permission-denied', 'permission denied'];
 const missingBackendMessages = [
   'preflight response is not successful',
@@ -47,6 +54,23 @@ const isPermissionError = (error: unknown): boolean => {
   const message = String((error as { message?: string })?.message || '').toLowerCase();
   const code = String((error as { code?: string })?.code || '').toLowerCase();
   return permissionErrorMessages.some((item) => message.includes(item)) || code.includes('permission-denied');
+};
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = globalThis.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== null) {
+      globalThis.clearTimeout(timer);
+    }
+  }
 };
 
 export const diagnoseAdminPlanAccessError = async (error: unknown): Promise<AdminPlanAccessDiagnosis> => {
@@ -94,11 +118,34 @@ export const subscriptionPlanService = {
   },
 
   listPublicPlans: async (): Promise<SubscriptionPlan[]> => {
-    const snapshot = await getDocs(query(
-      collection(db, SUBSCRIPTION_PLANS_COLLECTION),
-      where('isActive', '==', true),
-    ));
-    return getVisibleSubscriptionPlans(snapshot.docs.map((docSnap) => docSnap.data() as SubscriptionPlan));
+    const result = await subscriptionPlanService.listPublicPlansWithFallback();
+    return result.plans;
+  },
+
+  listPublicPlansWithFallback: async (): Promise<PublicPlanLoadResult> => {
+    try {
+      const snapshot = await withTimeout(
+        getDocsFromServer(query(
+          collection(db, SUBSCRIPTION_PLANS_COLLECTION),
+          where('isActive', '==', true),
+        )),
+        PUBLIC_PLAN_FETCH_TIMEOUT_MS,
+        'Timed out while loading subscription plans.',
+      );
+
+      return {
+        plans: getVisibleSubscriptionPlans(snapshot.docs.map((docSnap) => docSnap.data() as SubscriptionPlan)),
+        source: 'firestore',
+        fallbackReason: null,
+      };
+    } catch (error) {
+      const fallbackReason = error instanceof Error ? error.message : 'Subscription plan request failed.';
+      return {
+        plans: buildDefaultSubscriptionPlans(),
+        source: 'fallback',
+        fallbackReason,
+      };
+    }
   },
 
   savePlanAdmin: async (plan: SubscriptionPlan): Promise<SubscriptionPlan> => {

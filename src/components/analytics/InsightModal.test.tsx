@@ -31,7 +31,7 @@ describe('InsightModal', () => {
 
   it('renders workspace label', () => {
     render(<InsightModal {...defaultProps} />);
-    expect(screen.getByText('Executive Intelligence Workspace')).toBeInTheDocument();
+    expect(screen.getByText('Detailed Analysis')).toBeInTheDocument();
   });
 
   it('renders "Executive Takeaway" and snapshot text', () => {

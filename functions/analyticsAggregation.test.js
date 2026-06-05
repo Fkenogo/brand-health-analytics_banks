@@ -49,6 +49,9 @@ const rows = [
     selected_country: 'rwanda',
     analytics_date_bucket: '2026-03-02',
     _status: 'terminated',
+    consent: 'yes',
+    b1_recency: 'this_week',
+    b2_age: 'below_18',
     c1_recognized_bank_id: '',
     c2_recognized_bank_ids: [],
     c3_aware_banks: ['KCB_RW'],
@@ -109,14 +112,17 @@ describe('analytics aggregation helpers', () => {
       selectedBankId: 'BK_RW',
     });
 
-    expect(overview.sampleSize).toBe(3);
+    expect(overview.sampleSize).toBe(2);
     expect(overview.statusCounts.completed).toBe(2);
     expect(overview.statusCounts.terminated).toBe(1);
+    expect(overview.statusCounts.included).toBe(2);
+    expect(overview.statusCounts.screenedOut).toBe(1);
+    expect(overview.statusCounts.under18).toBe(1);
     expect(overview.flagCounts.suspicious).toBe(1);
-    expect(overview.selectedMetrics?.aware).toBe(67);
-    expect(overview.selectedMetrics?.currentUsing).toBe(67);
-    expect(overview.selectedMetrics?.preferred).toBe(33);
-    expect(overview.selectedMetrics?.consider).toBe(67);
+    expect(overview.selectedMetrics?.aware).toBe(100);
+    expect(overview.selectedMetrics?.currentUsing).toBe(100);
+    expect(overview.selectedMetrics?.preferred).toBe(50);
+    expect(overview.selectedMetrics?.consider).toBe(100);
     expect(overview.selectedMetrics?.retentionRate).toBe(100);
     expect(overview.selectedMetrics?.churnRate).toBe(0);
     expect(overview.selectedMetrics?.considerationRate).toBe(100);
@@ -124,7 +130,10 @@ describe('analytics aggregation helpers', () => {
     expect(overview.selectedMetrics?.loyaltyIndex).toBeGreaterThan(0);
     expect(overview.marketRows[0]).toHaveProperty('trialRate');
     expect(overview.marketRows[0]).toHaveProperty('retentionRate');
-    expect(overview.marketRows.map((row) => row.bankId)).toEqual(['KCB_RW', 'BK_RW']);
+    expect(overview.marketRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ bankId: 'BK_RW', sample: 2 }),
+      expect.objectContaining({ bankId: 'KCB_RW', sample: 2 }),
+    ]));
   });
 
   it('returns empty-safe metrics when aggregates are empty', () => {

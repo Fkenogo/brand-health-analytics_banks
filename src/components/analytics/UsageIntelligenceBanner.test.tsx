@@ -25,7 +25,7 @@ describe('UsageIntelligenceBanner', () => {
     expect(screen.getByText('USAGE INTELLIGENCE')).toBeInTheDocument();
   });
 
-  it('renders stat labels: Retention Rate, BUMO Penetration, Multi-Banking', () => {
+  it('renders stat labels: Retention Rate, Preferred Bank Rate, Multi-Banking', () => {
     render(
       <UsageIntelligenceBanner
         moduleSummary={null}
@@ -37,7 +37,7 @@ describe('UsageIntelligenceBanner', () => {
       />
     );
     expect(screen.getByText(/Retention Rate/i)).toBeInTheDocument();
-    expect(screen.getByText(/BUMO Penetration/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preferred Bank Rate/i)).toBeInTheDocument();
     expect(screen.getByText(/Multi-Banking/i)).toBeInTheDocument();
   });
 

@@ -1,4 +1,5 @@
 import { Question, SurveyResponse, CountryCode, Language } from '@/types';
+import { deriveSurveyAnalyticsInclusion } from '@/utils/survey/respondentInclusion';
 
 export type PreferredSource = 'auto_single_usage' | 'respondent_selected';
 
@@ -12,6 +13,9 @@ const ANALYTICS_FIELD_ALLOWLIST: Array<keyof SurveyResponse> = [
   'question_timings',
   'language_at_submission',
   '_status',
+  'response_state',
+  'screening_outcome',
+  'included_in_analytics',
   'consent',
   'b1_recency',
   'b2_age',
@@ -226,6 +230,16 @@ export const normalizeResponseForSubmission = (input: NormalizeInput): Normalize
   normalized.question_timings = asRecordNumber(input.data.question_timings);
   normalized.language_at_submission = input.language;
   normalized._status = input.status;
+  const inclusion = deriveSurveyAnalyticsInclusion({
+    ...normalized,
+    consent: input.data.consent,
+    b1_recency: input.data.b1_recency,
+    b2_age: input.data.b2_age,
+    _status: input.status,
+  });
+  normalized.response_state = inclusion.responseState;
+  normalized.screening_outcome = inclusion.screeningOutcome;
+  normalized.included_in_analytics = inclusion.includedInAnalytics;
 
   normalized.c5_currently_using = currentlyUsing;
   normalized.bank_count = bankCount;
@@ -282,5 +296,8 @@ export const normalizeResponseForAnalyticsRead = (response: SurveyResponse): Sur
     c6_often_used: preferredBank || response.c6_often_used,
     d5_committed: committedBank || response.d5_committed,
     gender: String(response.gender || response.e3_gender || 'unknown').trim().toLowerCase(),
+    response_state: deriveSurveyAnalyticsInclusion(response).responseState,
+    screening_outcome: deriveSurveyAnalyticsInclusion(response).screeningOutcome,
+    included_in_analytics: deriveSurveyAnalyticsInclusion(response).includedInAnalytics,
   };
 };

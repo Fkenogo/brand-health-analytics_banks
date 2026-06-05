@@ -36,6 +36,8 @@ const getPlanJourney = (plan: SubscriptionPlan): { label: string; target: string
 const PublicLandingPage: React.FC = () => {
   const [plans, setPlans] = React.useState<SubscriptionPlan[]>([]);
   const [plansLoading, setPlansLoading] = React.useState(true);
+  const [plansError, setPlansError] = React.useState<string | null>(null);
+  const [plansSource, setPlansSource] = React.useState<'firestore' | 'fallback'>('firestore');
   const [pricingPeriod, setPricingPeriod] = React.useState<BillingPeriod>('monthly');
   const [currency, setCurrency] = React.useState<SupportedCurrency>('USD');
 
@@ -44,13 +46,17 @@ const PublicLandingPage: React.FC = () => {
 
     const loadPlans = async () => {
       try {
-        const nextPlans = await subscriptionPlanService.listPublicPlans();
+        const result = await subscriptionPlanService.listPublicPlansWithFallback();
         if (isMounted) {
-          setPlans(nextPlans);
+          setPlans(result.plans);
+          setPlansSource(result.source);
+          setPlansError(result.fallbackReason);
         }
       } catch (_err) {
         if (isMounted) {
           setPlans([]);
+          setPlansSource('fallback');
+          setPlansError('Subscription pricing could not be loaded right now.');
         }
       } finally {
         if (isMounted) {
@@ -186,6 +192,12 @@ const PublicLandingPage: React.FC = () => {
           <p className="mt-3 text-sm text-slate-300">
             BrandEdge dashboard access is subscription-based. Public plan presentation now reads from admin-managed subscription configuration.
           </p>
+          {!plansLoading && plansSource === 'fallback' && (
+            <div className="mt-5 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-5 py-4 text-sm text-amber-100">
+              Live subscription pricing could not be reached, so this page is showing the current BrandEdge default plan set.
+              {plansError ? ` (${plansError})` : ''}
+            </div>
+          )}
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <div className="inline-flex rounded-2xl border border-white/10 bg-slate-950/60 p-1">
               {(['monthly', 'annual'] as const).map((period) => (

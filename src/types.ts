@@ -108,6 +108,9 @@ export interface SurveyResponse {
   question_timings: Record<string, number>;
   language_at_submission: Language;
   _status?: string;
+  response_state?: 'completed' | 'screened_out' | 'abandoned_partial';
+  screening_outcome?: 'eligible' | 'under_18' | 'non_recent_user' | 'consent_declined' | 'unknown';
+  included_in_analytics?: boolean;
   submitted_at?: unknown;
   submitted_at_iso?: string;
   analytics_date_bucket?: string;

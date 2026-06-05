@@ -1,0 +1,46 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default rule: Deny all access
+    // The application currently does NOT use Firebase Cloud Storage.
+    // All data persistence uses localStorage (client-side) and Firestore (server-side).
+    //
+    // This restrictive default protects against:
+    // 1. Accidental data exposure if Cloud Storage is enabled
+    // 2. Unauthorized file uploads/deletions
+    // 3. Public access to any bucket contents
+    //
+    // If Cloud Storage functionality is needed in the future:
+    // 1. Add specific match blocks for required paths
+    // 2. Implement proper authentication checks
+    // 3. Add validation for file types, sizes, and ownership
+    // 4. Test rules using Firebase Emulator Suite before deployment
+    //
+    // Example patterns for future use (UNCOMMENT AND MODIFY AS NEEDED):
+    //
+    // // User-uploaded avatars (authenticated users only, own folder)
+    // match /avatars/{userId}/{fileName} {
+    //   allow read: if true;  // Avatars are public
+    //   allow write: if request.auth != null && request.auth.uid == userId
+    //              && request.resource.size < 5 * 1024 * 1024  // 5MB limit
+    //              && request.resource.contentType == 'image/jpeg'
+    //              || request.resource.contentType == 'image/png';
+    // }
+    //
+    // // Admin-only configuration files
+    // match /config/{fileName} {
+    //   allow read: if true;  // Config is public
+    //   allow write: if request.auth != null 
+    //              && get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // }
+    //
+    // IMPORTANT: Before enabling any Cloud Storage features:
+    // 1. Review and update these rules for your specific use case
+    // 2. Run emulator tests: npm run test:storage-rules
+    // 3. Deploy rules first, then enable the feature
+    // 4. Monitor Cloud Storage usage in Firebase Console
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getDocsMock = vi.fn();
+const getDocsFromServerMock = vi.fn();
 const collectionMock = vi.fn();
 const queryMock = vi.fn();
 const whereMock = vi.fn();
@@ -8,7 +8,7 @@ const httpsCallableMock = vi.fn();
 const getIdTokenResultMock = vi.fn();
 
 vi.mock('firebase/firestore', () => ({
-  getDocs: (...args: unknown[]) => getDocsMock(...args),
+  getDocsFromServer: (...args: unknown[]) => getDocsFromServerMock(...args),
   collection: (...args: unknown[]) => collectionMock(...args),
   query: (...args: unknown[]) => queryMock(...args),
   where: (...args: unknown[]) => whereMock(...args),
@@ -91,5 +91,44 @@ describe('subscriptionPlanService', () => {
       kind: 'validation_failure',
       message: 'Subscription plan payload is invalid. Check internal id, pricing values, and entitlement mapping before saving.',
     });
+  });
+
+  it('returns live public plans from Firestore when the query succeeds', async () => {
+    getDocsFromServerMock.mockResolvedValue({
+      docs: [
+        { data: () => ({ id: 'premium', publicName: 'Premium', positioningLine: 'Premium', benefits: [], isActive: true, sortOrder: 30, featured: false, ctaLabel: 'Go', ctaTarget: '/signup', entitlementMapping: { tier: 'standard', aiAddon: true }, pricing: { monthly: { USD: 699, BIF: 0, RWF: 0, UGX: 0 }, annual: { USD: 7339, BIF: 0, RWF: 0, UGX: 0 } } }) },
+        { data: () => ({ id: 'standard', publicName: 'Standard', positioningLine: 'Standard', benefits: [], isActive: true, sortOrder: 20, featured: false, ctaLabel: 'Go', ctaTarget: '/signup', entitlementMapping: { tier: 'standard', aiAddon: false }, pricing: { monthly: { USD: 499, BIF: 0, RWF: 0, UGX: 0 }, annual: { USD: 5240, BIF: 0, RWF: 0, UGX: 0 } } }) },
+      ],
+    });
+
+    const { subscriptionPlanService } = await import('@/services/subscriptionPlanService');
+
+    await expect(subscriptionPlanService.listPublicPlansWithFallback()).resolves.toMatchObject({
+      source: 'firestore',
+      fallbackReason: null,
+      plans: [
+        { id: 'standard' },
+        { id: 'premium' },
+      ],
+    });
+  });
+
+  it('falls back to default public plans when the live request fails', async () => {
+    getDocsFromServerMock.mockRejectedValue(new Error('network stalled'));
+
+    const { subscriptionPlanService } = await import('@/services/subscriptionPlanService');
+
+    await expect(subscriptionPlanService.listPublicPlansWithFallback()).resolves.toMatchObject({
+      source: 'fallback',
+      fallbackReason: 'network stalled',
+    });
+
+    await expect(subscriptionPlanService.listPublicPlans()).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'free' }),
+        expect.objectContaining({ id: 'standard' }),
+        expect.objectContaining({ id: 'premium' }),
+      ]),
+    );
   });
 });

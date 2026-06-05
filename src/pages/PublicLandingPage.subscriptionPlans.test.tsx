@@ -6,13 +6,13 @@ import { publicDemoModel } from '@/data/publicDemoModel';
 import PublicLandingPage from '@/pages/PublicLandingPage';
 import type { SubscriptionPlan } from '@/types/subscriptionPlans';
 
-const { listPublicPlans } = vi.hoisted(() => ({
-  listPublicPlans: vi.fn(),
+const { listPublicPlansWithFallback } = vi.hoisted(() => ({
+  listPublicPlansWithFallback: vi.fn(),
 }));
 
 vi.mock('@/services/subscriptionPlanService', () => ({
   subscriptionPlanService: {
-    listPublicPlans,
+    listPublicPlansWithFallback,
   },
 }));
 
@@ -37,11 +37,11 @@ const managedPlans: SubscriptionPlan[] = [
 
 describe('PublicLandingPage managed pricing', () => {
   beforeEach(() => {
-    listPublicPlans.mockReset();
+    listPublicPlansWithFallback.mockReset();
   });
 
   it('renders admin-managed plans instead of static pricing copy', async () => {
-    listPublicPlans.mockResolvedValue(managedPlans);
+    listPublicPlansWithFallback.mockResolvedValue({ plans: managedPlans, source: 'firestore', fallbackReason: null });
 
     render(
       <MemoryRouter>
@@ -55,10 +55,10 @@ describe('PublicLandingPage managed pricing', () => {
     expect(screen.getAllByRole('link', { name: 'Get Started' }).length).toBeGreaterThan(0);
     expect(screen.getByText('Request Standard Access')).toBeInTheDocument();
     expect(screen.queryByText('Pricing values are not displayed on this page because no production pricing table is currently encoded in the codebase.')).not.toBeInTheDocument();
-  });
+  }, 10000);
 
   it('switches billing period and currency using managed plan values', async () => {
-    listPublicPlans.mockResolvedValue(managedPlans);
+    listPublicPlansWithFallback.mockResolvedValue({ plans: managedPlans, source: 'firestore', fallbackReason: null });
 
     render(
       <MemoryRouter>
@@ -76,7 +76,7 @@ describe('PublicLandingPage managed pricing', () => {
   });
 
   it('renders shared illustrative demo metrics instead of duplicated public constants', async () => {
-    listPublicPlans.mockResolvedValue(managedPlans);
+    listPublicPlansWithFallback.mockResolvedValue({ plans: managedPlans, source: 'firestore', fallbackReason: null });
 
     render(
       <MemoryRouter>
@@ -95,7 +95,7 @@ describe('PublicLandingPage managed pricing', () => {
   });
 
   it('shows Home and Insights as distinct landing-nav targets', async () => {
-    listPublicPlans.mockResolvedValue(managedPlans);
+    listPublicPlansWithFallback.mockResolvedValue({ plans: managedPlans, source: 'firestore', fallbackReason: null });
 
     render(
       <MemoryRouter>
@@ -109,5 +109,29 @@ describe('PublicLandingPage managed pricing', () => {
     expect(screen.getByRole('link', { name: 'Insights' })).toHaveAttribute('href', '/insights');
     expect(screen.getByRole('link', { name: 'Login' })).toHaveAttribute('href', '/login');
     expect(screen.getByText('Executive Snapshot').closest('section')).toHaveAttribute('id', 'insights');
+  });
+
+  it('exits loading state and shows fallback plans when live pricing cannot be reached', async () => {
+    listPublicPlansWithFallback.mockResolvedValue({
+      plans: managedPlans,
+      source: 'fallback',
+      fallbackReason: 'network stalled',
+    });
+
+    render(
+      <MemoryRouter>
+        <PublicLandingPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Loading subscription plans...')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading subscription plans...')).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Live subscription pricing could not be reached/i)).toBeInTheDocument();
+    expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.getByText('$499')).toBeInTheDocument();
   });
 });

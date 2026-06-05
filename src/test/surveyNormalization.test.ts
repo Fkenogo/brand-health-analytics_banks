@@ -6,6 +6,7 @@ import {
   isMatrixAnswerComplete,
   normalizeResponseForSubmission,
   resolveResponseCountry,
+  isQuestionAnswered,
 } from '@/utils/survey/normalization';
 import { getRuntimeSurveyQuestions, SURVEY_QUESTIONS } from '@/constants';
 
@@ -105,6 +106,31 @@ describe('survey normalization and validation', () => {
     expect(runtimeIds).not.toContain('consent');
     expect(runtimeIds).not.toContain('termination_consent');
     expect(runtimeIds[0]).toBe('b1_recency');
+  });
+
+  it('keeps age screening before brand questions and only treats explicit below_18 as ineligible', () => {
+    const runtimeQuestions = getRuntimeSurveyQuestions(SURVEY_QUESTIONS);
+    const recencyQuestion = runtimeQuestions.find((question) => question.id === 'b1_recency');
+    const ageQuestion = runtimeQuestions.find((question) => question.id === 'b2_age');
+    const ageTermination = runtimeQuestions.find((question) => question.id === 'termination_age');
+    const topOfMindQuestion = runtimeQuestions.find((question) => question.id === 'c1_top_of_mind');
+
+    const eligibleAfterRecency = { consent: 'yes', b1_recency: 'this_week' } as SurveyResponse;
+
+    expect(recencyQuestion).toBeDefined();
+    expect(ageQuestion?.required).toBe(true);
+    expect(ageQuestion?.logic?.(eligibleAfterRecency)).toBe(true);
+    expect(ageTermination?.logic?.(eligibleAfterRecency)).toBe(false);
+    expect(topOfMindQuestion?.logic?.(eligibleAfterRecency)).toBe(false);
+    expect(topOfMindQuestion?.logic?.({ ...eligibleAfterRecency, b2_age: '18-24' } as SurveyResponse)).toBe(true);
+    expect(ageTermination?.logic?.({ ...eligibleAfterRecency, b2_age: 'below_18' } as SurveyResponse)).toBe(true);
+  });
+
+  it('treats missing age screening as unanswered so progression is blocked rather than auto-terminated', () => {
+    const ageQuestion = getRuntimeSurveyQuestions(SURVEY_QUESTIONS).find((question) => question.id === 'b2_age');
+    expect(ageQuestion).toBeDefined();
+    expect(isQuestionAnswered(ageQuestion!, { consent: 'yes', b1_recency: 'this_week' })).toBe(false);
+    expect(isQuestionAnswered(ageQuestion!, { consent: 'yes', b1_recency: 'this_week', b2_age: '18-24' })).toBe(true);
   });
 
   it('auto-assigns preferred and committed bank for single-bank users', () => {

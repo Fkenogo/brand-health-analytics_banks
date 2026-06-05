@@ -387,9 +387,9 @@ describe('buildUsageFunnelInsight', () => {
     expect(result!.detail.length).toBeGreaterThan(0);
   });
 
-  it('detail contains FUNNEL HEALTH CLASSIFICATION section', () => {
+  it('detail contains FUNNEL ASSESSMENT section', () => {
     const result = buildUsageFunnelInsight(baseArgs);
-    expect(result?.detail).toMatch(/FUNNEL HEALTH CLASSIFICATION/);
+    expect(result?.detail).toMatch(/FUNNEL ASSESSMENT/);
   });
 
   it('detail contains HIGHEST FRICTION POINT section', () => {
@@ -502,9 +502,9 @@ describe('buildConversionChainInsight', () => {
     expect(buildConversionChainInsight({ ...baseArgs, sampleSize: 0 })).toBeNull();
   });
 
-  it('detail contains CONVERSION LEVER RANKING section', () => {
+  it('detail contains KEY CONVERSION DRIVERS section', () => {
     const result = buildConversionChainInsight(baseArgs);
-    expect(result?.detail).toMatch(/CONVERSION LEVER RANKING/);
+    expect(result?.detail).toMatch(/KEY CONVERSION DRIVERS/);
   });
 
   it('detail contains STRATEGIC PRIORITY section', () => {
@@ -518,5 +518,46 @@ describe('buildConversionChainInsight', () => {
     expect(typeof result?.detail).toBe('string');
     expect(result!.snapshot.length).toBeGreaterThan(0);
     expect(result!.detail.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── Defensive formatting: undefined/NaN inputs must not crash ───────────────
+
+import { buildUsageModuleInsight, buildMultiBankingInsight } from './usageInsights';
+
+describe('usageInsights: safe number formatting (no toFixed crash)', () => {
+  it('buildUsageModuleInsight does not throw when rates are NaN', () => {
+    expect(() => buildUsageModuleInsight({
+      trialRate: NaN,
+      retentionRate: NaN,
+      preferenceRate: NaN,
+      funnelHealthDiagnosis: 'Leaky bucket pattern',
+      positionLabel: 'N/A',
+      sampleSize: 100,
+    })).not.toThrow();
+  });
+
+  it('buildUsageModuleInsight snapshot does not contain NaN text when rates are NaN', () => {
+    const result = buildUsageModuleInsight({
+      trialRate: NaN,
+      retentionRate: NaN,
+      preferenceRate: NaN,
+      funnelHealthDiagnosis: 'Leaky bucket pattern',
+      positionLabel: 'N/A',
+      sampleSize: 100,
+    });
+    expect(result?.snapshot ?? '').not.toContain('NaN');
+  });
+
+  it('buildMultiBankingInsight (usage) does not throw when fields are undefined via object with missing keys', () => {
+    const incompleteArgs = { sampleSize: 50 } as Parameters<typeof buildMultiBankingInsight>[0];
+    expect(() => buildMultiBankingInsight(incompleteArgs)).not.toThrow();
+  });
+
+  it('buildMultiBankingInsight (usage) snapshot does not contain undefined text on missing fields', () => {
+    const incompleteArgs = { sampleSize: 50 } as Parameters<typeof buildMultiBankingInsight>[0];
+    const result = buildMultiBankingInsight(incompleteArgs);
+    expect(result?.snapshot ?? '').not.toContain('undefined');
+    expect(result?.snapshot ?? '').not.toContain('NaN');
   });
 });

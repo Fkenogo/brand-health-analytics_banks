@@ -81,7 +81,47 @@ import { AwarenessInsightPanel } from '@/components/analytics/AwarenessInsightPa
 import { KpiCardAnalysisFooter } from '@/components/analytics/KpiCardAnalysisFooter';
 import { AwarenessIntelligenceBanner } from '@/components/analytics/AwarenessIntelligenceBanner';
 import { SectionAnalysisBlock } from '@/components/analytics/SectionAnalysisBlock';
+import { OverviewModuleCard } from '@/components/analytics/OverviewModuleCard';
 import { UsageIntelligenceBanner } from '@/components/analytics/UsageIntelligenceBanner';
+import { LoyaltyBanner } from '@/components/analytics/LoyaltyBanner';
+import { MomentumBanner } from '@/components/analytics/MomentumBanner';
+import { CompetitiveBanner } from '@/components/analytics/CompetitiveBanner';
+import {
+  buildCompetitiveModuleSummary,
+  buildMarketShareInsight,
+  buildHHIInsight,
+  buildCompetitiveMultiBankingInsight,
+  buildMarketStructureInsight,
+  buildCustomerBehaviorInsight,
+  buildCompetitivePositioningInsight,
+  buildSwitchingRadarInsight,
+  buildMigrationMapInsight,
+  buildWinLossInsight,
+  buildStrengthsWeaknessesInsight,
+  buildWhitespaceInsight,
+  buildRiskSignalsInsight,
+} from '@/utils/competitiveInsights';
+import {
+  buildMomentumModuleSummary,
+  buildMomentumScoreInsight,
+  buildVelocityInsight,
+  buildComponentInsight,
+  buildDriversInsight,
+  buildScenarioSensitivityInsight,
+  buildTrendInsight,
+  buildTrajectoryInsight,
+  buildCompetitiveMomentumInsight,
+} from '@/utils/momentumInsights';
+import {
+  buildLoyaltyModuleSummary,
+  buildLoyaltyIndexInsight,
+  buildNpsInsight,
+  buildCommittedInsight,
+  buildRejectorsInsight,
+  buildSegmentDistributionInsight,
+  buildSegmentMovementInsight,
+  buildLoyaltyFunnelInsight,
+} from '@/utils/loyaltyInsights';
 import {
   buildUsageModuleInsight,
   buildTrialInsight,
@@ -93,6 +133,9 @@ import {
   buildSegmentationInsight,
   buildConversionChainInsight,
   buildCompetitiveOverlapInsight,
+  buildMultiBankCompetitionInsight,
+  buildUsageSegmentationInsight,
+  buildCompetitiveUsageInsight,
 } from '@/utils/usageInsights';
 import {
   buildAwarenessMetricInsight,
@@ -139,6 +182,7 @@ import {
   describeBrandEdgeScore,
   summarizeBrandEdgeDrivers,
 } from '@/utils/brandEdgeScore';
+import { buildExecutivePriorities, moduleCardBadge } from '@/utils/overviewInsights';
 import { computeCustomerSwitchingRadar, type CustomerSwitchingRadarResult } from '@/utils/customerSwitchingRadar';
 import { computeCustomerMigrationMap, type CustomerMigrationMapResult } from '@/utils/customerMigrationMap';
 import { applyGuardedRendering } from '@/utils/sampleGuards';
@@ -152,8 +196,7 @@ type SubscriberSection =
   | 'loyalty_satisfaction'
   | 'brand_momentum'
   | 'competitive_intelligence'
-  | 'demographics'
-  | 'trends_forecasts';
+  | 'demographics';
 
 const SECTION_LABELS: Array<{ id: SubscriberSection; label: string }> = [
   { id: 'overview', label: 'Overview' },
@@ -163,7 +206,6 @@ const SECTION_LABELS: Array<{ id: SubscriberSection; label: string }> = [
   { id: 'brand_momentum', label: 'Brand Momentum' },
   { id: 'competitive_intelligence', label: 'Competitive Intelligence' },
   { id: 'demographics', label: 'Demographics' },
-  { id: 'trends_forecasts', label: 'Trends & Forecasts' },
 ];
 const FREE_TIER_SECTION_LABELS: Array<{ id: SubscriberSection; label: string }> = [
   { id: 'overview', label: 'Overview' },
@@ -528,27 +570,30 @@ const ExecutiveHero: React.FC<{
   score: string;
   delta: number | null;
   summary: string;
-  rightCards: Array<{ label: string; value: string; tone?: 'positive' | 'negative' | 'neutral' }>;
+  rightCards: Array<{ label: string; value: string; tone?: 'positive' | 'negative' | 'neutral'; descriptor?: string }>;
 }> = ({ label, score, delta, summary, rightCards }) => (
   <div className="grid gap-8 md:grid-cols-3">
     <div className="rounded-3xl bg-gradient-to-br from-[#5A0B10] via-[#8E1018] to-[#C1121F] p-10 text-white md:col-span-2">
       <p className="text-sm font-semibold uppercase tracking-wide text-red-100">{label}</p>
       <p className="mt-4 text-6xl font-bold">{score}</p>
       <p className="mt-4 text-sm font-medium" style={{ color: delta === null ? 'rgba(255,255,255,0.65)' : delta > 0 ? '#A7F3D0' : delta < 0 ? '#FECACA' : 'rgba(255,255,255,0.65)' }}>
-        {delta === null ? 'No previous period delta' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}pp vs previous period`}
+        {delta === null ? 'No comparison available' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}pp vs previous period`}
       </p>
       <p className="mt-3 text-sm text-red-100">{summary}</p>
     </div>
     <div className="grid gap-6">
       {rightCards.map((item) => (
         <div key={item.label} className="flex h-full flex-col justify-between rounded-2xl bg-white p-5 shadow-xl">
-          <p className="text-xs uppercase tracking-wide text-slate-400">{item.label}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#667085]">{item.label}</p>
           <p
             className="mt-1 text-3xl font-bold"
             style={{ color: item.tone === 'positive' ? ACCENT_POSITIVE : item.tone === 'negative' ? ACCENT_NEGATIVE : '#1E293B' }}
           >
             {item.value}
           </p>
+          {item.descriptor && (
+            <p className="mt-1 text-[11px] text-[#98A2B3]">{item.descriptor}</p>
+          )}
         </div>
       ))}
     </div>
@@ -618,6 +663,35 @@ const safeRatioPercent = (count: number | null | undefined, base: number | null 
   return `${Math.round((count / base) * 100)}%`;
 };
 
+/** Map raw data identifiers to human-readable labels for the Demographics tab. */
+const DEMO_LABEL_MAP: Record<string, string> = {
+  full_time: 'Full-time',
+  part_time: 'Part-time',
+  self_employed: 'Self-employed',
+  prefer_not_to_say: 'Prefer not to say',
+  unknown: 'Unknown',
+  unemployed: 'Unemployed',
+  retired: 'Retired',
+  student: 'Student',
+  university: 'University',
+  postgraduate: 'Postgraduate',
+  secondary: 'Secondary',
+  primary: 'Primary',
+  primaryschool: 'Primary school',
+  highschool: 'High school',
+  none: 'None',
+  male: 'Male',
+  female: 'Female',
+  other: 'Other',
+};
+
+/** Convert a raw demographic label (snake_case or lowercase) to a human-readable display string. */
+const displayLabel = (raw: string | null | undefined): string => {
+  if (!raw) return '—';
+  const key = raw.toLowerCase().replace(/ /g, '_');
+  return DEMO_LABEL_MAP[key] ?? raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, ' ');
+};
+
 const EMPTY_COPY = {
   noData: 'No data',
   noDataInSlice: 'No data in this slice.',
@@ -625,26 +699,10 @@ const EMPTY_COPY = {
   noCurrentUsersInSlice: 'No current users in this slice.',
   noValidPeriods: 'No valid periods',
   insufficientHistory: 'Insufficient history',
-  forecastUnavailable: 'Forecast unavailable',
+  forecastUnavailable: 'Forecasts will appear once enough survey waves have been completed.',
 };
 
-const normalizeStatusReason = (reason: string) => {
-  const normalized = reason.replace(/^forecast_blocked:/, '');
-  switch (normalized) {
-    case 'requires_four_valid_periods':
-      return `${EMPTY_COPY.forecastUnavailable}: at least four valid periods are required.`;
-    case 'requires_six_valid_periods':
-      return `${EMPTY_COPY.forecastUnavailable}: at least six valid periods are required.`;
-    case 'series_too_sparse':
-      return `${EMPTY_COPY.insufficientHistory}: recent periods are too sparse.`;
-    case 'recent_periods_missing':
-      return `${EMPTY_COPY.insufficientHistory}: recent periods are missing.`;
-    case 'requires_four_regression_points':
-      return `${EMPTY_COPY.forecastUnavailable}: regression needs four valid points.`;
-    default:
-      return normalized.replaceAll('_', ' ');
-  }
-};
+const normalizeStatusReason = (_reason: string) => EMPTY_COPY.forecastUnavailable;
 
 const firstStatusNote = (notes?: string[] | null, fallback = EMPTY_COPY.insufficientHistory) => {
   if (!notes || notes.length === 0) return fallback;
@@ -1262,6 +1320,24 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   );
   const brandEdgeLabel = useMemo(() => describeBrandEdgeScore(brandEdgeScore), [brandEdgeScore]);
   const brandEdgeDriverSummary = useMemo(() => summarizeBrandEdgeDrivers(brandEdgeInputs), [brandEdgeInputs]);
+
+  const executivePriorities = useMemo(() => buildExecutivePriorities({
+    awareness: selectedMetricsView?.aware ?? null,
+    currentUsage: selectedMetricsView?.currentUsing ?? null,
+    retentionRate: usageDiagnostics?.retentionRate ?? null,
+    loyaltyIndex: loyaltyDiagnosticsView?.loyaltyIndex ?? null,
+    rejectorShare: loyaltyDiagnosticsView?.segmentPcts.Rejectors ?? null,
+    switchingRisk: brandEdgeInputs.switchingRisk,
+    momentumScore: momentumDiagnosticsView?.score ?? null,
+    winLossRate: competitiveDiagnostics?.winLoss.overallWinRate ?? null,
+  }), [
+    selectedMetricsView,
+    usageDiagnostics,
+    loyaltyDiagnosticsView,
+    brandEdgeInputs,
+    momentumDiagnosticsView,
+    competitiveDiagnostics,
+  ]);
 
   const compareBankName = useMemo(
     () => (compareBankId ? countryBanks.find((bank) => bank.id === compareBankId)?.name || compareBankId : null),
@@ -1917,6 +1993,422 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     [usageDiagnostics],
   );
 
+  const multiBankCompetitionInsight = useMemo(
+    () => multiBankCompetition && multiBankCompetition.multiBankBase > 0
+      ? buildMultiBankCompetitionInsight({
+          selected: multiBankCompetition.selected,
+          compare: multiBankCompetition.compare,
+          secondChoiceRows: multiBankCompetition.secondChoiceRows,
+          multiBankBase: multiBankCompetition.multiBankBase,
+          secondChoiceBase: multiBankCompetition.secondChoiceBase,
+          bankName: selectedBankName,
+          sampleSize: multiBankCompetition.multiBankBase,
+        })
+      : null,
+    [multiBankCompetition, selectedBankName],
+  );
+
+  const usageSegmentationInsight = useMemo(
+    () => usageDiagnostics ? buildUsageSegmentationInsight({
+      nonTriersCount: usageDiagnostics.nonTriersCount,
+      lapsedUsersCount: usageDiagnostics.lapsedUsersCount,
+      secondaryUsersCount: usageDiagnostics.secondaryUsersCount,
+      primaryUsersCount: usageDiagnostics.primaryUsersCount,
+      awareCount: usageDiagnostics.awareCount,
+      sampleSize: usageDiagnostics.sample,
+    }) : null,
+    [usageDiagnostics],
+  );
+
+  const competitiveUsageInsight = useMemo(
+    () => usageDiagnostics ? buildCompetitiveUsageInsight({
+      positionLabel: usageDiagnostics.positionLabel,
+      usageMedian: usageDiagnostics.usageMedian,
+      retentionMedian: usageDiagnostics.retentionMedian,
+      opportunities: usageDiagnostics.opportunities,
+      sampleSize: usageDiagnostics.sample,
+    }) : null,
+    [usageDiagnostics],
+  );
+
+  // ─── Loyalty & Satisfaction intelligence builders ─────────────────────────
+
+  const loyaltyPositionLabel = useMemo(() => {
+    if (!loyaltyDiagnosticsView) return 'N/A';
+    const { loyaltyIndex, segmentPcts } = loyaltyDiagnosticsView;
+    if (segmentPcts.Rejectors > 25) return 'HIGH REJECTOR SHARE';
+    if (loyaltyIndex >= 75) return 'STRONG BASE';
+    if (loyaltyIndex >= 60) return 'SOLID BASE';
+    if (loyaltyIndex >= 40) return 'DEVELOPING BASE';
+    return 'WEAK BASE';
+  }, [loyaltyDiagnosticsView]);
+
+  const loyaltyModuleSummary = useMemo(
+    () => loyaltyDiagnosticsView ? buildLoyaltyModuleSummary(loyaltyDiagnosticsView, selectedBankName) : null,
+    [loyaltyDiagnosticsView, selectedBankName],
+  );
+
+  const loyaltyIndexInsight = useMemo(
+    () => loyaltyDiagnosticsView ? buildLoyaltyIndexInsight(
+      loyaltyDiagnosticsView.loyaltyIndex,
+      loyaltyDiagnosticsView.segmentPcts,
+      selectedBankName,
+    ) : null,
+    [loyaltyDiagnosticsView, selectedBankName],
+  );
+
+  const loyaltyNpsInsight = useMemo(
+    () => loyaltyDiagnosticsView && usageDiagnostics ? buildNpsInsight(
+      loyaltyDiagnosticsView.nps,
+      selectedMetricsView?.promoters ?? NaN,
+      selectedMetricsView?.passives ?? NaN,
+      selectedMetricsView?.detractors ?? NaN,
+      usageDiagnostics.everCount,
+      selectedBankName,
+    ) : null,
+    [loyaltyDiagnosticsView, selectedMetricsView, usageDiagnostics, selectedBankName],
+  );
+
+  const loyaltyCommittedInsight = useMemo(
+    () => loyaltyDiagnosticsView ? buildCommittedInsight(
+      loyaltyDiagnosticsView.segmentPcts.Committed,
+      loyaltyDiagnosticsView.segmentCounts.Committed,
+      loyaltyDiagnosticsView.awareCount,
+      selectedBankName,
+    ) : null,
+    [loyaltyDiagnosticsView, selectedBankName],
+  );
+
+  const loyaltyRejectorsInsight = useMemo(
+    () => loyaltyDiagnosticsView ? buildRejectorsInsight(
+      loyaltyDiagnosticsView.segmentPcts.Rejectors,
+      loyaltyDiagnosticsView.segmentCounts.Rejectors,
+      loyaltyDiagnosticsView.awareCount,
+      loyaltyDiagnosticsView.segmentPcts,
+      selectedBankName,
+    ) : null,
+    [loyaltyDiagnosticsView, selectedBankName],
+  );
+
+  const loyaltySegmentDistributionInsight = useMemo(
+    () => loyaltyDiagnosticsView ? buildSegmentDistributionInsight(loyaltyDiagnosticsView, selectedBankName) : null,
+    [loyaltyDiagnosticsView, selectedBankName],
+  );
+
+  const loyaltySegmentMovementInsight = useMemo(
+    () => loyaltyDiagnosticsView ? buildSegmentMovementInsight(loyaltyDiagnosticsView.movementRows, selectedBankName) : null,
+    [loyaltyDiagnosticsView, selectedBankName],
+  );
+
+  const loyaltyFunnelInsight = useMemo(
+    () => loyaltyDiagnosticsView ? buildLoyaltyFunnelInsight(
+      loyaltyDiagnosticsView.awareToPotential,
+      loyaltyDiagnosticsView.potentialToFavors,
+      loyaltyDiagnosticsView.favorsToCommitted,
+      loyaltyDiagnosticsView.awareCount,
+      selectedBankName,
+    ) : null,
+    [loyaltyDiagnosticsView, selectedBankName],
+  );
+
+  // ─── Brand Momentum intelligence builders ─────────────────────────────────
+
+  const momentumPositionLabel = useMemo(() => {
+    if (!momentumDiagnosticsView) return 'N/A';
+    const { score, velocityLabel } = momentumDiagnosticsView;
+    if (score >= 80) return 'STRONG MOMENTUM';
+    if (score >= 60) return velocityLabel === 'Accelerating' ? 'GROWING' : 'GOOD MOMENTUM';
+    if (score >= 40) return velocityLabel === 'Decelerating' ? 'SLOWING' : 'MODERATE MOMENTUM';
+    if (score >= 20) return 'WEAK MOMENTUM';
+    return 'CRISIS MOMENTUM';
+  }, [momentumDiagnosticsView]);
+
+  const momentumModuleSummary = useMemo(
+    () => momentumDiagnosticsView ? buildMomentumModuleSummary(momentumDiagnosticsView, selectedBankName) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumScoreInsight = useMemo(
+    () => momentumDiagnosticsView ? buildMomentumScoreInsight(
+      momentumDiagnosticsView.score,
+      momentumDiagnosticsView.status,
+      momentumDiagnosticsView.strategy,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumVelocityInsight = useMemo(
+    () => momentumDiagnosticsView ? buildVelocityInsight(
+      momentumDiagnosticsView.velocity,
+      momentumDiagnosticsView.velocityLabel,
+      momentumDiagnosticsView.volatilityCv,
+      momentumDiagnosticsView.volatilityLabel,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumAwarenessGrowthInsight = useMemo(
+    () => momentumDiagnosticsView ? buildComponentInsight(
+      'Awareness Growth',
+      momentumDiagnosticsView.components.awarenessGrowth,
+      15,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'awarenessGrowth')?.contribution ?? 0,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'awarenessGrowth')?.shareOfTotal ?? 0,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumConsiderationInsight = useMemo(
+    () => momentumDiagnosticsView ? buildComponentInsight(
+      'Consideration',
+      momentumDiagnosticsView.components.consideration,
+      25,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'consideration')?.contribution ?? 0,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'consideration')?.shareOfTotal ?? 0,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumConversionInsight = useMemo(
+    () => momentumDiagnosticsView ? buildComponentInsight(
+      'Conversion',
+      momentumDiagnosticsView.components.conversion,
+      25,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'conversion')?.contribution ?? 0,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'conversion')?.shareOfTotal ?? 0,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumRetentionInsight = useMemo(
+    () => momentumDiagnosticsView ? buildComponentInsight(
+      'Retention',
+      momentumDiagnosticsView.components.retention,
+      20,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'retention')?.contribution ?? 0,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'retention')?.shareOfTotal ?? 0,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumAdoptionInsight = useMemo(
+    () => momentumDiagnosticsView ? buildComponentInsight(
+      'Adoption',
+      momentumDiagnosticsView.components.adoption,
+      15,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'adoption')?.contribution ?? 0,
+      momentumDiagnosticsView.contributions.find((c) => c.key === 'adoption')?.shareOfTotal ?? 0,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumDriversInsight = useMemo(
+    () => momentumDiagnosticsView ? buildDriversInsight(
+      momentumDiagnosticsView.contributions,
+      momentumDiagnosticsView.priorities,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumScenarioInsight = useMemo(
+    () => momentumDiagnosticsView ? buildScenarioSensitivityInsight(
+      momentumDiagnosticsView.sensitivity,
+      momentumDiagnosticsView.priorities,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumTrendInsight = useMemo(
+    () => momentumDiagnosticsView ? buildTrendInsight(
+      momentumDiagnosticsView.trends,
+      momentumDiagnosticsView.velocity,
+      momentumDiagnosticsView.velocityLabel,
+      momentumDiagnosticsView.forecastEligible,
+      momentumDiagnosticsView.validTrendPeriods,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumTrajectoryInsight = useMemo(
+    () => momentumDiagnosticsView ? buildTrajectoryInsight(
+      momentumDiagnosticsView.forecast,
+      momentumDiagnosticsView.forecastEligible,
+      momentumDiagnosticsView.score,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankName],
+  );
+
+  const momentumCompetitiveInsight = useMemo(
+    () => momentumDiagnosticsView && selectedBankId ? buildCompetitiveMomentumInsight(
+      momentumDiagnosticsView.competitiveRows,
+      selectedBankId,
+      momentumDiagnosticsView.selectedRank,
+      momentumDiagnosticsView.gapToLeader,
+      selectedBankName,
+    ) : null,
+    [momentumDiagnosticsView, selectedBankId, selectedBankName],
+  );
+
+  // ─── Competitive Intelligence builders ────────────────────────────────────
+
+  const bankNameById = useMemo(
+    () => new Map(countryBanks.map((bank) => [bank.id, bank.name])),
+    [countryBanks],
+  );
+
+  const competitivePositionLabel = useMemo(() => {
+    if (!competitiveDiagnostics) return 'N/A';
+    const { marketStructure } = competitiveDiagnostics;
+    const sorted = [...marketStructure.marketRows].sort((a, b) => b.marketShare - a.marketShare);
+    const rank = sorted.findIndex((r) => r.bankId === selectedBankId) + 1;
+    const myRow = sorted.find((r) => r.bankId === selectedBankId);
+    const gap = rank > 1 ? (sorted[0].marketShare - (myRow?.marketShare ?? 0)) : 0;
+    if (rank === 1) return 'MARKET LEADER';
+    if (rank <= 3 && gap < 5) return 'CLOSE CHALLENGER';
+    if (rank <= 3) return 'CHALLENGER';
+    if (competitiveDiagnostics.threats.rows.some((r) => r.threatLevel === 'Critical')) return 'UNDER PRESSURE';
+    return 'DEVELOPING POSITION';
+  }, [competitiveDiagnostics, selectedBankId]);
+
+  const competitiveModuleSummary = useMemo(
+    () => competitiveDiagnostics && selectedBankId
+      ? buildCompetitiveModuleSummary(competitiveDiagnostics, selectedBankName, selectedBankId)
+      : null,
+    [competitiveDiagnostics, selectedBankName, selectedBankId],
+  );
+
+  const competitiveMarketShareInsight = useMemo(
+    () => competitiveDiagnostics && selectedBankId
+      ? buildMarketShareInsight(
+          competitiveDiagnostics.marketStructure.marketRows,
+          selectedBankId,
+          competitiveDiagnostics.marketStructure.concentrationLabel,
+          selectedBankName,
+        )
+      : null,
+    [competitiveDiagnostics, selectedBankId, selectedBankName],
+  );
+
+  const competitiveHHIInsight = useMemo(
+    () => competitiveDiagnostics
+      ? buildHHIInsight(
+          competitiveDiagnostics.marketStructure.hhi,
+          competitiveDiagnostics.marketStructure.concentrationLabel,
+          selectedBankName,
+        )
+      : null,
+    [competitiveDiagnostics, selectedBankName],
+  );
+
+  const competitiveMultiBankingInsight = useMemo(
+    () => competitiveDiagnostics
+      ? buildCompetitiveMultiBankingInsight(
+          competitiveDiagnostics.customerBehavior.multiBankingRate,
+          competitiveDiagnostics.customerBehavior.averageBanksPerCustomer,
+          selectedBankName,
+        )
+      : null,
+    [competitiveDiagnostics, selectedBankName],
+  );
+
+  const competitiveMarketStructureInsight = useMemo(
+    () => competitiveDiagnostics && selectedBankId
+      ? buildMarketStructureInsight(
+          competitiveDiagnostics.marketStructure.marketRows,
+          competitiveDiagnostics.marketStructure.hhi,
+          competitiveDiagnostics.marketStructure.concentrationLabel,
+          selectedBankName,
+          selectedBankId,
+        )
+      : null,
+    [competitiveDiagnostics, selectedBankId, selectedBankName],
+  );
+
+  const competitiveCustomerBehaviorInsight = useMemo(
+    () => competitiveDiagnostics
+      ? buildCustomerBehaviorInsight(
+          competitiveDiagnostics.customerBehavior.overlapRows,
+          competitiveDiagnostics.customerBehavior.portfolioComposition,
+          competitiveDiagnostics.customerBehavior.multiBankingRate,
+          selectedBankName,
+        )
+      : null,
+    [competitiveDiagnostics, selectedBankName],
+  );
+
+  const competitivePositioningInsight = useMemo(
+    () => competitiveDiagnostics && selectedBankId
+      ? buildCompetitivePositioningInsight(
+          competitiveDiagnostics.competitiveAnalysis.positioningRows,
+          competitiveDiagnostics.competitiveAnalysis.directCompetitors,
+          selectedBankName,
+          selectedBankId,
+        )
+      : null,
+    [competitiveDiagnostics, selectedBankId, selectedBankName],
+  );
+
+  const competitiveSwitchingRadarInsight = useMemo(
+    () => switchingRadar
+      ? buildSwitchingRadarInsight(switchingRadar, selectedBankName, (id) => bankNameById.get(id) || id)
+      : null,
+    [switchingRadar, selectedBankName, bankNameById],
+  );
+
+  const competitiveMigrationMapInsight = useMemo(
+    () => migrationMap
+      ? buildMigrationMapInsight(migrationMap, selectedBankName, (id) => bankNameById.get(id) || id)
+      : null,
+    [migrationMap, selectedBankName, bankNameById],
+  );
+
+  const competitiveWinLossInsight = useMemo(
+    () => competitiveDiagnostics
+      ? buildWinLossInsight(competitiveDiagnostics.winLoss, hasObservedWinLoss, selectedBankName)
+      : null,
+    [competitiveDiagnostics, hasObservedWinLoss, selectedBankName],
+  );
+
+  const competitiveStrengthsInsight = useMemo(
+    () => competitiveDiagnostics
+      ? buildStrengthsWeaknessesInsight(
+          competitiveDiagnostics.strengthsWeaknesses.relativeRows,
+          competitiveDiagnostics.strengthsWeaknesses.relativeStrengthIndex,
+          selectedBankName,
+        )
+      : null,
+    [competitiveDiagnostics, selectedBankName],
+  );
+
+  const competitiveWhitespaceInsight = useMemo(
+    () => competitiveDiagnostics
+      ? buildWhitespaceInsight(
+          competitiveDiagnostics.whiteSpace.ageRows,
+          competitiveDiagnostics.whiteSpace.genderRows,
+          selectedBankName,
+        )
+      : null,
+    [competitiveDiagnostics, selectedBankName],
+  );
+
+  const competitiveRiskSignalsInsight = useMemo(
+    () => competitiveDiagnostics
+      ? buildRiskSignalsInsight(competitiveDiagnostics.threats, selectedBankName)
+      : null,
+    [competitiveDiagnostics, selectedBankName],
+  );
+
   const heroConfig = useMemo(() => {
     switch (section) {
       case 'awareness_consideration':
@@ -1927,12 +2419,13 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             ? selectedMetricsView.aware - compareAwarenessRow.awareness
             : awarenessDeltasView.awareness,
           summary: compareBankName
-            ? `Awareness trajectory for ${selectedBankName} versus ${compareBankName}.`
-            : 'Awareness trajectory and conversion quality for executive tracking.',
+            ? `Awareness reach for ${selectedBankName} versus ${compareBankName}.`
+            : 'Awareness reach and brand recall quality across the market.',
           rightCards: [
             {
               label: compareBankName ? `Top of Mind vs ${compareBankName}` : 'Top of Mind',
               value: safePercent(selectedMetricsView?.topOfMind),
+              descriptor: 'Unprompted first recall',
               tone: compareAwarenessRow
                 ? ((selectedMetricsView?.topOfMind ?? null) !== null && selectedMetricsView!.topOfMind >= compareAwarenessRow.topOfMind ? 'positive' as const : 'negative' as const)
                 : (awarenessDeltasView.topOfMind || 0) > 0 ? 'positive' as const : (awarenessDeltasView.topOfMind || 0) < 0 ? 'negative' as const : 'neutral' as const,
@@ -1940,6 +2433,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             {
               label: compareBankName ? `Spontaneous vs ${compareBankName}` : 'Spontaneous Recall',
               value: safePercent(selectedMetricsView?.spontaneous),
+              descriptor: 'Unprompted recall',
               tone: compareMetrics
                 ? ((selectedMetricsView?.spontaneous ?? null) !== null && selectedMetricsView!.spontaneous >= compareMetrics.spontaneous ? 'positive' as const : 'negative' as const)
                 : (awarenessDeltasView.spontaneous || 0) > 0 ? 'positive' as const : (awarenessDeltasView.spontaneous || 0) < 0 ? 'negative' as const : 'neutral' as const,
@@ -1952,17 +2446,19 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           score: safePercent(usageToplineMetrics?.currentUsage.value),
           delta: usageToplineMetrics?.currentUsage.compare?.delta ?? null,
           summary: compareBankName
-            ? `Usage funnel efficiency for ${selectedBankName} versus ${compareBankName}.`
-            : 'Current usage efficiency and conversion bottlenecks across the funnel.',
+            ? `Active usage and retention for ${selectedBankName} versus ${compareBankName}.`
+            : 'How many aware customers are actively using and staying with the bank.',
           rightCards: [
             {
               label: compareBankName ? `Retention vs ${compareBankName}` : 'Retention',
               value: safePercent(usageToplineMetrics?.retention.value),
+              descriptor: 'Of ever-used customers still active',
               tone: (usageToplineMetrics?.retention.value ?? null) === null ? 'neutral' as const : ((usageToplineMetrics?.retention.value || 0) >= 50 ? 'positive' as const : 'negative' as const),
             },
             {
-              label: compareBankName ? `Preference Capture vs ${compareBankName}` : 'Preference Capture',
+              label: compareBankName ? `Preferred Bank vs ${compareBankName}` : 'Preferred Bank',
               value: safePercent(usageToplineMetrics?.preferenceCapture.value),
+              descriptor: 'Primary bank choice',
               tone: 'neutral' as const,
             },
           ],
@@ -1972,10 +2468,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           label: 'Loyalty Intelligence',
           score: safeNumber(loyaltyDiagnosticsView?.loyaltyIndex),
           delta: loyaltyDiagnosticsView?.movementRows.find((row) => row.segment === 'Committed')?.deltaPct ?? null,
-          summary: 'Loyalty strength, segment quality, and advocacy risk posture.',
+          summary: 'Loyalty strength and the balance between committed customers and detractors.',
           rightCards: [
-            { label: 'NPS', value: safeNumber(loyaltyDiagnosticsView?.nps), tone: loyaltyDiagnosticsView?.nps == null ? 'neutral' as const : ((loyaltyDiagnosticsView?.nps || 0) >= 0 ? 'positive' as const : 'negative' as const) },
-            { label: 'Rejectors', value: safePercent(loyaltyDiagnosticsView?.segmentPcts.Rejectors), tone: loyaltyDiagnosticsView?.segmentPcts.Rejectors == null ? 'neutral' as const : ((loyaltyDiagnosticsView?.segmentPcts.Rejectors || 0) > 12 ? 'negative' as const : 'neutral' as const) },
+            { label: 'NPS', value: safeNumber(loyaltyDiagnosticsView?.nps), descriptor: 'Promoters minus detractors', tone: loyaltyDiagnosticsView?.nps == null ? 'neutral' as const : ((loyaltyDiagnosticsView?.nps || 0) >= 0 ? 'positive' as const : 'negative' as const) },
+            { label: 'Rejection Share', value: safePercent(loyaltyDiagnosticsView?.segmentPcts.Rejectors), descriptor: 'Of aware respondents', tone: loyaltyDiagnosticsView?.segmentPcts.Rejectors == null ? 'neutral' as const : ((loyaltyDiagnosticsView?.segmentPcts.Rejectors || 0) > 12 ? 'negative' as const : 'neutral' as const) },
           ],
         };
       case 'brand_momentum':
@@ -1984,11 +2480,11 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           score: momentumTopMetrics?.score.value === null || momentumTopMetrics?.score.value === undefined ? '--' : `${momentumTopMetrics.score.value}`,
           delta: momentumDiagnosticsView?.velocity ?? null,
           summary: momentumDiagnosticsView?.forecastEligible
-            ? 'Forward velocity and momentum durability in current market conditions.'
+            ? 'How brand momentum is trending and whether the pace of change is stable.'
             : firstStatusNote(momentumTopMetrics?.score.notes, EMPTY_COPY.forecastUnavailable),
           rightCards: [
-            { label: 'Velocity', value: formatSignedValue(momentumDiagnosticsView?.velocity ?? null, '', 1), tone: momentumDiagnosticsView?.velocity === null ? 'neutral' as const : (momentumDiagnosticsView.velocity >= 0 ? 'positive' as const : 'negative' as const) },
-            { label: 'Volatility', value: momentumDiagnosticsView?.volatilityCv === null ? '--' : `${momentumDiagnosticsView.volatilityCv}%`, tone: (momentumDiagnosticsView?.volatilityCv ?? 0) > 25 ? 'negative' as const : 'neutral' as const },
+            { label: 'Recent Movement', value: formatSignedValue(momentumDiagnosticsView?.velocity ?? null, '', 1), descriptor: 'Points per period', tone: momentumDiagnosticsView?.velocity === null ? 'neutral' as const : (momentumDiagnosticsView.velocity >= 0 ? 'positive' as const : 'negative' as const) },
+            { label: 'Stability', value: momentumDiagnosticsView?.volatilityCv === null ? '--' : `${momentumDiagnosticsView.volatilityCv}%`, descriptor: 'Score consistency (lower is steadier)', tone: (momentumDiagnosticsView?.volatilityCv ?? 0) > 25 ? 'negative' as const : 'neutral' as const },
           ],
           tone: 'momentum' as const,
         };
@@ -1997,10 +2493,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           label: 'Competitive Intelligence',
           score: safePercent(competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare),
           delta: competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShareDelta ?? null,
-          summary: 'Share defense and competitor pressure mapped for strategic response.',
+          summary: 'Market share position and competitive win rate across the peer set.',
           rightCards: [
-            { label: hasObservedWinLoss ? 'Observed Win Rate' : 'Proxy Balance', value: safePercent(competitiveDiagnostics?.winLoss.overallWinRate), tone: competitiveDiagnostics?.winLoss.overallWinRate == null ? 'neutral' as const : ((competitiveDiagnostics?.winLoss.overallWinRate || 0) >= 50 ? 'positive' as const : 'negative' as const) },
-            { label: 'HHI', value: safeNumber(competitiveDiagnostics?.marketStructure.hhi), tone: 'neutral' as const },
+            { label: hasObservedWinLoss ? 'Observed Win Rate' : 'Competitive Win Estimate', value: safePercent(competitiveDiagnostics?.winLoss.overallWinRate), descriptor: hasObservedWinLoss ? 'Observed preference switches' : 'Estimated from overlap data', tone: competitiveDiagnostics?.winLoss.overallWinRate == null ? 'neutral' as const : ((competitiveDiagnostics?.winLoss.overallWinRate || 0) >= 50 ? 'positive' as const : 'negative' as const) },
+            { label: 'Market Concentration', value: safeNumber(competitiveDiagnostics?.marketStructure.hhi), descriptor: 'Market structure index', tone: 'neutral' as const },
           ],
         };
       case 'demographics':
@@ -2008,23 +2504,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           label: 'Demographic Intelligence',
           score: safeNumber(demographicDiagnostics?.highValueSegments[0]?.score),
           delta: null,
-          summary: 'High-value cohort concentration and demographic whitespace opportunity.',
+          summary: 'Highest-value customer segments and the biggest growth gaps by demographic.',
           rightCards: [
-            { label: 'Top Segment', value: safeText(demographicDiagnostics?.highValueSegments[0]?.segment, '--'), tone: 'neutral' as const },
-            { label: 'Priority Gap', value: safePp(demographicDiagnostics?.opportunities[0]?.usageGap), tone: demographicDiagnostics?.opportunities[0]?.usageGap == null ? 'neutral' as const : ((demographicDiagnostics?.opportunities[0]?.usageGap || 0) > 0 ? 'negative' as const : 'neutral' as const) },
-          ],
-        };
-      case 'trends_forecasts':
-        return {
-          label: 'Trend Intelligence',
-          score: trendsDiagnostics?.forecast.regressionNext == null ? '--' : `${trendsDiagnostics.forecast.regressionNext}%`,
-          delta: trendsDiagnostics?.signal.slope ?? null,
-          summary: trendsDiagnostics?.forecast.eligible
-            ? 'Forecast trajectory, volatility profile, and confidence discipline.'
-            : firstStatusNote(trendsTopMetrics?.mom.notes, EMPTY_COPY.forecastUnavailable),
-          rightCards: [
-            { label: 'CAGR', value: trendsDiagnostics?.growth.cagrPct === null ? '--' : `${trendsDiagnostics.growth.cagrPct}%`, tone: trendsDiagnostics?.growth.cagrPct === null ? 'neutral' as const : (trendsDiagnostics.growth.cagrPct >= 0 ? 'positive' as const : 'negative' as const) },
-            { label: 'Stability', value: safeNumber(trendsDiagnostics?.volatility.stabilityScore), tone: trendsDiagnostics?.volatility.stabilityScore == null ? 'neutral' as const : ((trendsDiagnostics?.volatility.stabilityScore || 0) >= 60 ? 'positive' as const : 'negative' as const) },
+            { label: 'Strongest Segment', value: safeText(demographicDiagnostics?.highValueSegments[0]?.segment, '--'), descriptor: demographicDiagnostics?.highValueSegments[0]?.dimension ?? 'Top group', tone: 'neutral' as const },
+            { label: 'Biggest Opportunity Gap', value: safePp(demographicDiagnostics?.opportunities[0]?.usageGap), descriptor: demographicDiagnostics?.opportunities[0]?.segment ? `${demographicDiagnostics.opportunities[0].segment} usage gap` : 'Usage gap', tone: demographicDiagnostics?.opportunities[0]?.usageGap == null ? 'neutral' as const : ((demographicDiagnostics?.opportunities[0]?.usageGap || 0) > 0 ? 'negative' as const : 'neutral' as const) },
           ],
         };
       case 'overview':
@@ -2034,8 +2517,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
           score: hasToplineSample ? `${brandEdgeScore} / 100` : '--',
           delta: compareBrandEdgeScore === null ? null : brandEdgeScore - compareBrandEdgeScore,
           summary: compareBankName
-            ? `${brandEdgeLabel}. Executive composite for ${selectedBankName} versus ${compareBankName}.`
-            : `${brandEdgeLabel}. Executive composite of awareness, usage, loyalty, primary share, and switching risk.`,
+            ? `${brandEdgeLabel}. Overall brand strength for ${selectedBankName} versus ${compareBankName}.`
+            : `${brandEdgeLabel}. Combines awareness, usage, loyalty, primary bank share, and competitive switching risk.`,
           rightCards: [
             {
               label: compareBankName ? `Awareness vs ${compareBankName}` : 'Awareness',
@@ -2166,10 +2649,6 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
     };
   }, [state.user?.id, advisorContextSnapshot]);
 
-  const bankNameById = useMemo(
-    () => new Map(countryBanks.map((bank) => [bank.id, bank.name])),
-    [countryBanks],
-  );
   const toggleFilter = (value: string, current: string[], setCurrent: React.Dispatch<React.SetStateAction<string[]>>) => {
     setCurrent((prev) => (prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]));
   };
@@ -2589,6 +3068,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             </div>
 
             <TabsContent value="overview" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
+              {/* Row 1 — four primary KPI cards */}
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <Card
                   title="BrandEdge Score"
@@ -2621,7 +3101,18 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   subtitle={compareSubtitle(compareBankName, compareDisplayValue(overviewTopMetrics.loyaltyIndex, (value) => safeNumber(value)), safePercent(loyaltyDiagnosticsView?.segmentPcts.Committed, EMPTY_COPY.noData) === EMPTY_COPY.noData ? EMPTY_COPY.noAwareInSlice : `${safePercent(loyaltyDiagnosticsView?.segmentPcts.Committed)} committed`)}
                   delta={compareDelta(overviewTopMetrics.loyaltyIndex)}
                 />
-                <Card title="Momentum" variant="primary" value={safeNumber(momentumDiagnosticsView?.score)} subtitle={momentumDiagnosticsView?.status || EMPTY_COPY.noDataInSlice} delta={momentumDiagnosticsView?.velocity ?? null} sparklineValues={momentumDiagnosticsView?.trends.map((point) => point.score)} />
+              </div>
+
+              {/* Row 2 — three supporting KPI cards */}
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <Card
+                  title="Momentum"
+                  variant="primary"
+                  value={safeNumber(momentumDiagnosticsView?.score)}
+                  subtitle={momentumDiagnosticsView?.status || EMPTY_COPY.noDataInSlice}
+                  delta={momentumDiagnosticsView?.velocity ?? null}
+                  sparklineValues={momentumDiagnosticsView?.trends.map((point) => point.score)}
+                />
                 <Card
                   title="NPS"
                   variant="primary"
@@ -2630,18 +3121,74 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   delta={compareDelta(overviewTopMetrics.nps)}
                   sparklineValues={trendView.map((point) => point.nps)}
                 />
-                <Card title="Sample Size" variant="secondary" value={`N=${canUseOverviewAggregate && overviewAggregate ? overviewAggregate.sampleSize : sampleSize}`} subtitle={canUseOverviewAggregate && overviewAggregate ? 'Aggregated respondents' : 'Filtered respondents'} />
+                <Card
+                  title={hasObservedWinLoss ? 'Win Rate' : 'Competitive Win Estimate'}
+                  variant="primary"
+                  value={isFiniteMetricValue(competitiveDiagnostics?.winLoss.overallWinRate) ? safePercent(competitiveDiagnostics?.winLoss.overallWinRate) : '--'}
+                  subtitle={hasObservedWinLoss ? 'Share of observed preference switches won' : 'Estimated from competitive overlap data'}
+                />
               </div>
-              {hasAiAddon ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">What drives this score?</p>
-                  <p className="mt-2 text-sm text-slate-300">{brandEdgeDriverSummary}</p>
-                </div>
-              ) : null}
 
-              <div className="mt-6 dashboard-section">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Executive Summary Snapshot</h3>
+              {/* Sample size footnote */}
+              <p className="mt-2 text-right text-[10px] text-slate-500">
+                N={canUseOverviewAggregate && overviewAggregate ? overviewAggregate.sampleSize : sampleSize}{' '}
+                {canUseOverviewAggregate && overviewAggregate ? 'aggregated respondents' : 'filtered respondents'}
+              </p>
+
+              {/* Score driver strip — visible to all users */}
+              <div className="mt-5 rounded-2xl border border-[#E4E7EC] bg-white p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[#1F2230]">What drives this score?</p>
+                <p className="mt-2 text-sm leading-relaxed text-[#344054]">{brandEdgeDriverSummary}</p>
+              </div>
+
+              {/* Executive Priorities Panel */}
+              {executivePriorities.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-300">Executive Priorities</h3>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {executivePriorities.map((p) => (
+                      <div
+                        key={p.headline}
+                        className="rounded-2xl border border-[#E4E7EC] bg-white p-4 shadow-sm"
+                      >
+                        {/* Level badge */}
+                        <span
+                          className={`inline-block rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
+                            p.level === 'Critical'
+                              ? 'bg-[#E10613] text-white'
+                              : p.level === 'Important'
+                              ? 'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]'
+                              : 'bg-[#F9FAFB] text-[#98A2B3] border border-[#E4E7EC]'
+                          }`}
+                        >
+                          {p.level}
+                        </span>
+
+                        {/* Headline */}
+                        <p className="mt-2.5 text-sm font-semibold leading-snug text-[#1F2230]">
+                          {p.headline}
+                        </p>
+
+                        {/* Why it matters */}
+                        <p className="mt-1.5 text-xs leading-relaxed text-[#667085]">
+                          {p.whyItMatters}
+                        </p>
+
+                        {/* Supporting metric */}
+                        <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] px-3 py-1.5">
+                          <span className="text-[10px] text-[#98A2B3]">{p.metricLabel}:</span>
+                          <span className="text-xs font-bold text-[#1F2230]">{p.metricValue}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Module health cards — 2×3 grid */}
+              <div className="mt-6">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Module Summary</h3>
                   <button
                     type="button"
                     onClick={exportCurrentView}
@@ -2651,113 +3198,252 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     Export Summary
                   </button>
                 </div>
-                <div className="mt-4 overflow-auto">
-                  <table className="w-full text-xs text-slate-300">
-                    <thead className="text-[10px] uppercase tracking-widest text-slate-500">
-                      <tr>
-                        <th className="py-2 pr-2">Module</th>
-                        <th className="py-2 pr-2">Headline KPI</th>
-                        <th className="py-2 pr-2">Signal</th>
-                        <th className="py-2 pr-2">Immediate Focus</th>
-                        <th className="py-2">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-t border-white/5">
-                        <td className="py-2 pr-2">Awareness & Consideration</td>
-                        <td className="py-2 pr-2">{isFiniteMetricValue(selectedMetricsView?.aware) ? `${safePercent(selectedMetricsView?.aware)} awareness` : EMPTY_COPY.noData}</td>
-                        <td className="py-2 pr-2">{deltaText(awarenessDeltasView.awareness)}</td>
-                        <td className="py-2 pr-2">Increase top-of-mind conversion from the awareness base</td>
-                        <td className="py-2">
-                          <button type="button" onClick={() => requestSection('awareness_consideration')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
-                        </td>
-                      </tr>
-                      <tr className="border-t border-white/5">
-                        <td className="py-2 pr-2">Usage & Behavior</td>
-                        <td className="py-2 pr-2">{isFiniteMetricValue(usageDiagnostics?.retentionRate) ? `${safePercent(usageDiagnostics?.retentionRate)} retention` : EMPTY_COPY.noData}</td>
-                        <td className="py-2 pr-2">Highest friction: {safeText(usageDiagnostics?.highestFrictionStage, EMPTY_COPY.noData)}</td>
-                        <td className="py-2 pr-2">Reduce drop-off at the highest-friction stage</td>
-                        <td className="py-2">
-                          <button type="button" onClick={() => requestSection('usage_behavior')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
-                        </td>
-                      </tr>
-                      <tr className="border-t border-white/5">
-                        <td className="py-2 pr-2">Loyalty & Satisfaction</td>
-                        <td className="py-2 pr-2">{isFiniteMetricValue(loyaltyDiagnosticsView?.loyaltyIndex) ? `Index ${safeNumber(loyaltyDiagnosticsView?.loyaltyIndex)}` : EMPTY_COPY.noData}</td>
-                        <td className="py-2 pr-2">{isFiniteMetricValue(loyaltyDiagnosticsView?.segmentPcts.Rejectors) ? `${safePercent(loyaltyDiagnosticsView?.segmentPcts.Rejectors)} rejectors` : EMPTY_COPY.noData}</td>
-                        <td className="py-2 pr-2">Increase committed share by converting potential and favors; reduce rejectors</td>
-                        <td className="py-2">
-                          <button type="button" onClick={() => requestSection('loyalty_satisfaction')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
-                        </td>
-                      </tr>
-                      <tr className="border-t border-white/5">
-                        <td className="py-2 pr-2">Brand Momentum</td>
-                        <td className="py-2 pr-2">{safeNumber(momentumDiagnosticsView?.score, EMPTY_COPY.noData)}</td>
-                        <td className="py-2 pr-2">{safeText(momentumDiagnosticsView?.velocityLabel, EMPTY_COPY.noData)}</td>
-                        <td className="py-2 pr-2">Prioritize the highest-ROI momentum driver gap</td>
-                        <td className="py-2">
-                          <button type="button" onClick={() => requestSection('brand_momentum')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
-                        </td>
-                      </tr>
-                      <tr className="border-t border-white/5">
-                        <td className="py-2 pr-2">Competitive Intelligence</td>
-                        <td className="py-2 pr-2">{isFiniteMetricValue(competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare) ? `${safePercent(competitiveDiagnostics?.marketStructure.marketRows.find((row) => row.bankId === selectedBankId)?.marketShare)} market share` : EMPTY_COPY.noData}</td>
-                        <td className="py-2 pr-2">{isFiniteMetricValue(competitiveDiagnostics?.winLoss.overallWinRate) ? `${hasObservedWinLoss ? 'Observed Win Rate' : 'Proxy Balance'} ${safePercent(competitiveDiagnostics?.winLoss.overallWinRate)}` : EMPTY_COPY.noData}</td>
-                        <td className="py-2 pr-2">Respond to the strongest competitive risk signal</td>
-                        <td className="py-2">
-                          <button type="button" onClick={() => requestSection('competitive_intelligence')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
-                        </td>
-                      </tr>
-                      <tr className="border-t border-white/5">
-                        <td className="py-2 pr-2">Demographics</td>
-                        <td className="py-2 pr-2">{safeText(demographicDiagnostics?.highValueSegments[0]?.dimension, '--')}: {safeText(demographicDiagnostics?.highValueSegments[0]?.segment, '--')}</td>
-                        <td className="py-2 pr-2">{demographicDiagnostics?.opportunities[0]?.priority ? `${safeText(demographicDiagnostics?.opportunities[0]?.priority)} priority gap` : EMPTY_COPY.noData}</td>
-                        <td className="py-2 pr-2">Target cohorts with the largest usage gap and strongest potential</td>
-                        <td className="py-2">
-                          <button type="button" onClick={() => requestSection('demographics')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
-                        </td>
-                      </tr>
-                      <tr className="border-t border-white/5">
-                        <td className="py-2 pr-2">Trends & Forecasts</td>
-                        <td className="py-2 pr-2">{trendsDiagnostics?.forecast.regressionNext == null ? '--' : `${trendsDiagnostics.forecast.regressionNext}%`} next forecast</td>
-                        <td className="py-2 pr-2">{trendsDiagnostics?.signal.isSignificantSignal ? 'Significant trend signal' : 'No significant signal'}</td>
-                        <td className="py-2 pr-2">Act on stable trend signals and monitor volatility risk</td>
-                        <td className="py-2">
-                          <button type="button" onClick={() => requestSection('trends_forecasts')} className="text-[#E10613] hover:text-[#B5040F]">View Report</button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {/* Awareness */}
+                  <OverviewModuleCard
+                    title="Awareness & Consideration"
+                    metric={isFiniteMetricValue(selectedMetricsView?.aware) ? safePercent(selectedMetricsView?.aware) : '--'}
+                    metricLabel="total awareness"
+                    statusLabel={
+                      !isFiniteMetricValue(selectedMetricsView?.aware) ? 'No data'
+                      : (selectedMetricsView!.aware) >= 60 ? 'Strong reach'
+                      : (selectedMetricsView!.aware) >= 40 ? 'Building reach'
+                      : 'Low reach'
+                    }
+                    statusTone={
+                      !isFiniteMetricValue(selectedMetricsView?.aware) ? 'neutral'
+                      : (selectedMetricsView!.aware) >= 60 ? 'positive'
+                      : (selectedMetricsView!.aware) >= 40 ? 'neutral'
+                      : 'negative'
+                    }
+                    priorityBadge={moduleCardBadge(
+                      !isFiniteMetricValue(selectedMetricsView?.aware) ? 'neutral'
+                      : (selectedMetricsView!.aware) >= 60 ? 'positive'
+                      : (selectedMetricsView!.aware) >= 40 ? 'neutral' : 'negative',
+                      isFiniteMetricValue(selectedMetricsView?.aware) && (selectedMetricsView!.aware) < 40,
+                    )}
+                    snapshot={awarenessModuleSummary?.snapshot ?? null}
+                    onOpen={() => requestSection('awareness_consideration')}
+                  />
+
+                  {/* Usage */}
+                  <OverviewModuleCard
+                    title="Usage & Behavior"
+                    metric={isFiniteMetricValue(usageDiagnostics?.retentionRate) ? safePercent(usageDiagnostics?.retentionRate) : '--'}
+                    metricLabel="retention rate"
+                    statusLabel={
+                      !usageDiagnostics ? 'No data'
+                      : usageDiagnostics.positionLabel === 'Healthy Growth' ? 'Healthy funnel'
+                      : usageDiagnostics.positionLabel === 'Leaky Bucket' ? 'Retention gap'
+                      : usageDiagnostics.positionLabel === 'Acquisition Barrier' ? 'Low trial rate'
+                      : usageDiagnostics.positionLabel === 'Secondary Bank' ? 'Secondary usage'
+                      : 'Mixed results'
+                    }
+                    statusTone={
+                      !usageDiagnostics ? 'neutral'
+                      : usageDiagnostics.positionLabel === 'Healthy Growth' ? 'positive'
+                      : usageDiagnostics.positionLabel === 'Leaky Bucket' || usageDiagnostics.positionLabel === 'Acquisition Barrier' ? 'negative'
+                      : 'neutral'
+                    }
+                    priorityBadge={moduleCardBadge(
+                      !usageDiagnostics ? 'neutral'
+                      : usageDiagnostics.positionLabel === 'Healthy Growth' ? 'positive'
+                      : usageDiagnostics.positionLabel === 'Leaky Bucket' || usageDiagnostics.positionLabel === 'Acquisition Barrier' ? 'negative'
+                      : 'neutral',
+                      usageDiagnostics?.positionLabel === 'Leaky Bucket' || usageDiagnostics?.positionLabel === 'Acquisition Barrier',
+                    )}
+                    snapshot={usageModuleSummary?.snapshot ?? null}
+                    onOpen={() => requestSection('usage_behavior')}
+                  />
+
+                  {/* Loyalty */}
+                  <OverviewModuleCard
+                    title="Loyalty & Satisfaction"
+                    metric={isFiniteMetricValue(loyaltyDiagnosticsView?.loyaltyIndex) ? safeNumber(loyaltyDiagnosticsView?.loyaltyIndex) : '--'}
+                    metricLabel="loyalty index"
+                    statusLabel={
+                      !loyaltyDiagnosticsView ? 'No data'
+                      : loyaltyPositionLabel === 'STRONG BASE' ? 'Strong base'
+                      : loyaltyPositionLabel === 'SOLID BASE' ? 'Solid base'
+                      : loyaltyPositionLabel === 'HIGH REJECTOR SHARE' ? 'High rejectors'
+                      : loyaltyPositionLabel === 'DEVELOPING BASE' ? 'Developing'
+                      : 'Weak base'
+                    }
+                    statusTone={
+                      !loyaltyDiagnosticsView ? 'neutral'
+                      : loyaltyPositionLabel === 'STRONG BASE' || loyaltyPositionLabel === 'SOLID BASE' ? 'positive'
+                      : loyaltyPositionLabel === 'HIGH REJECTOR SHARE' || loyaltyPositionLabel === 'WEAK BASE' ? 'negative'
+                      : 'neutral'
+                    }
+                    priorityBadge={moduleCardBadge(
+                      !loyaltyDiagnosticsView ? 'neutral'
+                      : loyaltyPositionLabel === 'STRONG BASE' || loyaltyPositionLabel === 'SOLID BASE' ? 'positive'
+                      : loyaltyPositionLabel === 'HIGH REJECTOR SHARE' || loyaltyPositionLabel === 'WEAK BASE' ? 'negative'
+                      : 'neutral',
+                      loyaltyPositionLabel === 'HIGH REJECTOR SHARE' || loyaltyPositionLabel === 'WEAK BASE',
+                    )}
+                    snapshot={loyaltyModuleSummary?.snapshot ?? null}
+                    onOpen={() => requestSection('loyalty_satisfaction')}
+                  />
+
+                  {/* Momentum */}
+                  <OverviewModuleCard
+                    title="Brand Momentum"
+                    metric={isFiniteMetricValue(momentumDiagnosticsView?.score) ? safeNumber(momentumDiagnosticsView?.score) : '--'}
+                    metricLabel="momentum score"
+                    statusLabel={
+                      !momentumDiagnosticsView ? 'No data'
+                      : momentumPositionLabel === 'STRONG MOMENTUM' || momentumPositionLabel === 'GROWING' || momentumPositionLabel === 'GOOD MOMENTUM' ? 'Strong momentum'
+                      : momentumPositionLabel === 'MODERATE MOMENTUM' ? 'Steady'
+                      : momentumPositionLabel === 'SLOWING' ? 'Slowing'
+                      : momentumPositionLabel === 'WEAK MOMENTUM' || momentumPositionLabel === 'CRISIS MOMENTUM' ? 'Weak momentum'
+                      : 'No data'
+                    }
+                    statusTone={
+                      !momentumDiagnosticsView ? 'neutral'
+                      : momentumPositionLabel === 'STRONG MOMENTUM' || momentumPositionLabel === 'GROWING' || momentumPositionLabel === 'GOOD MOMENTUM' ? 'positive'
+                      : momentumPositionLabel === 'WEAK MOMENTUM' || momentumPositionLabel === 'CRISIS MOMENTUM' || momentumPositionLabel === 'SLOWING' ? 'negative'
+                      : 'neutral'
+                    }
+                    priorityBadge={moduleCardBadge(
+                      !momentumDiagnosticsView ? 'neutral'
+                      : momentumPositionLabel === 'STRONG MOMENTUM' || momentumPositionLabel === 'GROWING' || momentumPositionLabel === 'GOOD MOMENTUM' ? 'positive'
+                      : momentumPositionLabel === 'WEAK MOMENTUM' || momentumPositionLabel === 'CRISIS MOMENTUM' || momentumPositionLabel === 'SLOWING' ? 'negative'
+                      : 'neutral',
+                      momentumPositionLabel === 'WEAK MOMENTUM' || momentumPositionLabel === 'CRISIS MOMENTUM',
+                    )}
+                    snapshot={momentumModuleSummary?.snapshot ?? null}
+                    onOpen={() => requestSection('brand_momentum')}
+                  />
+
+                  {/* Competitive */}
+                  <OverviewModuleCard
+                    title="Competitive Intelligence"
+                    metric={
+                      isFiniteMetricValue(competitiveDiagnostics?.marketStructure.marketRows.find((r) => r.bankId === selectedBankId)?.marketShare)
+                        ? safePercent(competitiveDiagnostics?.marketStructure.marketRows.find((r) => r.bankId === selectedBankId)?.marketShare)
+                        : '--'
+                    }
+                    metricLabel="market share"
+                    statusLabel={
+                      !competitiveDiagnostics ? 'No data'
+                      : (competitiveDiagnostics.winLoss.overallWinRate ?? 0) >= 55 ? 'Winning'
+                      : (competitiveDiagnostics.winLoss.overallWinRate ?? 0) >= 45 ? 'Balanced'
+                      : 'Under pressure'
+                    }
+                    statusTone={
+                      !competitiveDiagnostics ? 'neutral'
+                      : (competitiveDiagnostics.winLoss.overallWinRate ?? 0) >= 55 ? 'positive'
+                      : (competitiveDiagnostics.winLoss.overallWinRate ?? 0) >= 45 ? 'neutral'
+                      : 'negative'
+                    }
+                    priorityBadge={moduleCardBadge(
+                      !competitiveDiagnostics ? 'neutral'
+                      : (competitiveDiagnostics.winLoss.overallWinRate ?? 0) >= 55 ? 'positive'
+                      : (competitiveDiagnostics.winLoss.overallWinRate ?? 0) >= 45 ? 'neutral'
+                      : 'negative',
+                      !!competitiveDiagnostics && (competitiveDiagnostics.winLoss.overallWinRate ?? 100) < 45,
+                    )}
+                    snapshot={competitiveModuleSummary?.snapshot ?? null}
+                    onOpen={() => requestSection('competitive_intelligence')}
+                  />
+
+                  {/* Demographics */}
+                  <OverviewModuleCard
+                    title="Demographics"
+                    metric={safeText(demographicDiagnostics?.highValueSegments[0]?.segment, '--')}
+                    metricLabel={demographicDiagnostics?.highValueSegments[0]?.dimension ? `top ${demographicDiagnostics.highValueSegments[0].dimension.toLowerCase()} group` : 'top segment'}
+                    statusLabel={
+                      !demographicDiagnostics ? 'No data'
+                      : demographicDiagnostics.opportunities[0]?.priority?.toLowerCase() === 'high' ? 'High gap'
+                      : demographicDiagnostics.opportunities[0]?.priority?.toLowerCase() === 'medium' ? 'Medium gap'
+                      : 'Low gap'
+                    }
+                    statusTone={
+                      !demographicDiagnostics ? 'neutral'
+                      : demographicDiagnostics.opportunities[0]?.priority?.toLowerCase() === 'high' ? 'negative'
+                      : 'neutral'
+                    }
+                    priorityBadge={moduleCardBadge(
+                      !demographicDiagnostics ? 'neutral'
+                      : demographicDiagnostics.opportunities[0]?.priority?.toLowerCase() === 'high' ? 'negative'
+                      : 'neutral',
+                      false,
+                    )}
+                    snapshot={
+                      demographicDiagnostics?.highValueSegments[0]
+                        ? `The ${demographicDiagnostics.highValueSegments[0].dimension?.toLowerCase() ?? 'top'} group with the strongest brand engagement is ${demographicDiagnostics.highValueSegments[0].segment}. ${demographicDiagnostics.opportunities[0] ? `Largest growth opportunity: ${safePp(demographicDiagnostics.opportunities[0].usageGap)} usage gap in ${demographicDiagnostics.opportunities[0].dimension} (${demographicDiagnostics.opportunities[0].segment}).` : ''}`
+                        : null
+                    }
+                    onOpen={() => requestSection('demographics')}
+                  />
                 </div>
               </div>
 
+              {/* Cross-module health indicators */}
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <div className="dashboard-section">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Cross-Module Health Indicators</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Cross-Module Health</h3>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <Card variant="diagnostic" title="Funnel Health" value={safeText(usageDiagnostics?.positionLabel, EMPTY_COPY.noData)} subtitle={safeText(usageDiagnostics?.funnelHealthDiagnosis, 'No usage diagnosis')} />
-                    <Card variant="diagnostic" title="Top Risk Signal" value={safeText(competitiveDiagnostics?.threats.rows[0]?.competitorBankName, EMPTY_COPY.noData)} subtitle={safeText(competitiveDiagnostics?.threats.rows[0]?.threatLevel, 'No risk signal')} />
-                    <Card variant="diagnostic" title="Forecast Confidence" value={trendsDiagnostics?.forecast.confidenceLow === null || trendsDiagnostics?.forecast.confidenceHigh === null ? EMPTY_COPY.forecastUnavailable : `${trendsDiagnostics?.forecast.confidenceLow}% - ${trendsDiagnostics?.forecast.confidenceHigh}%`} subtitle="95% confidence range" />
-                    <Card variant="diagnostic" title="Primary Gap Cohort" value={safeText(demographicDiagnostics?.opportunities[0]?.segment, EMPTY_COPY.noData)} subtitle={demographicDiagnostics?.opportunities[0] ? `${safeText(demographicDiagnostics?.opportunities[0]?.dimension, EMPTY_COPY.noData)} | ${safePp(demographicDiagnostics?.opportunities[0]?.usageGap)}` : EMPTY_COPY.noDataInSlice} />
+                    <Card
+                      variant="diagnostic"
+                      title="Usage Position"
+                      value={safeText(usageDiagnostics?.positionLabel, EMPTY_COPY.noData)}
+                      subtitle={
+                        usageDiagnostics?.positionLabel === 'Market Leader'
+                          ? 'Strong usage and retention across the funnel.'
+                          : usageDiagnostics?.positionLabel === 'Vulnerable Leader'
+                          ? 'High usage but retention is at risk.'
+                          : usageDiagnostics?.positionLabel === 'Growing Challenger'
+                          ? 'Retention is solid but trial conversion needs work.'
+                          : usageDiagnostics?.positionLabel === 'Struggling Brand'
+                          ? 'Both usage and retention are below average.'
+                          : 'No usage data in this slice.'
+                      }
+                    />
+                    <Card
+                      variant="diagnostic"
+                      title="Top Competitive Risk"
+                      value={competitiveDiagnostics?.threats.rows[0]?.competitorBankName ? `vs ${competitiveDiagnostics.threats.rows[0].competitorBankName}` : 'No major threats'}
+                      subtitle={safeText(competitiveDiagnostics?.threats.rows[0]?.threatLevel, 'No threat data available.')}
+                    />
+                    <Card variant="diagnostic" title="Forecast Readiness" value={trendsDiagnostics?.forecast.eligible ? 'Ready' : 'Pending'} subtitle={trendsDiagnostics?.forecast.eligible ? `${trendsDiagnostics.validPeriods} completed survey periods` : EMPTY_COPY.forecastUnavailable} />
+                    <Card
+                      variant="diagnostic"
+                      title="Primary Opportunity"
+                      value={safeText(demographicDiagnostics?.opportunities[0]?.segment, EMPTY_COPY.noData)}
+                      subtitle={demographicDiagnostics?.opportunities[0] ? `${safePp(demographicDiagnostics.opportunities[0].usageGap)} usage gap in ${safeText(demographicDiagnostics.opportunities[0].dimension, 'this segment')}` : EMPTY_COPY.noDataInSlice}
+                    />
                   </div>
                 </div>
-                <details className="dashboard-section dashboard-collapsible" open>
-                  <summary>
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Key Highlights</h3>
-                  </summary>
-                  <div className="dashboard-collapsible-body mt-4 space-y-2 text-xs text-slate-300">
-                    {(trendsDiagnostics?.highlights || []).slice(0, 4).map((item) => (
-                      <div key={item} className="rounded-xl border border-white/10 bg-slate-900/50 p-3">
-                        {item}
-                      </div>
-                    ))}
-                    {((trendsDiagnostics?.highlights || []).length === 0) ? (
-                      <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3">
-                        Highlights will appear when valid trend data is available.
-                      </div>
-                    ) : null}
+
+                {/* Trend Tracking — compact status card */}
+                <div className="rounded-2xl border border-[#E4E7EC] bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#667085]">Trend Tracking</p>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
+                        trendView.length >= 2
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-[#F9FAFB] text-[#98A2B3] border border-[#E4E7EC]'
+                      }`}
+                    >
+                      {trendView.length >= 2 ? 'Active' : 'Pending'}
+                    </span>
                   </div>
-                </details>
+                  <p className="mt-3 text-sm leading-relaxed text-[#344054]">
+                    {trendView.length >= 2 && (trendsDiagnostics?.highlights || []).length > 0
+                      ? (trendsDiagnostics?.highlights ?? [])[0]
+                      : trendView.length >= 2
+                      ? 'Wave-over-wave analysis is available in each module report.'
+                      : EMPTY_COPY.forecastUnavailable}
+                  </p>
+                  {trendView.length >= 2 && (trendsDiagnostics?.highlights || []).length > 1 && (
+                    <p className="mt-1 text-[10px] text-[#98A2B3]">
+                      {(trendsDiagnostics?.highlights ?? []).length - 1} more observation{(trendsDiagnostics?.highlights ?? []).length - 1 !== 1 ? 's' : ''} in the module reports.
+                    </p>
+                  )}
+                </div>
               </div>
             </TabsContent>
 
@@ -2897,7 +3583,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
               {adminMode && (
                 <div className="mt-6 border-t border-white/5 pt-6">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Experimental AI Narrative</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Additional Commentary</p>
                     <button
                       type="button"
                       onClick={() => setShowAdminAI((v) => !v)}
@@ -2913,6 +3599,46 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   )}
                 </div>
               )}
+
+              {/* Awareness Trend */}
+              <div className="mt-6 rounded-2xl border border-[#E4E7EC] bg-white p-5 shadow-sm">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[#1F2230]">Awareness Trend</h3>
+                <p className="mt-1 text-xs text-[#667085]">Change since the previous completed survey wave.</p>
+                {trendView.length >= 2 ? (() => {
+                  const prev = trendView[trendView.length - 2];
+                  type ARow = { label: string; current: number | null; previous: number | null; delta: number | null };
+                  const rows: ARow[] = [
+                    { label: 'Total Awareness', current: awarenessTopMetrics.awareness.value, previous: prev.awareness ?? null, delta: awarenessDeltasView.awareness },
+                    { label: 'Top of Mind', current: awarenessTopMetrics.topOfMind.value, previous: prev.topOfMind ?? null, delta: awarenessDeltasView.topOfMind },
+                    { label: 'Spontaneous Recall', current: awarenessTopMetrics.spontaneous.value, previous: prev.spontaneous ?? null, delta: awarenessDeltasView.spontaneous },
+                    ...(isFiniteMetricValue(selectedMetricsView?.considerationRate) ? [{ label: 'Consideration', current: selectedMetricsView!.considerationRate, previous: null, delta: null } as ARow] : []),
+                  ];
+                  return (
+                    <>
+                      <div className="mt-4 grid grid-cols-4 gap-2 border-b border-[#F2F4F7] pb-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Metric</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Current</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Previous</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Change</span>
+                      </div>
+                      <div className="divide-y divide-[#F2F4F7]">
+                        {rows.map(({ label, current, previous, delta }) => (
+                          <div key={label} className="grid grid-cols-4 items-center gap-2 py-2.5">
+                            <span className="text-sm text-[#344054]">{label}</span>
+                            <span className="text-right text-sm font-semibold text-[#1F2230]">{safePercent(current)}</span>
+                            <span className="text-right text-sm text-[#667085]">{isFiniteMetricValue(previous) ? safePercent(previous) : '—'}</span>
+                            <span className={`text-right text-xs font-medium ${isFiniteMetricValue(delta) && Math.abs(delta as number) >= 0.05 ? ((delta as number) > 0 ? 'text-emerald-600' : 'text-rose-600') : 'text-[#667085]'}`}>
+                              {isFiniteMetricValue(delta) && Math.abs(delta as number) >= 0.05 ? `${(delta as number) > 0 ? '+' : ''}${(delta as number).toFixed(1)}pp` : '—'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })() : (
+                  <p className="mt-3 text-sm text-[#667085]">Trend tracking will appear after the next completed survey wave.</p>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="usage_behavior" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
@@ -3008,7 +3734,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   <AwarenessInsightPanel insight={retentionInsight} title="Retention Rate Analysis" />
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                    <div className={`dashboard-section ${(trendsDiagnostics.volatility.label || '').toLowerCase().includes('high') ? 'dashboard-risk-warning' : ''}`}>
+                    <div className={`dashboard-section ${(trendsDiagnostics?.volatility.label || '').toLowerCase().includes('high') ? 'dashboard-risk-warning' : ''}`}>
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Usage Funnel</h3>
                         <SectionInsightsTrigger sectionKey="usage_funnel" ctaLabel="View Insights" />
@@ -3099,7 +3825,9 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   </div>
 
                   <div className="mt-6 dashboard-section">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Multi-Bank Competition</h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Multi-Bank Competition</h3>
+                    </div>
                     <p className="mt-2 text-xs text-slate-500">
                       Base: {safeCount(multiBankCompetition?.multiBankBase, '--')} respondents with 2+ active banks.
                       {multiBankCompetition?.lowSample ? ' Sample is small; interpret with caution.' : ''}
@@ -3107,83 +3835,86 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     {multiBankCompetition && multiBankCompetition.multiBankBase > 0 ? (
                       <>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{multiBankCompetition.selected.bankName}</p>
+                          <div className="rounded-xl border border-[#E4E7EC] bg-[#F7F8FA] p-4">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#667085]">{multiBankCompetition.selected.bankName}</p>
                             <div className="mt-3 grid grid-cols-3 gap-3 text-center">
                               <div>
-                                <p className="text-lg font-black text-white">{multiBankCompetition.selected.multiBankUsageShare}%</p>
-                                <p className="text-[10px] uppercase tracking-widest text-slate-500">Usage Share</p>
+                                <p className="text-xl font-black text-[#1F2230]">{multiBankCompetition.selected.multiBankUsageShare}%</p>
+                                <p className="mt-0.5 text-[10px] uppercase tracking-widest text-[#667085]">Usage Share</p>
                               </div>
                               <div>
-                                <p className="text-lg font-black text-white">{multiBankCompetition.selected.multiBankPreferredShare}%</p>
-                                <p className="text-[10px] uppercase tracking-widest text-slate-500">Preferred Share</p>
+                                <p className="text-xl font-black text-[#1F2230]">{multiBankCompetition.selected.multiBankPreferredShare}%</p>
+                                <p className="mt-0.5 text-[10px] uppercase tracking-widest text-[#667085]">Preferred Share</p>
                               </div>
                               <div>
-                                <p className="text-lg font-black text-white">{multiBankCompetition.selected.multiBankCommittedShare}%</p>
-                                <p className="text-[10px] uppercase tracking-widest text-slate-500">Committed Share</p>
+                                <p className="text-xl font-black text-[#E10613]">{multiBankCompetition.selected.multiBankCommittedShare}%</p>
+                                <p className="mt-0.5 text-[10px] uppercase tracking-widest text-[#667085]">Committed Share</p>
                               </div>
                             </div>
                           </div>
-                          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                          <div className="rounded-xl border border-[#E4E7EC] bg-[#F7F8FA] p-4">
                             {multiBankCompetition.compare ? (
                               <>
-                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{multiBankCompetition.compare.bankName}</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#667085]">{multiBankCompetition.compare.bankName}</p>
                                 <div className="mt-3 grid grid-cols-3 gap-3 text-center">
                                   <div>
-                                    <p className="text-lg font-black text-white">{multiBankCompetition.compare.multiBankUsageShare}%</p>
-                                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Usage Share</p>
+                                    <p className="text-xl font-black text-[#1F2230]">{multiBankCompetition.compare.multiBankUsageShare}%</p>
+                                    <p className="mt-0.5 text-[10px] uppercase tracking-widest text-[#667085]">Usage Share</p>
                                   </div>
                                   <div>
-                                    <p className="text-lg font-black text-white">{multiBankCompetition.compare.multiBankPreferredShare}%</p>
-                                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Preferred Share</p>
+                                    <p className="text-xl font-black text-[#1F2230]">{multiBankCompetition.compare.multiBankPreferredShare}%</p>
+                                    <p className="mt-0.5 text-[10px] uppercase tracking-widest text-[#667085]">Preferred Share</p>
                                   </div>
                                   <div>
-                                    <p className="text-lg font-black text-white">{multiBankCompetition.compare.multiBankCommittedShare}%</p>
-                                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Committed Share</p>
+                                    <p className="text-xl font-black text-[#1F2230]">{multiBankCompetition.compare.multiBankCommittedShare}%</p>
+                                    <p className="mt-0.5 text-[10px] uppercase tracking-widest text-[#667085]">Committed Share</p>
                                   </div>
                                 </div>
                               </>
                             ) : (
-                              <p className="text-xs text-slate-500">Select a comparison brand to view side-by-side multi-bank shares.</p>
+                              <div className="flex h-full items-center">
+                                <p className="text-xs text-[#667085]">Select a comparison brand to view side-by-side multi-bank shares.</p>
+                              </div>
                             )}
                           </div>
                         </div>
 
-                        <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Second-Choice Bank Share</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Base: {multiBankCompetition.secondChoiceBase} multi-bank respondents using {selectedBankName} but preferring another bank.
+                        <div className="mt-4 rounded-xl border border-[#E4E7EC] bg-[#F7F8FA] p-4">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Second-Choice Bank Share</p>
+                          <p className="mt-1 text-xs text-[#667085]">
+                            Base: {multiBankCompetition.secondChoiceBase} respondents using {selectedBankName} but preferring another bank.
                           </p>
                           <div className="mt-4 overflow-auto">
-                            <table className="w-full text-xs text-slate-300">
-                              <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                            <table className="w-full text-xs text-[#1F2230]">
+                              <thead className="text-[10px] uppercase tracking-widest text-[#667085]">
                                 <tr>
-                                  <th className="py-2 pr-2">Rank</th>
-                                  <th className="py-2 pr-2">Preferred Competitor</th>
-                                  <th className="py-2 pr-2">Respondents</th>
-                                  <th className="py-2">Share</th>
+                                  <th className="py-2 pr-2 text-left font-semibold">Rank</th>
+                                  <th className="py-2 pr-2 text-left font-semibold">Preferred Competitor</th>
+                                  <th className="py-2 pr-2 text-left font-semibold">Respondents</th>
+                                  <th className="py-2 text-left font-semibold">Share</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {multiBankCompetition.secondChoiceRows.length > 0 ? multiBankCompetition.secondChoiceRows.map((row, index) => (
-                                  <tr key={row.bankId} className="border-t border-white/5">
-                                    <td className="py-2 pr-2 font-semibold">{index + 1}</td>
-                                    <td className="py-2 pr-2">{row.bankName}</td>
-                                    <td className="py-2 pr-2">{row.count}</td>
-                                    <td className="py-2">{row.share}%</td>
+                                  <tr key={row.bankId} className="border-t border-[#E4E7EC]">
+                                    <td className="py-2 pr-2 font-semibold text-[#1F2230]">{index + 1}</td>
+                                    <td className="py-2 pr-2 text-[#1F2230]">{row.bankName}</td>
+                                    <td className="py-2 pr-2 text-[#667085]">{row.count}</td>
+                                    <td className="py-2 font-semibold text-[#E10613]">{row.share}%</td>
                                   </tr>
                                 )) : (
                                   <tr>
-                                    <td colSpan={4} className="py-3 text-slate-500">No second-choice competitor data in this slice.</td>
+                                    <td colSpan={4} className="py-3 text-[#667085]">No second-choice competitor data in this slice.</td>
                                   </tr>
                                 )}
                               </tbody>
                             </table>
                           </div>
                         </div>
+                        <SectionAnalysisBlock title="Multi-Bank Competition Analysis" insight={multiBankCompetitionInsight} />
                       </>
                     ) : (
-                      <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-xs text-slate-500">
+                      <div className="mt-4 rounded-xl border border-[#E4E7EC] bg-[#F7F8FA] px-4 py-3 text-xs text-[#667085]">
                         No multi-bank comparison data in this slice.
                       </div>
                     )}
@@ -3198,6 +3929,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <Card title="Secondary Users" value={safeCount(usageDiagnostics.secondaryUsersCount)} subtitle={`${safeRatioPercent(usageDiagnostics.secondaryUsersCount, usageDiagnostics.currentCount)} of current`} />
                         <Card title="Primary Users (BUMO)" value={safeCount(usageDiagnostics.primaryUsersCount)} subtitle={usageDiagnostics.currentCount > 0 ? `${safePercent(usageDiagnostics.preferenceRate)} preference rate` : EMPTY_COPY.noCurrentUsersInSlice} />
                       </div>
+                      <SectionAnalysisBlock title="Usage Segmentation Analysis" insight={usageSegmentationInsight} />
                     </div>
 
                     <div className="dashboard-section">
@@ -3254,10 +3986,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <table className="w-full text-xs text-slate-300">
                           <thead className="text-[10px] uppercase tracking-widest text-slate-500">
                             <tr>
-                              <th className="py-2 pr-2">Opportunity</th>
-                              <th className="py-2 pr-2">Size</th>
-                              <th className="py-2 pr-2">Scope Percentage</th>
-                              <th className="py-2">Action Focus</th>
+                              <th className="py-2 pr-2 text-left">Opportunity</th>
+                              <th className="py-2 pr-2 text-left">Size</th>
+                              <th className="py-2 pr-2 text-left">Scope %</th>
+                              <th className="py-2 text-left">Action Focus</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -3272,8 +4004,51 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Competitive Position Analysis" insight={competitiveUsageInsight} />
                     </div>
                   </div>
+
+              {/* Usage Trend */}
+              <div className="mt-6 rounded-2xl border border-[#E4E7EC] bg-white p-5 shadow-sm">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[#1F2230]">Usage Trend</h3>
+                <p className="mt-1 text-xs text-[#667085]">Change since the previous completed survey wave.</p>
+                {trendView.length >= 2 ? (() => {
+                  const prev = trendView[trendView.length - 2];
+                  const curr = trendView[trendView.length - 1];
+                  const usageDelta = (curr.usage !== null && prev.usage !== null) ? Number((curr.usage - prev.usage).toFixed(1)) : null;
+                  type URow = { label: string; current: number | null; previous: number | null; delta: number | null };
+                  const rows: URow[] = ([
+                    { label: 'Current Usage', current: selectedMetricsView?.currentUsageRate ?? null, previous: isFiniteMetricValue(prev.usage) ? prev.usage : null, delta: usageDelta },
+                    { label: 'Ever Used', current: selectedMetricsView?.trialRate ?? null, previous: null, delta: null },
+                    { label: 'Preferred (BUMO)', current: selectedMetricsView?.preferenceRate ?? null, previous: null, delta: null },
+                    { label: 'Multi-Banking Rate', current: selectedMetricsView?.multiBankRate ?? null, previous: null, delta: null },
+                  ] as URow[]).filter(({ current }) => isFiniteMetricValue(current));
+                  return (
+                    <>
+                      <div className="mt-4 grid grid-cols-4 gap-2 border-b border-[#F2F4F7] pb-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Metric</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Current</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Previous</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Change</span>
+                      </div>
+                      <div className="divide-y divide-[#F2F4F7]">
+                        {rows.map(({ label, current, previous, delta }) => (
+                          <div key={label} className="grid grid-cols-4 items-center gap-2 py-2.5">
+                            <span className="text-sm text-[#344054]">{label}</span>
+                            <span className="text-right text-sm font-semibold text-[#1F2230]">{safePercent(current)}</span>
+                            <span className="text-right text-sm text-[#667085]">{isFiniteMetricValue(previous) ? safePercent(previous) : '—'}</span>
+                            <span className={`text-right text-xs font-medium ${isFiniteMetricValue(delta) && Math.abs(delta as number) >= 0.05 ? ((delta as number) > 0 ? 'text-emerald-600' : 'text-rose-600') : 'text-[#667085]'}`}>
+                              {isFiniteMetricValue(delta) && Math.abs(delta as number) >= 0.05 ? `${(delta as number) > 0 ? '+' : ''}${(delta as number).toFixed(1)}pp` : '—'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })() : (
+                  <p className="mt-3 text-sm text-[#667085]">Trend tracking will appear after the next completed survey wave.</p>
+                )}
+              </div>
                 </>
               ) : (
                 <div className="dashboard-section dashboard-diagnostic">
@@ -3285,18 +4060,63 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             <TabsContent value="loyalty_satisfaction" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
               {loyaltyDiagnostics ? (
                 <>
-                  <div className="grid gap-4 md:grid-cols-4">
-                    <Card title="Loyalty Index" metricKey="loyalty_index" variant="primary" value={safeNumber(loyaltyTopMetrics?.loyaltyIndex.value)} subtitle="0-100 weighted index" />
-                    <Card title="NPS" metricKey="nps_loyalty" variant="primary" value={safeNumber(loyaltyTopMetrics?.nps.value)} subtitle={`${safePercent(selectedMetricsView?.promoters, EMPTY_COPY.noData)} promoters · ${safePercent(selectedMetricsView?.detractors, EMPTY_COPY.noData)} detractors`} sparklineValues={trendView.map((point) => point.nps)} />
-                    <Card title="Committed" metricKey="segment_committed" variant="primary" value={safePercent(loyaltyTopMetrics?.committed.value)} subtitle={isFiniteMetricValue(loyaltyTopMetrics?.committed.count) ? `${safeCount(loyaltyTopMetrics?.committed.count)} respondents` : EMPTY_COPY.noAwareInSlice} />
-                    <Card title="Rejectors" metricKey="segment_rejectors" variant="primary" value={safePercent(loyaltyTopMetrics?.rejectors.value)} subtitle={isFiniteMetricValue(loyaltyTopMetrics?.rejectors.count) ? `${safeCount(loyaltyTopMetrics?.rejectors.count)} respondents` : EMPTY_COPY.noAwareInSlice} />
+                  {/* Banner */}
+                  <LoyaltyBanner
+                    moduleSummary={loyaltyModuleSummary}
+                    loyaltyIndex={loyaltyDiagnosticsView?.loyaltyIndex ?? null}
+                    nps={loyaltyDiagnosticsView?.nps ?? null}
+                    committedPct={loyaltyDiagnosticsView?.segmentPcts.Committed ?? null}
+                    positionLabel={loyaltyPositionLabel}
+                    sampleSize={sampleSize}
+                  />
+
+                  {/* KPI Cards */}
+                  <div className="mt-6 grid gap-4 md:grid-cols-4">
+                    <div className={loyaltyIndexInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card title="Loyalty Index" metricKey="loyalty_index" variant="primary" value={safeNumber(loyaltyTopMetrics?.loyaltyIndex.value)} subtitle="0-100 weighted index" />
+                      {loyaltyIndexInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={loyaltyIndexInsight}
+                          title="Loyalty Index"
+                          definition="Composite score weighted by segment — Committed (×1.0), Favors (×0.7), Potential (×0.4), Accessibles (×0.2), Rejectors (×0.0) — scaled to 100 across all aware respondents."
+                        />
+                      )}
+                    </div>
+                    <div className={loyaltyNpsInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card title="NPS" metricKey="nps_loyalty" variant="primary" value={safeNumber(loyaltyTopMetrics?.nps.value)} subtitle={`${safePercent(selectedMetricsView?.promoters, EMPTY_COPY.noData)} promoters · ${safePercent(selectedMetricsView?.detractors, EMPTY_COPY.noData)} detractors`} sparklineValues={trendView.map((point) => point.nps)} />
+                      {loyaltyNpsInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={loyaltyNpsInsight}
+                          title="Net Promoter Score"
+                          definition="Net Promoter Score among ever-used and current customers. Promoters (scores 9–10) minus detractors (scores 0–6), expressed as a percentage-point score."
+                        />
+                      )}
+                    </div>
+                    <div className={loyaltyCommittedInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card title="Committed" metricKey="segment_committed" variant="primary" value={safePercent(loyaltyTopMetrics?.committed.value)} subtitle={isFiniteMetricValue(loyaltyTopMetrics?.committed.count) ? `${safeCount(loyaltyTopMetrics?.committed.count)} respondents` : EMPTY_COPY.noAwareInSlice} />
+                      {loyaltyCommittedInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={loyaltyCommittedInsight}
+                          title="Committed Customers"
+                          definition="Share of aware respondents classified as fully committed: current primary customers who name this bank as preferred and rate NPS 9–10."
+                        />
+                      )}
+                    </div>
+                    <div className={loyaltyRejectorsInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card title="Rejectors" metricKey="segment_rejectors" variant="primary" value={safePercent(loyaltyTopMetrics?.rejectors.value)} subtitle={isFiniteMetricValue(loyaltyTopMetrics?.rejectors.count) ? `${safeCount(loyaltyTopMetrics?.rejectors.count)} respondents` : EMPTY_COPY.noAwareInSlice} />
+                      {loyaltyRejectorsInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={loyaltyRejectorsInsight}
+                          title="Rejectors"
+                          definition="Share of aware respondents classified as rejectors: those who have used the bank but show low return intent (score ≤3) and negative NPS (score ≤6)."
+                        />
+                      )}
+                    </div>
                   </div>
 
-                  <div className="mt-4 dashboard-section">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Loyalty Segmentation Analysis</h3>
-                      <SectionInsightsTrigger sectionKey="loyalty_segmentation" ctaLabel="View Insights" />
-                    </div>
+                  {/* Segment Mix */}
+                  <div className="mt-6 dashboard-section">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Loyalty Segmentation Analysis</h3>
                     <div className="mt-6 grid gap-4 md:grid-cols-5">
                       <Card title="Committed" metricKey="segment_committed" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Committed) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Highest loyalty and advocacy' : EMPTY_COPY.noAwareInSlice} />
                       <Card title="Favors" metricKey="segment_favors" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Favors) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Good loyalty, not fully committed' : EMPTY_COPY.noAwareInSlice} />
@@ -3304,35 +4124,34 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       <Card title="Accessibles" metricKey="segment_accessibles" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Accessibles) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Neutral/open audience' : EMPTY_COPY.noAwareInSlice} />
                       <Card title="Rejectors" metricKey="segment_rejectors" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Rejectors) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? 'Active resistance to adoption' : EMPTY_COPY.noAwareInSlice} />
                     </div>
+                    <SectionAnalysisBlock title="Segment Mix Analysis" insight={loyaltySegmentDistributionInsight} />
                   </div>
 
+                  {/* Decision Tree + Segment Shifts */}
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
                     <div className="dashboard-section">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Segmentation Decision Tree</h3>
-                        <SectionInsightsTrigger sectionKey="decision_tree" ctaLabel="View Insights" />
-                      </div>
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Segmentation Decision Tree</h3>
                       <div className="mt-4 space-y-3">
                         <MiniBar label="Current users -> Committed/Favors path" value={loyaltyDiagnostics.awareCount > 0 ? Math.round((loyaltyDiagnostics.segmentCounts.Committed + loyaltyDiagnostics.segmentCounts.Favors) * 100 / loyaltyDiagnostics.awareCount) : null} color="bg-blue-500" />
                         <MiniBar label="Non-current -> Potential/Accessible/Rejector path" value={loyaltyDiagnostics.awareCount > 0 ? Math.round((loyaltyDiagnostics.segmentCounts.Potential + loyaltyDiagnostics.segmentCounts.Accessibles + loyaltyDiagnostics.segmentCounts.Rejectors) * 100 / loyaltyDiagnostics.awareCount) : null} color="bg-violet-500" />
                         <MiniBar label="Committed capture among aware" value={loyaltyDiagnostics.awareCount > 0 ? loyaltyDiagnostics.segmentPcts.Committed : null} color="bg-emerald-500" />
                         <MiniBar label="Rejector pressure among aware" value={loyaltyDiagnostics.awareCount > 0 ? loyaltyDiagnostics.segmentPcts.Rejectors : null} color="bg-rose-500" />
                       </div>
+                      <p className="mt-4 text-[11px] leading-relaxed text-slate-500">
+                        Segments are mutually exclusive and sum to 100% of aware respondents. Classification rules are fixed: current users split into Committed or Favors based on primary-bank preference and NPS. Non-current users split into Potential, Accessibles, or Rejectors by intent and sentiment. Rules do not change between periods.
+                      </p>
                     </div>
 
-                    <div className="dashboard-section">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Segment Movement Tracker</h3>
-                        <SectionInsightsTrigger sectionKey="movement_tracker" ctaLabel="View Insights" />
-                      </div>
+                    <div className="dashboard-section pb-6">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Segment Movement Tracker</h3>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
                           <thead className="text-[10px] uppercase tracking-widest text-slate-500">
                             <tr>
-                              <th className="py-2 pr-2">Segment</th>
-                              <th className="py-2 pr-2">Previous</th>
-                              <th className="py-2 pr-2">Current</th>
-                              <th className="py-2">Delta</th>
+                              <th className="py-2 pr-2 text-left">Segment</th>
+                              <th className="py-2 pr-2 text-left">Previous</th>
+                              <th className="py-2 pr-2 text-left">Current</th>
+                              <th className="py-2 text-left">Delta</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -3351,40 +4170,65 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Segment Shifts Analysis" insight={loyaltySegmentMovementInsight} />
                     </div>
                   </div>
 
+                  {/* Segment Profile Cards */}
                   <div className="mt-6 dashboard-section">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Segment Profile Cards</h3>
-                      <SectionInsightsTrigger sectionKey="segment_profiles" ctaLabel="View Insights" />
-                    </div>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Segment Profile Cards</h3>
                     <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                       {loyaltyDiagnostics.profileCards.map((profile) => (
-                          <div key={profile.segment} className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                            <div className="flex items-center gap-1">
-                              <p className="text-xs font-bold uppercase tracking-widest text-slate-300">{profile.segment}</p>
-                              <MetricInfoIcon metricKey={`segment_${profile.segment.toLowerCase()}` as DashboardMetricKey} />
-                            </div>
-                          <p className="mt-2 text-2xl font-black text-white">{loyaltyDiagnostics.awareCount > 0 ? safePercent(profile.pct) : '--'}</p>
-                          <p className="text-xs text-slate-500">{loyaltyDiagnostics.awareCount > 0 ? `${safeCount(profile.count)} respondents` : EMPTY_COPY.noAwareInSlice}</p>
-                          <div className="mt-3 space-y-1 text-xs text-slate-300">
-                            <p>Average NPS: {safeNumber(profile.avgNps)}</p>
-                            <p>Average Intent: {safeNumber(profile.avgIntent)}</p>
-                            <p>Top Age: {safeText(profile.topAge)}</p>
-                            <p>Top Gender: {safeText(profile.topGender)}</p>
-                            <p>Multi-Bank: {safePercent(profile.multiBankPct)}</p>
+                        <div key={profile.segment} className="rounded-2xl border border-[#E4E7EC] bg-white p-4 shadow-sm">
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs font-bold uppercase tracking-widest text-[#1F2230]">{profile.segment}</p>
+                            <MetricInfoIcon metricKey={`segment_${profile.segment.toLowerCase()}` as DashboardMetricKey} />
+                          </div>
+                          <p className="mt-2 text-2xl font-black text-[#1F2230]">{loyaltyDiagnostics.awareCount > 0 ? safePercent(profile.pct) : '--'}</p>
+                          <p className="text-xs text-[#667085]">{loyaltyDiagnostics.awareCount > 0 ? `${safeCount(profile.count)} respondents` : EMPTY_COPY.noAwareInSlice}</p>
+                          <div className="mt-3 space-y-1.5 border-t border-[#E4E7EC] pt-3 text-xs text-[#344054]">
+                            <p><span className="font-semibold text-[#667085]">Avg NPS</span> {safeNumber(profile.avgNps)}</p>
+                            <p><span className="font-semibold text-[#667085]">Avg Intent</span> {safeNumber(profile.avgIntent)}</p>
+                            <p><span className="font-semibold text-[#667085]">Top Age</span> {safeText(profile.topAge)}</p>
+                            <p><span className="font-semibold text-[#667085]">Top Gender</span> {safeText(profile.topGender)}</p>
+                            <p><span className="font-semibold text-[#667085]">Multi-Bank</span> {safePercent(profile.multiBankPct)}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
+                  {/* NPS Breakdown */}
                   <div className="mt-6 dashboard-section">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Conversion Funnel to Loyalty</h3>
-                      <SectionInsightsTrigger sectionKey="loyalty_conversion" ctaLabel="View Insights" />
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">NPS Breakdown</h3>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                      This shows what share of customers are likely to recommend the bank (Promoters), stay neutral (Passives), or speak negatively about it (Detractors). The higher the Promoter share and the lower the Detractor share, the stronger the NPS score.
+                    </p>
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                      <Card
+                        title="Promoters"
+                        value={selectedMetricsView?.promoters != null && isFinite(selectedMetricsView.promoters) ? safePercent(selectedMetricsView.promoters) : '--'}
+                        subtitle={selectedMetricsView?.promoters != null ? 'Score 9–10 · active advocates' : 'Insufficient data'}
+                      />
+                      <Card
+                        title="Passives"
+                        value={selectedMetricsView?.passives != null && isFinite(selectedMetricsView.passives) ? safePercent(selectedMetricsView.passives) : '--'}
+                        subtitle={selectedMetricsView?.passives != null ? 'Score 7–8 · satisfied but neutral' : 'Insufficient data'}
+                      />
+                      <Card
+                        title="Detractors"
+                        value={selectedMetricsView?.detractors != null && isFinite(selectedMetricsView.detractors) ? safePercent(selectedMetricsView.detractors) : '--'}
+                        subtitle={selectedMetricsView?.detractors != null ? 'Score 0–6 · at-risk customers' : 'Insufficient data'}
+                      />
                     </div>
+                    <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+                      Calculated among ever-used and current customers only. For a deeper read on NPS drivers and recovery levers, open the NPS card analysis above.
+                    </p>
+                  </div>
+
+                  {/* Conversion Funnel */}
+                  <div className="mt-6 dashboard-section">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Conversion Funnel to Loyalty</h3>
                     <div className="mt-6 grid gap-4 md:grid-cols-4">
                       <Card title="Aware" value={loyaltyDiagnostics.awareCount > 0 ? '100%' : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? `${safeCount(loyaltyDiagnostics.awareCount)} aware respondents` : EMPTY_COPY.noAwareInSlice} />
                       <Card title="Potential" metricKey="segment_potential" value={loyaltyDiagnostics.awareCount > 0 ? safePercent(loyaltyDiagnostics.segmentPcts.Potential) : '--'} subtitle={loyaltyDiagnostics.awareCount > 0 ? `${safeCount(loyaltyDiagnostics.segmentCounts.Potential)} respondents` : EMPTY_COPY.noAwareInSlice} />
@@ -3396,7 +4240,52 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       <Card title="Potential -> Favors" metricKey="loyalty_conversion_funnel" value={loyaltyDiagnostics.segmentCounts.Potential > 0 ? safePercent(loyaltyDiagnostics.potentialToFavors) : '--'} subtitle={loyaltyDiagnostics.segmentCounts.Potential > 0 ? 'Conversion rate' : 'No potential respondents in this slice.'} />
                       <Card title="Favors -> Committed" metricKey="loyalty_conversion_funnel" value={loyaltyDiagnostics.segmentCounts.Favors > 0 ? safePercent(loyaltyDiagnostics.favorsToCommitted) : '--'} subtitle={loyaltyDiagnostics.segmentCounts.Favors > 0 ? 'Conversion rate' : 'No favoring respondents in this slice.'} />
                     </div>
+                    <SectionAnalysisBlock title="Conversion Funnel Analysis" insight={loyaltyFunnelInsight} />
                   </div>
+
+              {/* Loyalty Trend */}
+              <div className="mt-6 rounded-2xl border border-[#E4E7EC] bg-white p-5 shadow-sm">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[#1F2230]">Loyalty Trend</h3>
+                <p className="mt-1 text-xs text-[#667085]">Change since the previous completed survey wave.</p>
+                {trendView.length >= 2 ? (() => {
+                  const prev = trendView[trendView.length - 2];
+                  const curr = trendView[trendView.length - 1];
+                  const npsDelta = (curr.nps !== null && prev.nps !== null) ? Number((curr.nps - prev.nps).toFixed(1)) : null;
+                  type LRow = { label: string; current: number | null; previous: number | null; delta: number | null; isPercent: boolean };
+                  const rows: LRow[] = [
+                    { label: 'Loyalty Index', current: loyaltyDiagnosticsView?.loyaltyIndex ?? null, previous: null, delta: null, isPercent: false },
+                    { label: 'NPS', current: loyaltyDiagnosticsView?.nps ?? null, previous: isFiniteMetricValue(prev.nps) ? prev.nps : null, delta: npsDelta, isPercent: false },
+                    { label: 'Committed', current: loyaltyDiagnosticsView?.segmentPcts.Committed ?? null, previous: null, delta: null, isPercent: true },
+                    { label: 'Rejectors', current: loyaltyDiagnosticsView?.segmentPcts.Rejectors ?? null, previous: null, delta: null, isPercent: true },
+                  ];
+                  const fmt = (v: number | null, isPercent: boolean) =>
+                    isFiniteMetricValue(v) ? `${(v as number).toFixed(0)}${isPercent ? '%' : ''}` : '—';
+                  return (
+                    <>
+                      <div className="mt-4 grid grid-cols-4 gap-2 border-b border-[#F2F4F7] pb-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Metric</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Current</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Previous</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-widest text-[#667085]">Change</span>
+                      </div>
+                      <div className="divide-y divide-[#F2F4F7]">
+                        {rows.map(({ label, current, previous, delta, isPercent }) => (
+                          <div key={label} className="grid grid-cols-4 items-center gap-2 py-2.5">
+                            <span className="text-sm text-[#344054]">{label}</span>
+                            <span className="text-right text-sm font-semibold text-[#1F2230]">{fmt(current, isPercent)}</span>
+                            <span className="text-right text-sm text-[#667085]">{fmt(previous, isPercent)}</span>
+                            <span className={`text-right text-xs font-medium ${isFiniteMetricValue(delta) && Math.abs(delta as number) >= 0.05 ? ((delta as number) > 0 ? 'text-emerald-600' : 'text-rose-600') : 'text-[#667085]'}`}>
+                              {isFiniteMetricValue(delta) && Math.abs(delta as number) >= 0.05 ? `${(delta as number) > 0 ? '+' : ''}${(delta as number).toFixed(1)}` : '—'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })() : (
+                  <p className="mt-3 text-sm text-[#667085]">Trend tracking will appear after the next completed survey wave.</p>
+                )}
+              </div>
                 </>
               ) : (
                 <div className="dashboard-section dashboard-diagnostic">
@@ -3408,59 +4297,126 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             <TabsContent value="brand_momentum" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
               {momentumDiagnostics ? (
                 <>
-                  <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-                    <Card
-                      title="Momentum Score"
-                      metricKey="momentum_score"
-                      variant="primary"
-                      value={momentumTopMetrics?.score.value ?? '--'}
-                      subtitle={`${momentumDiagnostics.status} · ${momentumDiagnostics.strategy}${momentumTopMetrics?.score.base_n ? ` · ${validPeriodSubtitle(momentumTopMetrics.score.base_n)}` : ''}`}
-                      delta={momentumDiagnostics.velocity}
-                      sparklineValues={momentumDiagnostics.trends.map((point) => point.score)}
-                    />
-                    <Card
-                      title="Awareness Growth Score"
-                      metricKey="awareness_growth_score"
-                      variant="primary"
-                      value={momentumTopMetrics?.awarenessGrowth.value ?? '--'}
-                      subtitle={momentumTopMetrics?.awarenessGrowth.base_n && momentumTopMetrics.awarenessGrowth.base_n < 4
-                        ? firstStatusNote(momentumTopMetrics.awarenessGrowth.notes)
-                        : `Normalized period growth · ${validPeriodSubtitle(momentumTopMetrics?.awarenessGrowth.base_n)}`}
-                    />
-                    <Card
-                      title="Consideration"
-                      metricKey="consideration_rate_momentum"
-                      variant="primary"
-                      value={momentumTopMetrics?.consideration.value === null ? '--' : `${momentumTopMetrics?.consideration.value}%`}
-                      subtitle={momentumTopMetrics?.consideration.base_n && momentumTopMetrics.consideration.base_n < 4
-                        ? firstStatusNote(momentumTopMetrics.consideration.notes)
-                        : 'Pipeline strength'}
-                    />
-                    <Card
-                      title="Conversion"
-                      metricKey="conversion_rate_momentum"
-                      variant="primary"
-                      value={momentumTopMetrics?.conversion.value === null ? '--' : `${momentumTopMetrics?.conversion.value}%`}
-                      subtitle={momentumTopMetrics?.conversion.base_n && momentumTopMetrics.conversion.base_n < 4
-                        ? firstStatusNote(momentumTopMetrics.conversion.notes)
-                        : 'Aware -> Ever used'}
-                    />
-                    <Card
-                      title="Retention"
-                      metricKey="retention_rate_momentum"
-                      value={momentumTopMetrics?.retention.value === null ? '--' : `${momentumTopMetrics?.retention.value}%`}
-                      subtitle={momentumTopMetrics?.retention.base_n && momentumTopMetrics.retention.base_n < 4
-                        ? firstStatusNote(momentumTopMetrics.retention.notes)
-                        : 'Ever used -> Current'}
-                    />
-                    <Card
-                      title="Adoption"
-                      metricKey="adoption_rate_momentum"
-                      value={momentumTopMetrics?.adoption.value === null ? '--' : `${momentumTopMetrics?.adoption.value}%`}
-                      subtitle={momentumTopMetrics?.adoption.base_n && momentumTopMetrics.adoption.base_n < 4
-                        ? firstStatusNote(momentumTopMetrics.adoption.notes)
-                        : 'Current -> Preferred'}
-                    />
+                  {/* Banner */}
+                  <MomentumBanner
+                    moduleSummary={momentumModuleSummary}
+                    score={momentumDiagnosticsView?.score ?? null}
+                    velocity={momentumDiagnosticsView?.velocity ?? null}
+                    velocityLabel={momentumDiagnosticsView?.velocityLabel ?? 'Steady growth'}
+                    selectedRank={momentumDiagnosticsView?.selectedRank ?? null}
+                    totalBanks={momentumDiagnosticsView?.competitiveRows.length ?? 0}
+                    positionLabel={momentumPositionLabel}
+                    sampleSize={sampleSize}
+                  />
+
+                  {/* KPI Cards */}
+                  <div className="mt-6 grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+                    <div className={momentumScoreInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Momentum Score"
+                        metricKey="momentum_score"
+                        variant="primary"
+                        value={momentumTopMetrics?.score.value ?? '--'}
+                        subtitle={`${momentumDiagnostics.status} · ${momentumDiagnostics.strategy}${momentumTopMetrics?.score.base_n ? ` · ${validPeriodSubtitle(momentumTopMetrics.score.base_n)}` : ''}`}
+                        delta={momentumDiagnostics.velocity}
+                        sparklineValues={momentumDiagnostics.trends.map((point) => point.score)}
+                      />
+                      {momentumScoreInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={momentumScoreInsight}
+                          title="Momentum Score"
+                          definition="Composite score weighted across five funnel stages: Awareness Growth (15%), Consideration (25%), Conversion (25%), Retention (20%), Adoption (15%)."
+                        />
+                      )}
+                    </div>
+                    <div className={momentumAwarenessGrowthInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Awareness Growth Score"
+                        metricKey="awareness_growth_score"
+                        variant="primary"
+                        value={momentumTopMetrics?.awarenessGrowth.value ?? '--'}
+                        subtitle={momentumTopMetrics?.awarenessGrowth.base_n && momentumTopMetrics.awarenessGrowth.base_n < 4
+                          ? firstStatusNote(momentumTopMetrics.awarenessGrowth.notes)
+                          : `Normalized period growth · ${validPeriodSubtitle(momentumTopMetrics?.awarenessGrowth.base_n)}`}
+                      />
+                      {momentumAwarenessGrowthInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={momentumAwarenessGrowthInsight}
+                          title="Awareness Growth Score"
+                          definition="Normalized score based on period-over-period awareness change. Growth ≥+10pp → 100; growth ≤−10pp → 0; else 50 + (growth × 5)."
+                        />
+                      )}
+                    </div>
+                    <div className={momentumConsiderationInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Consideration"
+                        metricKey="consideration_rate_momentum"
+                        variant="primary"
+                        value={momentumTopMetrics?.consideration.value === null ? '--' : `${momentumTopMetrics?.consideration.value}%`}
+                        subtitle={momentumTopMetrics?.consideration.base_n && momentumTopMetrics.consideration.base_n < 4
+                          ? firstStatusNote(momentumTopMetrics.consideration.notes)
+                          : 'Pipeline strength'}
+                      />
+                      {momentumConsiderationInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={momentumConsiderationInsight}
+                          title="Consideration Rate"
+                          definition="Share of aware respondents with strong future intent or relevance signals. Consideration = Considerers / Aware × 100."
+                        />
+                      )}
+                    </div>
+                    <div className={momentumConversionInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Conversion"
+                        metricKey="conversion_rate_momentum"
+                        variant="primary"
+                        value={momentumTopMetrics?.conversion.value === null ? '--' : `${momentumTopMetrics?.conversion.value}%`}
+                        subtitle={momentumTopMetrics?.conversion.base_n && momentumTopMetrics.conversion.base_n < 4
+                          ? firstStatusNote(momentumTopMetrics.conversion.notes)
+                          : 'Aware → Ever used'}
+                      />
+                      {momentumConversionInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={momentumConversionInsight}
+                          title="Conversion Rate"
+                          definition="Ability to convert awareness into first-time trial. Conversion = Ever Used / Aware × 100."
+                        />
+                      )}
+                    </div>
+                    <div className={momentumRetentionInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Retention"
+                        metricKey="retention_rate_momentum"
+                        value={momentumTopMetrics?.retention.value === null ? '--' : `${momentumTopMetrics?.retention.value}%`}
+                        subtitle={momentumTopMetrics?.retention.base_n && momentumTopMetrics.retention.base_n < 4
+                          ? firstStatusNote(momentumTopMetrics.retention.notes)
+                          : 'Ever used → Current'}
+                      />
+                      {momentumRetentionInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={momentumRetentionInsight}
+                          title="Retention Rate"
+                          definition="Ability to keep triers as active users. Retention = Currently Using / Ever Used × 100."
+                        />
+                      )}
+                    </div>
+                    <div className={momentumAdoptionInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Adoption"
+                        metricKey="adoption_rate_momentum"
+                        value={momentumTopMetrics?.adoption.value === null ? '--' : `${momentumTopMetrics?.adoption.value}%`}
+                        subtitle={momentumTopMetrics?.adoption.base_n && momentumTopMetrics.adoption.base_n < 4
+                          ? firstStatusNote(momentumTopMetrics.adoption.notes)
+                          : 'Current → Preferred'}
+                      />
+                      {momentumAdoptionInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={momentumAdoptionInsight}
+                          title="Adoption Rate"
+                          definition="Ability to convert active users into primary-bank relationships. Adoption = Preferred / Currently Using × 100."
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -3493,12 +4449,13 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Momentum Drivers Analysis" insight={momentumDriversInsight} />
                     </div>
 
                     <div className="dashboard-section">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Scenario Sensitivity</h3>
-                        <SectionInsightsTrigger sectionKey="momentum_drivers" ctaLabel="View Insights" />
+                        <SectionInsightsTrigger sectionKey="scenario_sensitivity" ctaLabel="View Insights" />
                       </div>
                       <p className="mt-2 text-xs text-slate-500">
                         Modeled scenario outputs showing which momentum levers move the score most in this framework.
@@ -3530,6 +4487,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Scenario Sensitivity Analysis" insight={momentumScenarioInsight} />
                     </div>
                   </div>
 
@@ -3561,13 +4519,15 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             : firstStatusNote(momentumTopMetrics?.score.notes, EMPTY_COPY.forecastUnavailable)}
                         />
                       </div>
+                      <SectionAnalysisBlock title="Momentum Trends Analysis" insight={momentumTrendInsight} />
                     </div>
 
-                    <details className="dashboard-section dashboard-collapsible" open>
-                      <summary>
+                    <div className="dashboard-section pb-6">
+                      <div className="flex items-center justify-between gap-2">
                         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Momentum Trajectory Forecast</h3>
-                      </summary>
-                      <div className="dashboard-collapsible-body mt-4 grid gap-3 md:grid-cols-3">
+                        <SectionInsightsTrigger sectionKey="trajectory_forecast" ctaLabel="View Insights" />
+                      </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
                         {momentumDiagnostics.forecast.map((point) => (
                           <div key={point.month} className="rounded-xl border border-white/10 bg-slate-900/40 p-3 text-center">
                             <p className="text-xs text-slate-400">{point.month}</p>
@@ -3576,7 +4536,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </div>
                         ))}
                       </div>
-                    </details>
+                      <SectionAnalysisBlock title="Trajectory Forecast Analysis" insight={momentumTrajectoryInsight} />
+                    </div>
                   </div>
 
                   <div className="mt-6 dashboard-section">
@@ -3628,6 +4589,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         </tbody>
                       </table>
                     </div>
+                    <SectionAnalysisBlock title="Competitive Momentum Analysis" insight={momentumCompetitiveInsight} />
                   </div>
                 </>
               ) : (
@@ -3640,31 +4602,83 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             <TabsContent value="competitive_intelligence" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
               {competitiveDiagnostics ? (
                 <>
-                  <div className="grid gap-4 md:grid-cols-4">
-                    <Card
-                      title="Market Share"
-                      metricKey="market_share"
-                      value={safePercent(competitiveTopMetrics?.marketShare.value)}
-                      subtitle={selectedBankName}
-                    />
-                    <Card
-                      title="Market Concentration (HHI)"
-                      metricKey="market_concentration"
-                      value={safeNumber(competitiveTopMetrics?.hhi.value)}
-                      subtitle={competitiveDiagnostics.marketStructure.concentrationLabel}
-                    />
-                    <Card
-                      title="Average Banks per Customer"
-                      metricKey="avg_banks_per_customer_ci"
-                      value={safeNumber(competitiveTopMetrics?.avgBanksPerCustomer.value)}
-                      subtitle="Active banking customers"
-                    />
-                    <Card
-                      title="Multi-Banking Rate"
-                      metricKey="multi_banking_rate_ci"
-                      value={safePercent(competitiveTopMetrics?.multiBankingRate.value)}
-                      subtitle="Customers using 2+ banks"
-                    />
+                  {/* Banner */}
+                  <CompetitiveBanner
+                    moduleSummary={competitiveModuleSummary}
+                    marketShare={competitiveTopMetrics?.marketShare.value ?? null}
+                    multiBankingRate={competitiveTopMetrics?.multiBankingRate.value ?? null}
+                    selectedRank={(() => {
+                      const sorted = [...competitiveDiagnostics.marketStructure.marketRows].sort((a, b) => b.marketShare - a.marketShare);
+                      const rank = sorted.findIndex((r) => r.bankId === selectedBankId) + 1;
+                      return rank > 0 ? rank : null;
+                    })()}
+                    totalBanks={competitiveDiagnostics.marketStructure.marketRows.length}
+                    positionLabel={competitivePositionLabel}
+                    sampleSize={sampleSize}
+                  />
+
+                  {/* KPI Cards */}
+                  <div className="mt-6 grid gap-4 md:grid-cols-4">
+                    <div className={competitiveMarketShareInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Market Share"
+                        metricKey="market_share"
+                        value={safePercent(competitiveTopMetrics?.marketShare.value)}
+                        subtitle={selectedBankName}
+                      />
+                      {competitiveMarketShareInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={competitiveMarketShareInsight}
+                          title="Market Share"
+                          definition="Share of respondents who name this bank as their preferred (primary) bank. Market Share = Preferred bank count / Total sample × 100."
+                        />
+                      )}
+                    </div>
+                    <div className={competitiveHHIInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Market Concentration (HHI)"
+                        metricKey="market_concentration"
+                        value={safeNumber(competitiveTopMetrics?.hhi.value)}
+                        subtitle={competitiveDiagnostics.marketStructure.concentrationLabel}
+                      />
+                      {competitiveHHIInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={competitiveHHIInsight}
+                          title="Market Concentration (HHI)"
+                          definition="Herfindahl-Hirschman Index. Sum of squared market shares across all banks. Below 1,500: competitive. 1,500–2,500: moderately concentrated. Above 2,500: highly concentrated."
+                        />
+                      )}
+                    </div>
+                    <div className={competitiveMultiBankingInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Average Banks per Customer"
+                        metricKey="avg_banks_per_customer_ci"
+                        value={safeNumber(competitiveTopMetrics?.avgBanksPerCustomer.value)}
+                        subtitle="Active banking customers"
+                      />
+                      {competitiveMultiBankingInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={competitiveMultiBankingInsight}
+                          title="Multi-Banking Landscape"
+                          definition="Average number of banks used by active banking customers. Average banks = Total bank selections / Active customers."
+                        />
+                      )}
+                    </div>
+                    <div className={competitiveMultiBankingInsight ? 'kpi-card-has-footer' : undefined}>
+                      <Card
+                        title="Multi-Banking Rate"
+                        metricKey="multi_banking_rate_ci"
+                        value={safePercent(competitiveTopMetrics?.multiBankingRate.value)}
+                        subtitle="Customers using 2+ banks"
+                      />
+                      {competitiveMultiBankingInsight && (
+                        <KpiCardAnalysisFooter
+                          insight={competitiveMultiBankingInsight}
+                          title="Multi-Banking Rate"
+                          definition="Share of active banking customers who use two or more banks. Multi-banking rate = Customers with 2+ active banks / Active banking customers × 100."
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-6 dashboard-section">
@@ -3674,7 +4688,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     </div>
                     <div className="mt-4 overflow-auto">
                       <table className="w-full text-xs text-slate-300">
-                        <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                        <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                           <tr>
                             <th className="py-2 pr-2">Bank</th>
                             <th className="py-2 pr-2">Preferred Count</th>
@@ -3698,6 +4712,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         </tbody>
                       </table>
                     </div>
+                    <SectionAnalysisBlock title="Market Structure Analysis" insight={competitiveMarketStructureInsight} />
                   </div>
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -3713,7 +4728,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                          <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                             <tr>
                               <th className="py-2 pr-2">Competitive Overlap</th>
                               <th className="py-2 pr-2">Users</th>
@@ -3729,12 +4744,13 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             )) : (
                               <tr>
-                                <td colSpan={3} className="py-2 text-slate-500">No overlap data in this slice.</td>
+                                <td colSpan={3} className="py-2 text-slate-400">No overlap data in this slice.</td>
                               </tr>
                             )}
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Customer Behavior Analysis" insight={competitiveCustomerBehaviorInsight} />
                     </div>
 
                     <div className="dashboard-section">
@@ -3744,7 +4760,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                          <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                             <tr>
                               <th className="py-2 pr-2">Bank</th>
                               <th className="py-2 pr-2">Overlap</th>
@@ -3769,26 +4785,42 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Competitive Positioning Analysis" insight={competitivePositioningInsight} />
                     </div>
                   </div>
 
                   {switchingRadar && (
-                    <div className="mt-6">
+                    <div className="mt-6 dashboard-section">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Multi-Bank Competitive Pressure</h3>
+                        <SectionInsightsTrigger sectionKey="switching_radar_ci" ctaLabel="View Insights" />
+                      </div>
+                      <div className="mt-4">
                       <CustomerSwitchingRadar
                         metrics={switchingRadar}
-                        title="Multi-Bank Competitive Pressure"
+                        title=""
                         subtitle="Among customers who actively use your bank and at least one competitor, this highlights where secondary preference is strongest."
                         resolveCompetitorLabel={(competitor) => bankNameById.get(competitor) || competitor}
                       />
+                      </div>
+                      <SectionAnalysisBlock title="Competitive Pressure Analysis" insight={competitiveSwitchingRadarInsight} />
                     </div>
                   )}
 
                   {migrationMap && (
-                    <div className="mt-6">
+                    <div className="mt-6 dashboard-section">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Preference Shift Among Current Users</h3>
+                        <SectionInsightsTrigger sectionKey="migration_map_ci" ctaLabel="View Insights" />
+                      </div>
+                      <div className="mt-4">
                       <CustomerMigrationMap
                         metrics={migrationMap}
                         resolveCompetitorLabel={(competitor) => bankNameById.get(competitor) || competitor}
+                        selectedBankName={selectedBankName}
                       />
+                      </div>
+                      <SectionAnalysisBlock title="Preference Shift Analysis" insight={competitiveMigrationMapInsight} />
                     </div>
                   )}
 
@@ -3799,8 +4831,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Share of Wallet Analysis</h3>
                           <SectionInsightsTrigger sectionKey="share_wallet_ci" ctaLabel="View Insights" />
                         </div>
-                        <p className="mt-2 text-xs text-slate-500">
-                          Internal-only proxy view. Wallet share is estimated from current-bank overlap, not directly observed spending share.
+                        <p className="mt-2 text-xs text-slate-400">
+                          Internal-only estimated view. Wallet share is modelled from account overlap data, not directly observed spending.
                         </p>
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
                           <Card title="Estimated Wallet Share" metricKey="wallet_share_estimation" value={`${competitiveDiagnostics.shareOfWallet.estimatedWalletShare}%`} subtitle="Selected bank wallet capture" />
@@ -3808,7 +4840,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         </div>
                         <div className="mt-4 overflow-auto">
                           <table className="w-full text-xs text-slate-300">
-                            <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                            <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                               <tr>
                                 <th className="py-2 pr-2">Competitor</th>
                                 <th className="py-2">Estimated Wallet Share</th>
@@ -3832,19 +4864,19 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">{winLossSectionTitle}</h3>
                         <SectionInsightsTrigger sectionKey="win_loss_ci" ctaLabel="View Insights" />
                       </div>
-                      <p className="mt-2 text-xs text-slate-500">{winLossSectionSubtitle}</p>
+                      <p className="mt-2 text-xs text-slate-400">{winLossSectionSubtitle}</p>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <Card title={winLossPrimaryCardTitle} metricKey="win_rate_ci" value={`${competitiveDiagnostics.winLoss.overallWinRate}%`} subtitle={hasObservedWinLoss ? 'Across measured competitor transitions' : 'Across modeled competitor pressure signals'} />
                         <Card title="Evidence Mode" value={winLossModeLabel} subtitle={winLossModeSubtitle} />
                       </div>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                          <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                             <tr>
                               <th className="py-2 pr-2">Competitor</th>
                               <th className="py-2 pr-2">{hasObservedWinLoss ? 'Observed Gains' : 'Estimated Gains'}</th>
                               <th className="py-2 pr-2">{hasObservedWinLoss ? 'Observed Losses' : 'Estimated Losses'}</th>
-                              <th className="py-2 pr-2">{hasObservedWinLoss ? 'Net' : 'Net Signal'}</th>
+                              <th className="py-2 pr-2">{hasObservedWinLoss ? 'Net' : 'Net'}</th>
                               <th className="py-2">{hasObservedWinLoss ? 'Win Rate' : 'Balance'}</th>
                             </tr>
                           </thead>
@@ -3861,6 +4893,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Competitive Balance Analysis" insight={competitiveWinLossInsight} />
                     </div>
                   </div>
 
@@ -3876,7 +4909,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                          <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                             <tr>
                               <th className="py-2 pr-2">Metric</th>
                               <th className="py-2 pr-2">You</th>
@@ -3898,6 +4931,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </tbody>
                         </table>
                       </div>
+                      <SectionAnalysisBlock title="Strengths & Weaknesses Analysis" insight={competitiveStrengthsInsight} />
                     </div>
 
                     <div className="dashboard-section">
@@ -3907,10 +4941,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Age gaps</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-300">Age gaps</p>
                           <div className="mt-2 overflow-auto">
                             <table className="w-full text-xs text-slate-300">
-                              <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                              <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                                 <tr>
                                   <th className="py-2 pr-2">Segment</th>
                                   <th className="py-2 pr-2">Gap</th>
@@ -3930,10 +4964,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </div>
                         </div>
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Gender gaps</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-300">Gender gaps</p>
                           <div className="mt-2 overflow-auto">
                             <table className="w-full text-xs text-slate-300">
-                              <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                              <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                                 <tr>
                                   <th className="py-2 pr-2">Segment</th>
                                   <th className="py-2 pr-2">Gap</th>
@@ -3953,21 +4987,22 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </div>
                         </div>
                       </div>
+                      <SectionAnalysisBlock title="Whitespace Opportunities Analysis" insight={competitiveWhitespaceInsight} />
                     </div>
                   </div>
 
-                  <div className="mt-6 dashboard-section">
+                  <div className="mt-6 dashboard-section pb-6">
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Competitive Risk Signals</h3>
                       <SectionInsightsTrigger sectionKey="threat_assessment_ci" ctaLabel="View Insights" />
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">
-                      Heuristic risk signals built from overlap, share movement, and visibility pressure. These are warning indicators, not direct observations of customer loss.
+                    <p className="mt-2 text-xs text-slate-400">
+                      Estimated risk indicators built from overlap, share movement, and brand visibility data. These are warning indicators, not confirmed evidence of customer loss.
                     </p>
                     <div className="mt-6 grid gap-4 md:grid-cols-2">
                       <div className="overflow-auto">
                         <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                          <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                             <tr>
                               <th className="py-2 pr-2">Competitor</th>
                               <th className="py-2 pr-2">Likelihood</th>
@@ -3989,7 +5024,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <div className="overflow-auto">
                         <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                          <thead className="text-[10px] uppercase tracking-widest text-slate-300">
                             <tr>
                               <th className="py-2 pr-2">Risk Indicator</th>
                               <th className="py-2 pr-2">Status</th>
@@ -4002,7 +5037,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                                 <td className="py-2 pr-2">{item.label}</td>
                                 <td className="py-2 pr-2">{item.status}</td>
                                 <td className="py-2">
-                                  <span className={item.alert === 'Red' ? 'text-rose-400' : item.alert === 'Yellow' ? 'text-slate-500' : 'text-emerald-400'}>
+                                  <span className={item.alert === 'Red' ? 'text-rose-400' : item.alert === 'Yellow' ? 'text-amber-300' : 'text-emerald-400'}>
                                     {item.alert}
                                   </span>
                                 </td>
@@ -4012,6 +5047,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         </table>
                       </div>
                     </div>
+                    <SectionAnalysisBlock title="Competitive Risk Analysis" insight={competitiveRiskSignalsInsight} />
                   </div>
                 </>
               ) : (
@@ -4025,64 +5061,64 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
               {demographicDiagnostics ? (
                 <>
                   <div className="grid gap-4 md:grid-cols-4">
-                    <Card title="Sample" value={`N=${safeCount(demographicsTopMetrics?.sample.value ?? demographicDiagnostics.sample, '0')}`} subtitle="Filtered respondents" />
+                    <Card title="Sample" value={`N=${safeCount(demographicsTopMetrics?.sample.value ?? demographicDiagnostics.sample, '0')}`} subtitle="Respondents in this filtered view" />
                     <Card
                       title="Top High-Value Segment"
-                      value={`${safeText(demographicDiagnostics.highValueSegments[0]?.dimension, '-')}: ${safeText(demographicDiagnostics.highValueSegments[0]?.segment, '-')}`}
-                      subtitle={demographicDiagnostics.highValueSegments[0] ? `Score ${safeNumber(demographicsTopMetrics?.topSegment.value ?? demographicDiagnostics.highValueSegments[0]?.score)}` : 'No high-value segment data in this slice.'}
+                      value={`${displayLabel(demographicDiagnostics.highValueSegments[0]?.dimension) ?? '-'}: ${displayLabel(demographicDiagnostics.highValueSegments[0]?.segment) ?? '-'}`}
+                      subtitle={demographicDiagnostics.highValueSegments[0] ? `Score ${safeNumber(demographicsTopMetrics?.topSegment.value ?? demographicDiagnostics.highValueSegments[0]?.score)} · Segment with strongest combined profile` : 'No high-value segment data in this slice.'}
                     />
                     <Card
                       title="Highest Priority Gap"
                       metricKey="demo_gap_score"
-                      value={`${safeText(demographicDiagnostics.opportunities[0]?.dimension, '-')}: ${safeText(demographicDiagnostics.opportunities[0]?.segment, '-')}`}
-                      subtitle={demographicDiagnostics.opportunities[0] ? `${safePp(demographicsTopMetrics?.highestGap.value ?? demographicDiagnostics.opportunities[0]?.usageGap)} vs best` : 'No priority gap data in this slice.'}
+                      value={`${displayLabel(demographicDiagnostics.opportunities[0]?.dimension) ?? '-'}: ${displayLabel(demographicDiagnostics.opportunities[0]?.segment) ?? '-'}`}
+                      subtitle={demographicDiagnostics.opportunities[0] ? `${safePp(demographicsTopMetrics?.highestGap.value ?? demographicDiagnostics.opportunities[0]?.usageGap)} gap vs highest segment · biggest improvement opportunity` : 'No priority gap data in this slice.'}
                     />
                     <Card
                       title="Average Segment Multi-Banking"
                       metricKey="demo_multi_banking"
                       value={safePercent(demographicsTopMetrics?.avgSegmentMultiBanking.value)}
-                      subtitle={demographicDiagnostics.ageRows.length > 0 ? 'Across age cohorts' : 'No age cohort data in this slice.'}
+                      subtitle={demographicDiagnostics.ageRows.length > 0 ? 'Average multi-bank usage across age cohorts' : 'No age cohort data in this slice.'}
                     />
                   </div>
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                    <div className="dashboard-section">
+                    <div className="rounded-2xl border border-[#E4E7EC] bg-white p-6 shadow-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Demographic Profile Overview</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-[#1F2230]">Demographic Profile Overview</h3>
                         <SectionInsightsTrigger sectionKey="demographics_overview" ctaLabel="View Insights" />
                       </div>
                       <div className="mt-4 space-y-3">
                         {demographicSummary.age.map((item) => (
-                          <MiniBar key={`age-share-${item.label}`} label={`Age ${item.label}`} value={item.value} color="bg-blue-500" />
+                          <MiniBar key={`age-share-${item.label}`} label={`Age: ${displayLabel(item.label)}`} value={item.value} color="bg-blue-500" />
                         ))}
                         {demographicSummary.gender.map((item) => (
-                          <MiniBar key={`gender-share-${item.label}`} label={`Gender ${item.label}`} value={item.value} color="bg-violet-500" />
+                          <MiniBar key={`gender-share-${item.label}`} label={`Gender: ${displayLabel(item.label)}`} value={item.value} color="bg-violet-500" />
                         ))}
                       </div>
                     </div>
 
-                    <div className="dashboard-section">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Employment & Education Distribution</h3>
+                    <div className="rounded-2xl border border-[#E4E7EC] bg-white p-6 shadow-sm">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-[#1F2230]">Employment & Education Distribution</h3>
                       <div className="mt-4 space-y-3">
                         {demographicSummary.employment.map((item) => (
-                          <MiniBar key={`employment-share-${item.label}`} label={`Employment ${item.label.replaceAll('_', ' ')}`} value={item.value} color="bg-emerald-500" />
+                          <MiniBar key={`employment-share-${item.label}`} label={`Employment: ${displayLabel(item.label)}`} value={item.value} color="bg-emerald-500" />
                         ))}
                         {demographicSummary.education.map((item) => (
-                          <MiniBar key={`education-share-${item.label}`} label={`Education ${item.label.replaceAll('_', ' ')}`} value={item.value} color="bg-amber-500" />
+                          <MiniBar key={`education-share-${item.label}`} label={`Education: ${displayLabel(item.label)}`} value={item.value} color="bg-amber-500" />
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-6 dashboard-section">
+                  <div className="mt-6 rounded-2xl border border-[#E4E7EC] bg-white p-6 shadow-sm">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Cohort Comparison (Age & Gender)</h3>
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-[#1F2230]">Cohort Comparison (Age & Gender)</h3>
                       <SectionInsightsTrigger sectionKey="cohort_comparison" ctaLabel="View Insights" />
                     </div>
                     <div className="mt-6 grid gap-4 lg:grid-cols-2">
                       <div className="overflow-auto">
-                        <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                        <table className="w-full text-xs text-[#344054]">
+                          <thead className="text-[10px] uppercase tracking-widest text-[#667085]">
                             <tr>
                               <th className="py-2 pr-2">Age</th>
                               <th className="py-2 pr-2">Size</th>
@@ -4095,10 +5131,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </thead>
                           <tbody>
                             {guardedAgeRows.length > 0 ? guardedAgeRows.map(({ data: row, dimmed, suppressMetrics }) => (
-                              <tr key={`age-row-${row.segment}`} className={`border-t border-white/5${dimmed ? ' opacity-40' : ''}`}>
-                                <td className="py-2 pr-2">
+                              <tr key={`age-row-${row.segment}`} className={`border-t border-[#F2F4F7]${dimmed ? ' opacity-70' : ''}`}>
+                                <td className="py-2 pr-2 font-medium">
                                   <span className="flex items-center gap-1.5">
-                                    {row.segment}
+                                    {displayLabel(row.segment)}
                                     <SampleGuardBadge guard={row.guard} />
                                   </span>
                                 </td>
@@ -4111,15 +5147,15 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             )) : (
                               <tr>
-                                <td colSpan={7} className="py-3 text-slate-500">No age cohort data in this slice.</td>
+                                <td colSpan={7} className="py-3 text-[#667085]">No age cohort data in this slice.</td>
                               </tr>
                             )}
                           </tbody>
                         </table>
                       </div>
                       <div className="overflow-auto">
-                        <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                        <table className="w-full text-xs text-[#344054]">
+                          <thead className="text-[10px] uppercase tracking-widest text-[#667085]">
                             <tr>
                               <th className="py-2 pr-2">Gender</th>
                               <th className="py-2 pr-2">Size</th>
@@ -4132,10 +5168,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </thead>
                           <tbody>
                             {guardedGenderRows.length > 0 ? guardedGenderRows.map(({ data: row, dimmed, suppressMetrics }) => (
-                              <tr key={`gender-row-${row.segment}`} className={`border-t border-white/5${dimmed ? ' opacity-40' : ''}`}>
-                                <td className="py-2 pr-2">
+                              <tr key={`gender-row-${row.segment}`} className={`border-t border-[#F2F4F7]${dimmed ? ' opacity-70' : ''}`}>
+                                <td className="py-2 pr-2 font-medium">
                                   <span className="flex items-center gap-1.5">
-                                    {row.segment}
+                                    {displayLabel(row.segment)}
                                     <SampleGuardBadge guard={row.guard} />
                                   </span>
                                 </td>
@@ -4148,7 +5184,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             )) : (
                               <tr>
-                                <td colSpan={7} className="py-3 text-slate-500">No gender cohort data in this slice.</td>
+                                <td colSpan={7} className="py-3 text-[#667085]">No gender cohort data in this slice.</td>
                               </tr>
                             )}
                           </tbody>
@@ -4158,12 +5194,12 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   </div>
 
                   <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                    <div className="dashboard-section">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Cohort Comparison (Employment & Education)</h3>
+                    <div className="rounded-2xl border border-[#E4E7EC] bg-white p-6 shadow-sm">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-[#1F2230]">Cohort Comparison (Employment & Education)</h3>
                       <div className="mt-6 grid gap-4 lg:grid-cols-2">
                         <div className="overflow-auto">
-                          <table className="w-full text-xs text-slate-300">
-                            <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                          <table className="w-full text-xs text-[#344054]">
+                            <thead className="text-[10px] uppercase tracking-widest text-[#667085]">
                               <tr>
                                 <th className="py-2 pr-2">Employment</th>
                                 <th className="py-2 pr-2">Current</th>
@@ -4173,10 +5209,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </thead>
                             <tbody>
                               {guardedEmploymentRows.length > 0 ? guardedEmploymentRows.map(({ data: row, dimmed, suppressMetrics }) => (
-                                <tr key={`employment-row-${row.segment}`} className={`border-t border-white/5${dimmed ? ' opacity-40' : ''}`}>
+                                <tr key={`employment-row-${row.segment}`} className={`border-t border-[#F2F4F7]${dimmed ? ' opacity-70' : ''}`}>
                                   <td className="py-2 pr-2">
                                     <span className="flex items-center gap-1.5">
-                                      {row.segment}
+                                      {displayLabel(row.segment)}
                                       <SampleGuardBadge guard={row.guard} />
                                     </span>
                                   </td>
@@ -4186,15 +5222,15 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                                 </tr>
                               )) : (
                                 <tr>
-                                  <td colSpan={4} className="py-3 text-slate-500">No employment cohort data in this slice.</td>
+                                  <td colSpan={4} className="py-3 text-[#667085]">No employment cohort data in this slice.</td>
                                 </tr>
                               )}
                             </tbody>
                           </table>
                         </div>
                         <div className="overflow-auto">
-                          <table className="w-full text-xs text-slate-300">
-                            <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                          <table className="w-full text-xs text-[#344054]">
+                            <thead className="text-[10px] uppercase tracking-widest text-[#667085]">
                               <tr>
                                 <th className="py-2 pr-2">Education</th>
                                 <th className="py-2 pr-2">Current</th>
@@ -4204,10 +5240,10 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                             </thead>
                             <tbody>
                               {guardedEducationRows.length > 0 ? guardedEducationRows.map(({ data: row, dimmed, suppressMetrics }) => (
-                                <tr key={`education-row-${row.segment}`} className={`border-t border-white/5${dimmed ? ' opacity-40' : ''}`}>
+                                <tr key={`education-row-${row.segment}`} className={`border-t border-[#F2F4F7]${dimmed ? ' opacity-70' : ''}`}>
                                   <td className="py-2 pr-2">
                                     <span className="flex items-center gap-1.5">
-                                      {row.segment}
+                                      {displayLabel(row.segment)}
                                       <SampleGuardBadge guard={row.guard} />
                                     </span>
                                   </td>
@@ -4217,7 +5253,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                                 </tr>
                               )) : (
                                 <tr>
-                                  <td colSpan={4} className="py-3 text-slate-500">No education cohort data in this slice.</td>
+                                  <td colSpan={4} className="py-3 text-[#667085]">No education cohort data in this slice.</td>
                                 </tr>
                               )}
                             </tbody>
@@ -4226,14 +5262,14 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                     </div>
 
-                    <div className="dashboard-section">
+                    <div className="rounded-2xl border border-[#E4E7EC] bg-white p-6 shadow-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Demographic Gap & Opportunity Diagnostics</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-[#1F2230]">Demographic Gap & Opportunity Diagnostics</h3>
                         <SectionInsightsTrigger sectionKey="demographic_opportunities" ctaLabel="View Insights" />
                       </div>
                       <div className="mt-4 overflow-auto">
-                        <table className="w-full text-xs text-slate-300">
-                          <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+                        <table className="w-full text-xs text-[#344054]">
+                          <thead className="text-[10px] uppercase tracking-widest text-[#667085]">
                             <tr>
                               <th className="py-2 pr-2">Dimension</th>
                               <th className="py-2 pr-2">Segment</th>
@@ -4245,9 +5281,9 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                           </thead>
                           <tbody>
                             {guardedOpportunityRows.length > 0 ? guardedOpportunityRows.map(({ data: row }) => (
-                              <tr key={`${row.dimension}-${row.segment}`} className="border-t border-white/5">
-                                <td className="py-2 pr-2 capitalize">{row.dimension}</td>
-                                <td className="py-2 pr-2">{row.segment}</td>
+                              <tr key={`${row.dimension}-${row.segment}`} className="border-t border-[#F2F4F7]">
+                                <td className="py-2 pr-2">{displayLabel(row.dimension)}</td>
+                                <td className="py-2 pr-2">{displayLabel(row.segment)}</td>
                                 <td className="py-2 pr-2">{safePercent(row.currentUsage)}</td>
                                 <td className="py-2 pr-2">{safePp(row.usageGap)}</td>
                                 <td className="py-2 pr-2">{safeNumber(row.nps)}</td>
@@ -4255,7 +5291,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               </tr>
                             )) : (
                               <tr>
-                                <td colSpan={6} className="py-3 text-slate-500">No demographic opportunity data in this slice.</td>
+                                <td colSpan={6} className="py-3 text-[#667085]">No demographic opportunity data in this slice.</td>
                               </tr>
                             )}
                           </tbody>
@@ -4266,14 +5302,15 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         />
                       </div>
                       <div className="mt-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">High-Value Segments</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-[#667085]">High-Value Segments</p>
                         <div className="mt-2 grid gap-2">
                           {demographicDiagnostics.highValueSegments.length > 0 ? demographicDiagnostics.highValueSegments.map((row) => (
-                            <div key={`${row.dimension}-${row.segment}`} className="rounded-xl border border-white/10 bg-slate-900/50 p-2 text-xs text-slate-300">
-                              {row.dimension}: {row.segment} | score {safeNumber(row.score)} | preferred {safePercent(row.preferred)} | NPS {safeNumber(row.nps)}
+                            <div key={`${row.dimension}-${row.segment}`} className="rounded-xl border border-[#E4E7EC] bg-[#F8FAFC] px-3 py-2.5 text-xs">
+                              <span className="font-semibold text-[#1F2230]">{displayLabel(row.dimension)} {displayLabel(row.segment)}</span>
+                              <span className="ml-2 text-[#667085]">Score {safeNumber(row.score)} · Preferred {safePercent(row.preferred)} · NPS {safeNumber(row.nps)}</span>
                             </div>
                           )) : (
-                            <div className="rounded-xl border border-dashed border-white/10 bg-slate-900/40 p-2 text-xs text-slate-500">
+                            <div className="rounded-xl border border-dashed border-[#E4E7EC] bg-[#F8FAFC] px-3 py-2.5 text-xs text-[#667085]">
                               No high-value segment data in this slice.
                             </div>
                           )}
@@ -4289,136 +5326,6 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
               )}
             </TabsContent>
 
-            <TabsContent value="trends_forecasts" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
-              {trendsDiagnostics ? (
-                <>
-                  <div className="grid gap-4 md:grid-cols-5">
-                    <Card
-                      title="MoM Change"
-                      metricKey="mom_change"
-                      value={formatSignedValue(trendsTopMetrics?.mom.value ?? null, 'pp', 1)}
-                      subtitle={trendsDiagnostics.periodComparisons.momPct === null ? EMPTY_COPY.insufficientHistory : `${trendsDiagnostics.periodComparisons.momPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.momPct}%`}
-                    />
-                    <Card
-                      title="QoQ Change"
-                      metricKey="qoq_change"
-                      value={formatSignedValue(trendsTopMetrics?.qoq.value ?? null, 'pp', 1)}
-                      subtitle={trendsDiagnostics.periodComparisons.qoqPct === null ? EMPTY_COPY.insufficientHistory : `${trendsDiagnostics.periodComparisons.qoqPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.qoqPct}%`}
-                    />
-                    <Card
-                      title="YoY Change"
-                      metricKey="yoy_change"
-                      value={formatSignedValue(trendsTopMetrics?.yoy.value ?? null, 'pp', 1)}
-                      subtitle={trendsDiagnostics.periodComparisons.yoyPct === null ? EMPTY_COPY.insufficientHistory : `${trendsDiagnostics.periodComparisons.yoyPct > 0 ? '+' : ''}${trendsDiagnostics.periodComparisons.yoyPct}%`}
-                    />
-                    <Card title="YTD Average" metricKey="ytd_average" value={trendsTopMetrics?.ytdAverage.value === null ? '--' : `${trendsTopMetrics.ytdAverage.value}%`} subtitle={trendsTopMetrics?.ytdAverage.base_n ? `Awareness average across ${validPeriodSubtitle(trendsTopMetrics.ytdAverage.base_n)}` : EMPTY_COPY.noValidPeriods} />
-                    <Card title="CAGR" metricKey="cagr_trend" value={trendsTopMetrics?.cagr.value === null ? '--' : `${trendsTopMetrics?.cagr.value}%`} subtitle={trendsTopMetrics?.cagr.value === null ? EMPTY_COPY.insufficientHistory : 'Annualized growth rate'} />
-                  </div>
-
-                  <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                    <div className="dashboard-section">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Trend Period Analysis</h3>
-                        <SectionInsightsTrigger sectionKey="trend_period_analysis" ctaLabel="View Insights" />
-                      </div>
-                      <div className="mt-4 space-y-3">
-                        {trendsDiagnostics.monthly.map((point) => (
-                          <MiniBar key={`trend-month-${point.month}`} label={`${point.month} awareness`} value={point.awareness} color="bg-blue-500" />
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="dashboard-section">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">BrandEdge Score Over Time</h3>
-                      </div>
-                      <div className="mt-4 space-y-3">
-                        {brandEdgeTrend.map((point) => (
-                          <MiniBar key={`brandedge-trend-${point.month}`} label={`${point.month} score`} value={point.score} color="bg-emerald-500" />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                    <div className="dashboard-section">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Volatility & Pattern Diagnostics</h3>
-                        <SectionInsightsTrigger sectionKey="volatility_patterns" ctaLabel="View Insights" />
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        <Card
-                          title="Volatility (CV)"
-                          metricKey="volatility_cv"
-                          value={`${trendsDiagnostics.volatility.cv}%`}
-                          subtitle={trendsDiagnostics.volatility.label}
-                        />
-                        <Card title="Stability Score" metricKey="stability_score" value={trendsDiagnostics.volatility.stabilityScore} subtitle={`${trendsDiagnostics.volatility.reversals} directional reversals`} />
-                        <Card title="Range" value={`${trendsDiagnostics.volatility.range}pp`} subtitle={`Std Dev ${trendsDiagnostics.volatility.stdDev}`} />
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        <Card title="Seasonal Index (Current Month)" value={trendsDiagnostics.seasonality.currentMonthIndex === null ? '--' : trendsDiagnostics.seasonality.currentMonthIndex} subtitle="100 = average month" />
-                        <Card title="Strongest Month" value={trendsDiagnostics.seasonality.strongestMonth || '--'} subtitle="Highest seasonal index" />
-                        <Card title="Weakest Month" value={trendsDiagnostics.seasonality.weakestMonth || '--'} subtitle="Lowest seasonal index" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                    <div className="dashboard-section">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Forecast Methods</h3>
-                        <SectionInsightsTrigger sectionKey="forecast_methods" ctaLabel="View Insights" />
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <Card title="Simple MA (Next)" value={trendsDiagnostics.forecast.smaNext === null ? '--' : `${trendsDiagnostics.forecast.smaNext}%`} subtitle={trendsDiagnostics.forecast.smaNext === null ? EMPTY_COPY.forecastUnavailable : '3-month moving average'} />
-                        <Card title="Weighted MA (Next)" value={trendsDiagnostics.forecast.wmaNext === null ? '--' : `${trendsDiagnostics.forecast.wmaNext}%`} subtitle={trendsDiagnostics.forecast.wmaNext === null ? EMPTY_COPY.forecastUnavailable : 'Weights 0.2, 0.3, 0.5'} />
-                        <Card title="Regression (Next)" metricKey="forecast_regression" value={trendsDiagnostics.forecast.regressionNext === null ? '--' : `${trendsDiagnostics.forecast.regressionNext}%`} subtitle={trendsDiagnostics.forecast.regressionR2 === null ? firstStatusNote(trendsTopMetrics?.mom.notes, EMPTY_COPY.forecastUnavailable) : `R² ${trendsDiagnostics.forecast.regressionR2}`} />
-                        <Card title="Exponential Smoothing (Next)" value={trendsDiagnostics.forecast.expSmoothingNext === null ? '--' : `${trendsDiagnostics.forecast.expSmoothingNext}%`} subtitle={trendsDiagnostics.forecast.expSmoothingNext === null ? EMPTY_COPY.forecastUnavailable : 'Alpha 0.3'} />
-                        <Card title="Seasonal Forecast (Next)" value={trendsDiagnostics.forecast.seasonalAdjustedNext === null ? '--' : `${trendsDiagnostics.forecast.seasonalAdjustedNext}%`} subtitle={trendsDiagnostics.forecast.seasonalAdjustedNext === null ? EMPTY_COPY.forecastUnavailable : 'Regression × seasonal index'} />
-                        <Card title="Confidence Band (95%)" metricKey="forecast_confidence" value={trendsDiagnostics.forecast.confidenceLow === null || trendsDiagnostics.forecast.confidenceHigh === null ? '--' : `${trendsDiagnostics.forecast.confidenceLow}% to ${trendsDiagnostics.forecast.confidenceHigh}%`} subtitle={trendsDiagnostics.forecast.confidenceLow === null || trendsDiagnostics.forecast.confidenceHigh === null ? EMPTY_COPY.forecastUnavailable : 'Forecast uncertainty range'} />
-                      </div>
-                    </div>
-
-                    <div className="dashboard-section">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Signal vs Noise</h3>
-                        <SectionInsightsTrigger sectionKey="signal_noise" ctaLabel="View Insights" />
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        <Card
-                          title="Trend Slope"
-                          metricKey="trend_signal"
-                          value={trendsDiagnostics.signal.slope === null ? '--' : `${trendsDiagnostics.signal.slope}pp / month`}
-                          subtitle="Linear trend slope"
-                        />
-                        <Card title="Signal Status" metricKey="trend_signal" value={trendsDiagnostics.signal.isSignificantSignal ? 'Signal' : 'No strong signal'} subtitle="Based on volatility threshold" />
-                        <Card title="Average Growth" value={trendsDiagnostics.growth.averageGrowthPct === null ? '--' : `${trendsDiagnostics.growth.averageGrowthPct}%`} subtitle={trendsDiagnostics.growth.exponentialSignal ? 'Accelerating pattern detected' : 'No exponential acceleration'} />
-                      </div>
-                      <p className="mt-4 text-sm text-slate-300">{trendsDiagnostics.signal.diagnosis}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 dashboard-section">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Actionable Highlights</h3>
-                      <SectionInsightsTrigger sectionKey="forecast_methods" ctaLabel="View Insights" />
-                    </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      {trendsDiagnostics.highlights.map((item) => (
-                        <div key={item} className="rounded-xl border border-white/10 bg-slate-900/50 p-3 text-sm text-slate-300">
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="dashboard-section dashboard-diagnostic">
-                  Trends and forecasts are unavailable for the current filter scope.
-                </div>
-              )}
-            </TabsContent>
           </Tabs>
         </div>
 

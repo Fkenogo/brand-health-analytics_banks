@@ -1,4 +1,5 @@
 const VALID_COUNTRIES = ['rwanda', 'uganda', 'burundi'];
+const { deriveSurveyAnalyticsInclusion } = require('./respondentInclusion');
 const BRAND_EDGE_WEIGHTS = {
   awareness: 0.3,
   usage: 0.3,
@@ -6,7 +7,8 @@ const BRAND_EDGE_WEIGHTS = {
   primaryShare: 0.1,
   switchingRisk: -0.1,
 };
-const AGGREGATE_SCHEMA_VERSION = 2;
+const AGGREGATE_SCHEMA_VERSION = 3;
+const METHODOLOGY_VERSION = 'v1';
 const SUPPORTED_MODULES = {
   overview: true,
   awareness: true,
@@ -188,7 +190,12 @@ const createEmptyAggregate = ({ country, dateBucket }) => ({
   country,
   dateBucket,
   aggregateSchemaVersion: AGGREGATE_SCHEMA_VERSION,
+  methodologyVersion: METHODOLOGY_VERSION,
+  methodology_version: METHODOLOGY_VERSION,
   responseCount: 0,
+  analyticsIncludedCount: 0,
+  screenedOutCount: 0,
+  screenedOutUnder18Count: 0,
   completedCount: 0,
   terminatedCount: 0,
   suspiciousCount: 0,
@@ -204,13 +211,18 @@ const ensureBankCounts = (aggregate, bankId) => {
 };
 
 const accumulateResponse = (aggregate, response, bankIds) => {
+  const inclusion = deriveSurveyAnalyticsInclusion(response);
   aggregate.responseCount += 1;
+  if (inclusion.includedInAnalytics) aggregate.analyticsIncludedCount += 1;
+  else aggregate.screenedOutCount += 1;
+  if (inclusion.screeningOutcome === 'under_18') aggregate.screenedOutUnder18Count += 1;
   if (String(response?._status || '') === 'completed') aggregate.completedCount += 1;
   if (String(response?._status || '') === 'terminated') aggregate.terminatedCount += 1;
   if (response?.suspicious_submission_flag) aggregate.suspiciousCount += 1;
   if (response?.repeat_submission_flag) aggregate.repeatCount += 1;
   if (response?.completion_speed_flag) aggregate.fastCount += 1;
   if (response?.duplicate_payload_flag) aggregate.duplicateCount += 1;
+  if (!inclusion.includedInAnalytics) return;
 
   bankIds.forEach((bankId) => {
     const counts = ensureBankCounts(aggregate, bankId);
@@ -254,8 +266,13 @@ const buildDailyAggregateFromResponses = ({ country, dateBucket, responses, bank
 
 const mergeAggregateDocs = (docs) => {
   const merged = createEmptyAggregate({ country: docs[0]?.country || null, dateBucket: 'merged' });
+  merged.methodologyVersion = docs[0]?.methodologyVersion || docs[0]?.methodology_version || METHODOLOGY_VERSION;
+  merged.methodology_version = merged.methodologyVersion;
   docs.forEach((doc) => {
     merged.responseCount += Number(doc.responseCount || 0);
+    merged.analyticsIncludedCount += Number(doc.analyticsIncludedCount || 0);
+    merged.screenedOutCount += Number(doc.screenedOutCount || 0);
+    merged.screenedOutUnder18Count += Number(doc.screenedOutUnder18Count || 0);
     merged.completedCount += Number(doc.completedCount || 0);
     merged.terminatedCount += Number(doc.terminatedCount || 0);
     merged.suspiciousCount += Number(doc.suspiciousCount || 0);
@@ -360,7 +377,11 @@ const computeBrandEdgeScore = (metrics) => {
 };
 
 const buildOverviewSnapshot = ({ aggregate, bankIds, bankNames, selectedBankId }) => {
-  const sampleSize = Number(aggregate.responseCount || 0);
+  const responseCount = Number(aggregate.responseCount || 0);
+  const includedCount = Number(aggregate.analyticsIncludedCount ?? aggregate.completedCount ?? 0);
+  const screenedOutCount = Number(aggregate.screenedOutCount ?? Math.max(0, responseCount - includedCount));
+  const under18Count = Number(aggregate.screenedOutUnder18Count || 0);
+  const sampleSize = includedCount;
   const rawRows = bankIds.map((bankId) => {
     const counts = aggregate.banks[bankId] || emptyBankCounts();
     const metrics = summarizeBankCounts(counts, sampleSize);
@@ -417,6 +438,9 @@ const buildOverviewSnapshot = ({ aggregate, bankIds, bankNames, selectedBankId }
     statusCounts: {
       completed: Number(aggregate.completedCount || 0),
       terminated: Number(aggregate.terminatedCount || 0),
+      included: includedCount,
+      screenedOut: screenedOutCount,
+      under18: under18Count,
     },
     flagCounts: {
       suspicious: Number(aggregate.suspiciousCount || 0),
@@ -461,6 +485,7 @@ const monthKeyLabel = (monthKey) => {
 
 module.exports = {
   AGGREGATE_SCHEMA_VERSION,
+  METHODOLOGY_VERSION,
   SUPPORTED_METRICS,
   SUPPORTED_FILTERS,
   SUPPORTED_MODULES,

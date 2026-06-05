@@ -19,7 +19,9 @@ export type CompetitiveSectionInsightKey =
   | 'win_loss_ci'
   | 'strengths_weaknesses_ci'
   | 'white_space_ci'
-  | 'threat_assessment_ci';
+  | 'threat_assessment_ci'
+  | 'switching_radar_ci'
+  | 'migration_map_ci';
 
 export const COMPETITIVE_METRIC_CONTENT: Record<CompetitiveMetricKey, MetricInsightContent> = {
   market_share: {
@@ -144,5 +146,25 @@ export const COMPETITIVE_SECTION_INSIGHTS: Record<CompetitiveSectionInsightKey, 
       'Low Priority: lower likelihood and impact.',
     ],
     keyInsight: 'These are heuristic warning signals, not direct observations of competitive attack or loss.',
+  },
+  switching_radar_ci: {
+    title: 'Multi-Bank Competitive Pressure',
+    interpretationThresholds: [
+      'Switching pressure score = 60% second-choice share + 40% overlap share.',
+      'A high score means the competitor is both the most common second choice AND the most common overlap bank.',
+      'This is a directional proxy signal, not observed customer switching.',
+      'Low sample (n < 15 multi-bank users) reduces reliability — treat with caution.',
+    ],
+    keyInsight: 'Focus retention effort on the competitor with the highest switching pressure score — they represent the most immediate wallet share threat.',
+  },
+  migration_map_ci: {
+    title: 'Preference Drift Among Current Users',
+    interpretationThresholds: [
+      'Drift rate = multi-bank users whose stated primary bank is NOT the selected bank / total multi-bank users.',
+      'This measures stated preference shift, not confirmed account closures or balance transfers.',
+      'A drift rate above 25% warrants investigation into the product and service gaps driving the preference shift.',
+      'The top drift destination identifies which competitor is capturing primary preference most often.',
+    ],
+    keyInsight: 'Monitor the drift rate trend across periods — a rising drift rate among current users is an early warning of primary relationship erosion.',
   },
 };

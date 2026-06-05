@@ -58,13 +58,37 @@ const buildInitials = (value: string): string => {
   return words.map(word => word[0]).join('');
 };
 
-const getBankCandidates = (bank: Bank): string[] => {
+interface CandidateVariant {
+  value: string;
+  sourceWeight: number;
+}
+
+const dedupeCandidates = (variants: CandidateVariant[]): CandidateVariant[] => {
+  const seen = new Map<string, CandidateVariant>();
+  variants.forEach((variant) => {
+    const current = seen.get(variant.value);
+    if (!current || variant.sourceWeight > current.sourceWeight) {
+      seen.set(variant.value, variant);
+    }
+  });
+  return Array.from(seen.values());
+};
+
+const getBankCandidates = (bank: Bank): CandidateVariant[] => {
   const baseId = bank.id.split('_')[0];
   const name = bank.name;
   const nameWithoutBank = name.replace(/\bbank\b/i, '').trim();
   const withBankSuffix = name.toLowerCase().includes('bank') ? name : `${name} Bank`;
   const initials = buildInitials(nameWithoutBank || name);
-  const variants = [name, nameWithoutBank, withBankSuffix, bank.id, baseId, initials, `${baseId} bank`];
+  const variants: CandidateVariant[] = [
+    { value: name, sourceWeight: 6 },
+    { value: nameWithoutBank, sourceWeight: 5 },
+    { value: withBankSuffix, sourceWeight: 5 },
+    { value: bank.id, sourceWeight: 3 },
+    { value: baseId, sourceWeight: 4 },
+    { value: initials, sourceWeight: 3 },
+    { value: `${baseId} bank`, sourceWeight: 3 },
+  ];
   const aliases = bank.aliases || [];
   const dynamicAliases = (() => {
     try {
@@ -75,10 +99,13 @@ const getBankCandidates = (bank: Bank): string[] => {
     }
   })();
   const generic = new Set(['bank', 'finance', 'credit', 'union', 'trust']);
-  return [...variants, ...aliases]
-    .concat(dynamicAliases)
-    .map(normalize)
-    .filter(candidate => candidate && candidate.length >= 3 && !generic.has(candidate));
+  return dedupeCandidates(
+    variants
+      .concat(aliases.map((alias) => ({ value: alias, sourceWeight: 7 })))
+      .concat(dynamicAliases.map((alias) => ({ value: alias, sourceWeight: 7 })))
+      .map((variant) => ({ ...variant, value: normalize(variant.value) }))
+      .filter((variant) => variant.value && variant.value.length >= 3 && !generic.has(variant.value))
+  );
 };
 
 export const levenshteinDistance = (str1: string, str2: string): number => {
@@ -105,22 +132,44 @@ export const levenshteinDistance = (str1: string, str2: string): number => {
 
 type MatchType = 'exact' | 'startsWith' | 'contains' | 'fuzzy';
 
-const similarityScore = (input: string, candidate: string): { score: number; type: MatchType } => {
+const MATCH_TYPE_WEIGHTS: Record<MatchType, number> = {
+  exact: 4,
+  startsWith: 3,
+  contains: 2,
+  fuzzy: 1,
+};
+
+const similarityScore = (input: string, candidate: string): { score: number; type: MatchType; distance: number; lengthDelta: number } => {
   const normalizedInput = normalize(input);
   const normalizedCandidate = normalize(candidate);
-  if (!normalizedInput || !normalizedCandidate) return { score: 0, type: 'fuzzy' };
-  if (normalizedInput === normalizedCandidate) return { score: 1.0, type: 'exact' };
+  if (!normalizedInput || !normalizedCandidate) return { score: 0, type: 'fuzzy', distance: Number.POSITIVE_INFINITY, lengthDelta: Number.POSITIVE_INFINITY };
+  if (normalizedInput === normalizedCandidate) return { score: 1.0, type: 'exact', distance: 0, lengthDelta: 0 };
   if (normalizedCandidate.startsWith(normalizedInput) || normalizedInput.startsWith(normalizedCandidate)) {
-    return { score: 0.9, type: 'startsWith' };
+    return {
+      score: 0.9,
+      type: 'startsWith',
+      distance: levenshteinDistance(normalizedInput, normalizedCandidate),
+      lengthDelta: Math.abs(normalizedInput.length - normalizedCandidate.length),
+    };
   }
   if (normalizedCandidate.includes(normalizedInput) || normalizedInput.includes(normalizedCandidate)) {
-    return { score: 0.8, type: 'contains' };
+    return {
+      score: 0.8,
+      type: 'contains',
+      distance: levenshteinDistance(normalizedInput, normalizedCandidate),
+      lengthDelta: Math.abs(normalizedInput.length - normalizedCandidate.length),
+    };
   }
 
   const distance = levenshteinDistance(normalizedInput, normalizedCandidate);
   const maxLen = Math.max(normalizedInput.length, normalizedCandidate.length);
-  if (maxLen === 0) return { score: 0, type: 'fuzzy' };
-  return { score: Math.max(0, 1 - distance / maxLen), type: 'fuzzy' };
+  if (maxLen === 0) return { score: 0, type: 'fuzzy', distance: 0, lengthDelta: 0 };
+  return {
+    score: Math.max(0, 1 - distance / maxLen),
+    type: 'fuzzy',
+    distance,
+    lengthDelta: Math.abs(normalizedInput.length - normalizedCandidate.length),
+  };
 };
 
 const EXTRA_BANKS: Bank[] = [
@@ -168,14 +217,57 @@ export const recognizeTopOfMindBank = (input: string, country: CountryCode = 'rw
   }
 
   const banks = getBanksByCountry(country);
-  let bestMatch: { bank: Bank; score: number; type: MatchType } | null = null;
+  let bestMatch: {
+    bank: Bank;
+    score: number;
+    type: MatchType;
+    distance: number;
+    lengthDelta: number;
+    sourceWeight: number;
+    candidate: string;
+  } | null = null;
 
   banks.forEach(bank => {
     const candidates = getBankCandidates(bank);
-    candidates.forEach(candidate => {
+    candidates.forEach(({ value: candidate, sourceWeight }) => {
       const result = similarityScore(trimmed, candidate);
-      if (!bestMatch || result.score > bestMatch.score) {
-        bestMatch = { bank, score: result.score, type: result.type };
+      const nextMatch = {
+        bank,
+        score: result.score,
+        type: result.type,
+        distance: result.distance,
+        lengthDelta: result.lengthDelta,
+        sourceWeight,
+        candidate,
+      };
+      if (!bestMatch) {
+        bestMatch = nextMatch;
+        return;
+      }
+      if (nextMatch.score > bestMatch.score + 0.015) {
+        bestMatch = nextMatch;
+        return;
+      }
+      if (Math.abs(nextMatch.score - bestMatch.score) <= 0.015) {
+        if (MATCH_TYPE_WEIGHTS[nextMatch.type] > MATCH_TYPE_WEIGHTS[bestMatch.type]) {
+          bestMatch = nextMatch;
+          return;
+        }
+        if (MATCH_TYPE_WEIGHTS[nextMatch.type] === MATCH_TYPE_WEIGHTS[bestMatch.type]) {
+          if (nextMatch.sourceWeight > bestMatch.sourceWeight) {
+            bestMatch = nextMatch;
+            return;
+          }
+          if (nextMatch.sourceWeight === bestMatch.sourceWeight) {
+            if (nextMatch.distance < bestMatch.distance) {
+              bestMatch = nextMatch;
+              return;
+            }
+            if (nextMatch.distance === bestMatch.distance && nextMatch.lengthDelta < bestMatch.lengthDelta) {
+              bestMatch = nextMatch;
+            }
+          }
+        }
       }
     });
   });
@@ -212,7 +304,7 @@ const scanBankNames = (input: string, country: CountryCode): string[] => {
   if (!normalizedInput) return [];
 
   const banks = getBanksByCountry(country);
-  const candidates = banks.flatMap(bank => getBankCandidates(bank).map(candidate => ({ bank, candidate })));
+  const candidates = banks.flatMap(bank => getBankCandidates(bank).map(candidate => ({ bank, candidate: candidate.value })));
 
   const matches = new Set<string>();
   candidates.forEach(({ bank, candidate }) => {
@@ -252,12 +344,19 @@ export const parseSpontaneousBanks = (
 
   const banks = entries.map(entry => recognizeTopOfMindBank(entry, country));
   const excludeSet = new Set(options?.excludeBankIds || []);
-  const recognized = banks.filter(result => result.recognized && result.bankId && !excludeSet.has(result.bankId));
-  const excluded = banks
+  const seenRecognizedIds = new Set<string>();
+  const recognized = banks.filter(result => {
+    if (!result.recognized || !result.bankId || excludeSet.has(result.bankId) || seenRecognizedIds.has(result.bankId)) {
+      return false;
+    }
+    seenRecognizedIds.add(result.bankId);
+    return true;
+  });
+  const excluded = Array.from(new Set(banks
     .filter(result => result.recognized && result.bankId && excludeSet.has(result.bankId))
     .map(result => result.standardName || result.input)
-    .filter(Boolean);
-  const unrecognized = banks.filter(result => !result.recognized).map(result => result.input).filter(Boolean);
+    .filter(Boolean)));
+  const unrecognized = Array.from(new Set(banks.filter(result => !result.recognized).map(result => result.input).filter(Boolean)));
   const recognizedIds = Array.from(new Set(recognized.map(result => result.bankId!).filter(Boolean)));
 
   return {

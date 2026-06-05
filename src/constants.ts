@@ -74,33 +74,38 @@ export const ALL_BANKS: Bank[] = [
   
   // Uganda (28 banks)
   { id: 'ABC_UG', name: 'ABC', country: 'uganda' },
-  { id: 'ABSA_UG', name: 'Absa', country: 'uganda' },
-  { id: 'ACC_UG', name: 'Access', country: 'uganda' },
+  { id: 'ABSA_UG', name: 'Absa', country: 'uganda', aliases: ['absa bank'] },
+  { id: 'ACC_UG', name: 'Access', country: 'uganda', aliases: ['access bank'] },
   { id: 'AFR_UG', name: 'Afriland', country: 'uganda' },
-  { id: 'BOA_UG', name: 'BOA', country: 'uganda' },
-  { id: 'BAR_UG', name: 'Baroda', country: 'uganda' },
-  { id: 'BOI_UG', name: 'Bank of India', country: 'uganda' },
-  { id: 'CAI_UG', name: 'Cairo', country: 'uganda' },
-  { id: 'CEN_UG', name: 'Centenary', country: 'uganda' },
+  { id: 'BOA_UG', name: 'BOA', country: 'uganda', aliases: ['bank of africa', 'boa bank'] },
+  { id: 'BAR_UG', name: 'Baroda', country: 'uganda', aliases: ['bank of baroda', 'baroda bank'] },
+  { id: 'BOI_UG', name: 'Bank of India', country: 'uganda', aliases: ['boi'] },
+  { id: 'CAI_UG', name: 'Cairo', country: 'uganda', aliases: ['cairo bank'] },
+  {
+    id: 'CEN_UG',
+    name: 'Centenary',
+    country: 'uganda',
+    aliases: ['centenary bank', 'centernary', 'centinary', 'centenary rural development bank', 'centenary rural bank'],
+  },
   { id: 'CITI_UG', name: 'Citi', country: 'uganda' },
-  { id: 'DFCU_UG', name: 'DFCU', country: 'uganda' },
+  { id: 'DFCU_UG', name: 'DFCU', country: 'uganda', aliases: ['dfcu bank', 'dfc u', 'development finance company'] },
   { id: 'DTB_UG', name: 'DTB', country: 'uganda' },
-  { id: 'ECO_UG', name: 'Ecobank', country: 'uganda' },
-  { id: 'EQU_UG', name: 'Equity', country: 'uganda' },
+  { id: 'ECO_UG', name: 'Ecobank', country: 'uganda', aliases: ['eco bank'] },
+  { id: 'EQU_UG', name: 'Equity', country: 'uganda', aliases: ['equity bank'] },
   { id: 'EXIM_UG', name: 'Exim', country: 'uganda' },
-  { id: 'FIN_UG', name: 'Finance Trust', country: 'uganda' },
-  { id: 'GTB_UG', name: 'GTB', country: 'uganda' },
-  { id: 'HFB_UG', name: 'Housing Finance', country: 'uganda' },
-  { id: 'IM_UG', name: 'I&M', country: 'uganda' },
-  { id: 'KCB_UG', name: 'KCB', country: 'uganda' },
-  { id: 'NCBA_UG', name: 'NCBA', country: 'uganda' },
-  { id: 'OPP_UG', name: 'Opportunity', country: 'uganda' },
+  { id: 'FIN_UG', name: 'Finance Trust', country: 'uganda', aliases: ['finance trust bank', 'ftb'] },
+  { id: 'GTB_UG', name: 'GTB', country: 'uganda', aliases: ['gtbank', 'guaranty trust bank'] },
+  { id: 'HFB_UG', name: 'Housing Finance', country: 'uganda', aliases: ['housing finance bank'] },
+  { id: 'IM_UG', name: 'I&M', country: 'uganda', aliases: ['i and m', 'i&m bank', 'im bank'] },
+  { id: 'KCB_UG', name: 'KCB', country: 'uganda', aliases: ['kcb bank', 'kenya commercial bank'] },
+  { id: 'NCBA_UG', name: 'NCBA', country: 'uganda', aliases: ['ncba bank'] },
+  { id: 'OPP_UG', name: 'Opportunity', country: 'uganda', aliases: ['opportunity bank'] },
   { id: 'PEARL_UG', name: 'Pearl', country: 'uganda' },
   { id: 'SAL_UG', name: 'Salaam', country: 'uganda' },
-  { id: 'STB_UG', name: 'Stanbic', country: 'uganda' },
-  { id: 'STAN_UG', name: 'StanChart', country: 'uganda' },
+  { id: 'STB_UG', name: 'Stanbic', country: 'uganda', aliases: ['stanbic bank', 'stambic', 'stanbik', 'stanbic uganda'] },
+  { id: 'STAN_UG', name: 'StanChart', country: 'uganda', aliases: ['stanchart', 'stan chart', 'standard chartered', 'standard chartered bank', 'scb'] },
   { id: 'TROP_UG', name: 'Tropical', country: 'uganda' },
-  { id: 'UBA_UG', name: 'UBA', country: 'uganda' },
+  { id: 'UBA_UG', name: 'UBA', country: 'uganda', aliases: ['uba bank', 'united bank for africa'] },
   
   // Burundi (14 banks)
   { id: 'KCB_BI', name: 'KCB', country: 'burundi' },
@@ -270,12 +275,13 @@ export const AGE_SCREENING_CHOICES: Choice[] = [
   { label: { en: '25-34', rw: '25-34', fr: '25-34' }, value: '25-34' },
   { label: { en: '35-44', rw: '35-44', fr: '35-44' }, value: '35-44' },
   { label: { en: '45-54', rw: '45-54', fr: '45-54' }, value: '45-54' },
-  { label: { en: '55+', rw: '55+', fr: '55+' }, value: '55+' }
+  { label: { en: '55+', rw: '55+', fr: '55+' }, value: '55+' },
 ];
 
 export const GENDER_CHOICES: Choice[] = [
   { label: { en: 'Male', rw: 'Gabo', fr: 'Homme' }, value: 'male' },
-  { label: { en: 'Female', rw: 'Gore', fr: 'Femme' }, value: 'female' }
+  { label: { en: 'Female', rw: 'Gore', fr: 'Femme' }, value: 'female' },
+  { label: { en: 'Prefer not to say', rw: 'Nahitamo kutabivuga', fr: 'Je préfère ne pas répondre' }, value: 'prefer_not_to_say' },
 ];
 
 export const EMPLOYMENT_CHOICES: Choice[] = [
@@ -284,7 +290,8 @@ export const EMPLOYMENT_CHOICES: Choice[] = [
   { label: { en: 'Self-employed', rw: 'Wikorera', fr: 'Travailleur indépendant' }, value: 'self_employed' },
   { label: { en: 'Student', rw: 'Umunyeshuri', fr: 'Étudiant' }, value: 'student' },
   { label: { en: 'Unemployed', rw: 'Nta kazi', fr: 'Sans emploi' }, value: 'unemployed' },
-  { label: { en: 'Retired', rw: 'Wasubitse', fr: 'Retraité' }, value: 'retired' }
+  { label: { en: 'Retired', rw: 'Wasubitse', fr: 'Retraité' }, value: 'retired' },
+  { label: { en: 'Prefer not to say', rw: 'Nahitamo kutabivuga', fr: 'Je préfère ne pas répondre' }, value: 'prefer_not_to_say' },
 ];
 
 export const EDUCATION_CHOICES: Choice[] = [
@@ -292,8 +299,15 @@ export const EDUCATION_CHOICES: Choice[] = [
   { label: { en: 'Primary', rw: 'Amashuri abanza', fr: 'Primaire' }, value: 'primary' },
   { label: { en: 'Secondary', rw: 'Amashuri yisumbuye', fr: 'Secondaire' }, value: 'secondary' },
   { label: { en: 'University degree', rw: 'Impamyabumenyi ya kaminuza', fr: 'Diplôme universitaire' }, value: 'university' },
-  { label: { en: 'Post-graduate', rw: 'Nyuma ya kaminuza', fr: 'Post-universitaire' }, value: 'postgraduate' }
+  { label: { en: 'Post-graduate', rw: 'Nyuma ya kaminuza', fr: 'Post-universitaire' }, value: 'postgraduate' },
+  { label: { en: 'Prefer not to say', rw: 'Nahitamo kutabivuga', fr: 'Je préfère ne pas répondre' }, value: 'prefer_not_to_say' },
 ];
+
+const OPTIONAL_DEMOGRAPHIC_HELPER: Localized = {
+  en: 'Optional. This helps us understand differences across customer groups. Your answers remain anonymous.',
+  rw: 'Si ngombwa. Ibi bidufasha kumva itandukaniro riri mu matsinda y\'abakiriya. Ibisubizo byawe biguma ari ibanga.',
+  fr: 'Facultatif. Cela nous aide à comprendre les différences entre groupes de clients. Vos réponses restent anonymes.',
+};
 
 export const LEGACY_PREAMBLE_QUESTION_IDS = new Set([
   'intro',
@@ -305,8 +319,9 @@ export const LEGACY_PREAMBLE_QUESTION_IDS = new Set([
 // Helper to check if user passed screening
 const passedScreening = (d: SurveyResponse): boolean => 
   d.consent === 'yes' && 
-  (d.b1_recency === 'this_week' || d.b1_recency === 'this_month' || d.b1_recency === 'last_3_months') && 
-  d.b2_age && d.b2_age !== 'below_18';
+  (d.b1_recency === 'this_week' || d.b1_recency === 'this_month' || d.b1_recency === 'last_3_months') &&
+  Boolean(d.b2_age) &&
+  d.b2_age !== 'below_18';
 
 export const SURVEY_QUESTIONS: Question[] = [
   // ========== SECTION A: Screening & Consent ==========
@@ -398,16 +413,15 @@ export const SURVEY_QUESTIONS: Question[] = [
     id: 'termination_age',
     type: 'note',
     section: 'B',
-    label: { en: 'Thank you for your time', rw: 'Murakoze ku gihe cyanyu', fr: 'Merci pour votre temps' },
+    label: { en: 'Thank you for your interest', rw: 'Murakoze ku nyungu mwagaragaje', fr: 'Merci de votre intérêt' },
     description: { 
       en: 'Thank you for your interest. This survey is for respondents 18 years and older.',
-      rw: 'Murakoze ku bashishikariye. Ubushakashatsi ni ubw\'abafite imyaka 18 cyangwa irenga.',
-      fr: 'Merci de votre intérêt. Cette enquête est destinée aux personnes de 18 ans et plus.'
+      rw: 'Murakoze ku nyungu mwagaragaje. Ubu bushakashatsi bugenewe abafite imyaka 18 cyangwa irenga.',
+      fr: 'Merci de votre intérêt. Cette enquête est destinée aux répondants âgés de 18 ans et plus.'
     },
     logic: (d) => d.b2_age === 'below_18',
     isTerminationPoint: true
   },
-
   // ========== SECTION C: Brand Awareness ==========
   {
     id: 'c1_top_of_mind',
@@ -559,8 +573,8 @@ export const SURVEY_QUESTIONS: Question[] = [
     type: 'radio',
     section: 'E',
     label: { en: 'Work/Employment Status', rw: 'Imirimo/Imiterere y\'akazi', fr: 'Statut professionnel' },
-    required: true,
-    logic: (d) => d.d7_nps && Object.keys(d.d7_nps).length > 0,
+    description: OPTIONAL_DEMOGRAPHIC_HELPER,
+    logic: (d) => !!d.d7_nps,
     choices: EMPLOYMENT_CHOICES
   },
   {
@@ -568,8 +582,8 @@ export const SURVEY_QUESTIONS: Question[] = [
     type: 'radio',
     section: 'E',
     label: { en: 'Level of Education', rw: 'Urwego rw\'amashuri', fr: 'Niveau d\'éducation' },
-    required: true,
-    logic: (d) => !!d.e1_employment,
+    description: OPTIONAL_DEMOGRAPHIC_HELPER,
+    logic: (d) => !!d.d7_nps,
     choices: EDUCATION_CHOICES
   },
   {
@@ -577,8 +591,8 @@ export const SURVEY_QUESTIONS: Question[] = [
     type: 'radio',
     section: 'E',
     label: { en: 'Gender', rw: 'Igitsina', fr: 'Genre' },
-    required: true,
-    logic: (d) => !!d.e2_education,
+    description: OPTIONAL_DEMOGRAPHIC_HELPER,
+    logic: (d) => !!d.d7_nps,
     choices: GENDER_CHOICES
   },
 
@@ -589,7 +603,7 @@ export const SURVEY_QUESTIONS: Question[] = [
     section: 'F',
     label: { en: 'Complete', rw: 'Murakoze', fr: 'Terminé' },
     description: { en: 'Thank you for participating in this survey!', rw: 'Murakoze kugira uruhare muri ubu bushakashatsi!', fr: 'Merci d\'avoir participé à cette enquête !' },
-    logic: (d) => !!d.e3_gender
+    logic: () => false
   }
 ];
 

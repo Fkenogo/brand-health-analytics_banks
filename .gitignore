@@ -54,3 +54,12 @@ coverage/
 # === FIREBASE CACHE ===
 .firebase/
 
+
+# ── Dev artifacts / screenshots ────────────────────────────────────────
+# Root-level PNG captures from dev sessions
+/*.png
+/*.jpg
+tmp-survey-shots/
+.playwright-mcp/
+.claude/
+*.backup-*

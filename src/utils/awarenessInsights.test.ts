@@ -248,15 +248,15 @@ describe('buildIntentInsight', () => {
 
   it('identifies very high average intent (>= 8)', () => {
     const result = buildIntentInsight({
-      averageIntent: 8.5, highIntentPct: 0.70, highIntentNonUserPct: 0.30,
+      averageIntent: 8.5, highIntentPct: 70, highIntentNonUserPct: 30,
       lowIntentCurrentUserCount: 2, responseBase: 50,
     });
     expect(result?.snapshot).toMatch(/very high/i);
   });
 
-  it('identifies strong acquisition pipeline when highIntentNonUserPct > 0.25', () => {
+  it('identifies strong acquisition pipeline when highIntentNonUserPct > 25', () => {
     const result = buildIntentInsight({
-      averageIntent: 7.5, highIntentPct: 0.65, highIntentNonUserPct: 0.45,
+      averageIntent: 7.5, highIntentPct: 65, highIntentNonUserPct: 45,
       lowIntentCurrentUserCount: 5, responseBase: 80,
     });
     expect(result?.snapshot).toMatch(/acquisition/i);
@@ -264,15 +264,15 @@ describe('buildIntentInsight', () => {
 
   it('flags churn risk when lowIntentCurrentUserCount > 10', () => {
     const result = buildIntentInsight({
-      averageIntent: 5.2, highIntentPct: 0.40, highIntentNonUserPct: 0.20,
+      averageIntent: 5.2, highIntentPct: 40, highIntentNonUserPct: 20,
       lowIntentCurrentUserCount: 25, responseBase: 80,
     });
     expect(result?.snapshot).toMatch(/churn/i);
   });
 
-  it('includes moderate acquisition text when highIntentNonUserPct is 0.10-0.25', () => {
+  it('includes moderate acquisition text when highIntentNonUserPct is 10-25', () => {
     const result = buildIntentInsight({
-      averageIntent: 6.0, highIntentPct: 0.45, highIntentNonUserPct: 0.18,
+      averageIntent: 6.0, highIntentPct: 45, highIntentNonUserPct: 18,
       lowIntentCurrentUserCount: 3, responseBase: 60,
     });
     expect(result?.snapshot).toMatch(/moderate acquisition/i);

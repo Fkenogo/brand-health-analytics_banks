@@ -1,145 +1,171 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { CheckCircle2, ShieldCheck, ChevronRight, Gift } from 'lucide-react';
+import { CheckCircle2, ChevronRight, ExternalLink, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { QuestionRenderer } from '@/components/survey/QuestionRenderer';
 import { ProgressBar } from '@/components/survey/ProgressBar';
-import { SURVEY_QUESTIONS, UI_STRINGS, COUNTRY_THEMES, getRuntimeSurveyQuestions } from '@/constants';
-import { CountryCode, Language, SurveyResponse } from '@/types';
-import { getResponses, saveResponse } from '@/utils/storage';
-import { responseService } from '@/services/responseService';
-import { questionnaireService } from '@/services/questionnaireService';
-import { getDeviceFingerprint, respondentPanel, PANEL_CONFIG } from '@/auth/utils';
+import { COUNTRY_THEMES, SURVEY_QUESTIONS, UI_STRINGS, getRuntimeSurveyQuestions } from '@/constants';
+import { CountryCode, Language, Question, SurveyResponse } from '@/types';
 import { useAuth } from '@/auth/context';
-import { hasPermission } from '@/auth/types';
+import { getDeviceFingerprint, respondentPanel } from '@/auth/utils';
+import { questionnaireService } from '@/services/questionnaireService';
+import { responseService } from '@/services/responseService';
+import { surveyTelemetryService } from '@/services/surveyTelemetryService';
+import { getResponses, saveResponse } from '@/utils/storage';
 import {
   isQuestionAnswered,
   normalizeResponseForSubmission,
   validateRequiredQuestions,
 } from '@/utils/survey/normalization';
+import { getSurveyThemeTokens } from '@/utils/surveyTheme';
 
-type PanelSource = 'survey' | 'external' | 'manual';
+const ABANDONMENT_TIMEOUT_MS = 30 * 60 * 1000;
+const BRANDEDGE_URL = 'https://www.brandedgeafrica.com';
+const VALID_COUNTRIES: CountryCode[] = ['rwanda', 'uganda', 'burundi'];
+
+const resolveCountry = (value?: string): CountryCode | undefined => {
+  const normalized = value?.toLowerCase();
+  return VALID_COUNTRIES.find((code) => code === normalized || code.startsWith(normalized || ''));
+};
 
 const SurveyPage: React.FC = () => {
   const { country, wave } = useParams();
-  const deviceId = useMemo(() => getDeviceFingerprint(), [country, wave]);
+  const deviceId = useMemo(() => getDeviceFingerprint(), []);
   const { state: authState } = useAuth();
+
   const [showWelcome, setShowWelcome] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
   const [lang, setLang] = useState<Language>(() => (localStorage.getItem('survey_lang') as Language) || 'en');
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [questions, setQuestions] = useState(SURVEY_QUESTIONS);
-  const [joinPanel, setJoinPanel] = useState(false);
-  const [enterRaffle, setEnterRaffle] = useState(false);
-  const [contactName, setContactName] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [contactSubmitting, setContactSubmitting] = useState(false);
-  const [contactSubmitted, setContactSubmitted] = useState(false);
-  const [contactError, setContactError] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionPending, setSubmissionPending] = useState(false);
   const [surveyStartedAtMs, setSurveyStartedAtMs] = useState<number>(() => Date.now());
   const [antiBotTrap, setAntiBotTrap] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [formData, setFormData] = useState<Partial<SurveyResponse>>(() => {
-    const valid: CountryCode[] = ['rwanda', 'uganda', 'burundi'];
-    const normalized = country?.toLowerCase();
-    const pre = valid.find(c => c === normalized || c.startsWith(normalized || ''));
+    const preselectedCountry = resolveCountry(country);
     return {
       response_id: crypto.randomUUID(),
-      country: pre,
-      selected_country: pre,
+      country: preselectedCountry,
+      selected_country: preselectedCountry,
+      question_timings: {},
     };
   });
 
+  const formDataRef = useRef(formData);
+  const currentQuestionStartedAtRef = useRef<number>(Date.now());
+  const consentViewedLoggedRef = useRef(false);
+  const lastViewedQuestionKeyRef = useRef<string | null>(null);
+
+  const commitFormData = (next: Partial<SurveyResponse>) => {
+    formDataRef.current = next;
+    setFormData(next);
+  };
+
+  const mergeFormData = (patch: Partial<SurveyResponse>) => {
+    commitFormData({
+      ...formDataRef.current,
+      ...patch,
+    });
+  };
+
   useEffect(() => {
-    const valid: CountryCode[] = ['rwanda', 'uganda', 'burundi'];
-    const normalized = country?.toLowerCase();
-    const pre = valid.find(c => c === normalized || c.startsWith(normalized || ''));
-    if (pre) {
-      setFormData((prev) => ({
-        response_id: crypto.randomUUID(),
-        country: pre,
-        selected_country: pre,
-      }));
-      setIsCompleted(false);
-      setCurrentStep(0);
-      setShowWelcome(true);
-      setHasStarted(false);
-      setJoinPanel(false);
-      setEnterRaffle(false);
-      setContactName('');
-      setContactEmail('');
-      setContactPhone('');
-      setContactSubmitted(false);
-      setContactError(null);
-      setSubmissionError(null);
-      setSubmissionPending(false);
-      setSurveyStartedAtMs(Date.now());
-      setAntiBotTrap('');
-      setConsentAccepted(false);
-    }
-  }, [country]);
+    formDataRef.current = formData;
+  }, [formData]);
 
-  useEffect(() => { localStorage.setItem('survey_lang', lang); }, [lang]);
+  useEffect(() => {
+    const preselectedCountry = resolveCountry(country);
+    if (!preselectedCountry) return;
 
-  const runtimeQuestions = useMemo(() => getRuntimeSurveyQuestions(questions), [questions]);
-
-  const visibleQuestions = useMemo(() => {
-    return runtimeQuestions.filter(q => !q.logic || q.logic(formData));
-  }, [formData, runtimeQuestions]);
-
-  const currentQuestion = visibleQuestions[currentStep];
-  const theme = formData.selected_country ? COUNTRY_THEMES[formData.selected_country as CountryCode] : null;
-  const selectedCountry = formData.selected_country as CountryCode | undefined;
-  const selectedCountryTheme = selectedCountry ? COUNTRY_THEMES[selectedCountry] : null;
-  const isAdminSurveyMode = authState.user?.role === 'admin' && authState.user?.hasAdminClaim === true;
-
-  const hasRecordedResponse = useMemo(() => {
-    if (isAdminSurveyMode) return false;
-    if (!formData.selected_country) return false;
-    return getResponses().some(
-      (r) =>
-        r.device_id === deviceId &&
-        (r.country || r.selected_country) === formData.selected_country &&
-        (r._status === 'completed' || r._status === 'terminated')
-    );
-  }, [deviceId, formData.selected_country, isAdminSurveyMode]);
-
-  const panelStatus = isAdminSurveyMode
-    ? { canSubmit: true as const }
-    : formData.selected_country
-    ? respondentPanel.canSubmitSurvey(deviceId, formData.selected_country)
-    : { canSubmit: true };
-  
-  const canStartSurvey = isAdminSurveyMode || panelStatus.canSubmit || !hasRecordedResponse;
-  
-  const panelSource = useMemo<PanelSource>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const source = params.get('source');
-    if (source === 'external') return 'external';
-    if (source === 'manual') return 'manual';
-    return 'survey';
-  }, []);
-
-  const startSurvey = () => {
-    if (!selectedCountry || !consentAccepted) return;
+    commitFormData({
+      response_id: crypto.randomUUID(),
+      country: preselectedCountry,
+      selected_country: preselectedCountry,
+      question_timings: {},
+    });
     setIsCompleted(false);
     setCurrentStep(0);
+    setShowWelcome(true);
+    setHasStarted(false);
     setSubmissionError(null);
     setSubmissionPending(false);
     setSurveyStartedAtMs(Date.now());
     setAntiBotTrap('');
-    setFormData(prev => ({
-      response_id: crypto.randomUUID(),
-      country: prev.selected_country,
-      selected_country: prev.selected_country,
-      consent: 'yes',
-    }));
-    setHasStarted(true);
-    setShowWelcome(false);
+    setConsentAccepted(false);
+    setConsentError(null);
+    setSessionId(crypto.randomUUID());
+    consentViewedLoggedRef.current = false;
+    lastViewedQuestionKeyRef.current = null;
+  }, [country]);
+
+  useEffect(() => {
+    localStorage.setItem('survey_lang', lang);
+  }, [lang]);
+
+  const runtimeQuestions = useMemo(() => getRuntimeSurveyQuestions(questions), [questions]);
+  const visibleQuestions = useMemo(
+    () => runtimeQuestions.filter((question) => !question.logic || question.logic(formData as SurveyResponse)),
+    [formData, runtimeQuestions],
+  );
+  const currentQuestion = visibleQuestions[currentStep];
+
+  const selectedCountry = formData.selected_country as CountryCode | undefined;
+  const selectedCountryTheme = selectedCountry ? COUNTRY_THEMES[selectedCountry] : null;
+  const theme = selectedCountryTheme || null;
+  const surveyTheme = useMemo(
+    () => getSurveyThemeTokens(selectedCountry, selectedCountryTheme),
+    [selectedCountry, selectedCountryTheme],
+  );
+  const isAdminSurveyMode = authState.user?.role === 'admin' && authState.user?.hasAdminClaim === true;
+
+  const hasRecordedResponse = useMemo(() => {
+    if (isAdminSurveyMode || !selectedCountry) return false;
+    return getResponses().some(
+      (response) =>
+        response.device_id === deviceId
+        && (response.country || response.selected_country) === selectedCountry
+        && (response._status === 'completed' || response._status === 'terminated'),
+    );
+  }, [deviceId, isAdminSurveyMode, selectedCountry]);
+
+  const panelStatus = isAdminSurveyMode
+    ? { canSubmit: true as const }
+    : selectedCountry
+    ? respondentPanel.canSubmitSurvey(deviceId, selectedCountry)
+    : { canSubmit: true };
+
+  const canStartSurvey = isAdminSurveyMode || panelStatus.canSubmit || !hasRecordedResponse;
+
+  const trackSurveyEvent = (payload: Parameters<typeof surveyTelemetryService.track>[0]) => {
+    void surveyTelemetryService.track(payload);
+  };
+
+  const persistActiveSession = useCallback((patch: {
+    responseId?: string;
+    submitted?: boolean;
+    lastQuestionId?: string;
+    lastQuestionType?: Question['type'];
+  } = {}) => {
+    if (!selectedCountry) return;
+    surveyTelemetryService.persistActiveSession({
+      sessionId,
+      country: selectedCountry,
+      language: lang,
+      responseId: patch.responseId || String(formDataRef.current.response_id || ''),
+      submitted: Boolean(patch.submitted),
+      lastQuestionId: patch.lastQuestionId,
+      lastQuestionType: patch.lastQuestionType,
+      lastSeenAt: new Date().toISOString(),
+    });
+  }, [lang, selectedCountry, sessionId]);
+
+  const formatNextAllowed = (date?: Date) => {
+    if (!date) return 'in a few months';
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   useEffect(() => {
@@ -168,33 +194,195 @@ const SurveyPage: React.FC = () => {
         if (active?.questions?.length && isMounted) {
           setQuestions(active.questions);
         }
-      } catch (err) {
-        // fallback to bundled questions
+      } catch {
+        // fall back to bundled questions
       }
     };
-    load();
+
+    void load();
     return () => {
       isMounted = false;
     };
   }, [wave]);
 
+  useEffect(() => {
+    const activeSession = surveyTelemetryService.getActiveSession();
+    if (!activeSession || activeSession.submitted) return;
+
+    const lastSeenMs = new Date(activeSession.lastSeenAt).getTime();
+    if (!Number.isFinite(lastSeenMs) || Date.now() - lastSeenMs < ABANDONMENT_TIMEOUT_MS) return;
+
+    trackSurveyEvent({
+      sessionId: activeSession.sessionId,
+      eventType: 'survey_abandoned',
+      country: activeSession.country,
+      language: activeSession.language,
+      responseId: activeSession.responseId,
+      questionId: activeSession.lastQuestionId,
+      questionType: activeSession.lastQuestionType,
+      metadata: {
+        proxy: 'local_storage_recovery',
+      },
+    });
+    surveyTelemetryService.clearActiveSession();
+  }, []);
+
+  useEffect(() => {
+    if (!showWelcome || !selectedCountry || consentViewedLoggedRef.current) return;
+    consentViewedLoggedRef.current = true;
+    trackSurveyEvent({
+      sessionId,
+      eventType: 'consent_viewed',
+      country: selectedCountry,
+      language: lang,
+      metadata: {
+        wave: wave || null,
+      },
+    });
+  }, [showWelcome, selectedCountry, sessionId, lang, wave]);
+
+  useEffect(() => {
+    if (!hasStarted || !currentQuestion || !selectedCountry) return;
+
+    const questionKey = `${sessionId}:${currentQuestion.id}:${currentStep}`;
+    if (lastViewedQuestionKeyRef.current === questionKey) return;
+    lastViewedQuestionKeyRef.current = questionKey;
+    currentQuestionStartedAtRef.current = Date.now();
+
+    persistActiveSession({
+      lastQuestionId: currentQuestion.id,
+      lastQuestionType: currentQuestion.type,
+    });
+    trackSurveyEvent({
+      sessionId,
+      eventType: 'question_viewed',
+      country: selectedCountry,
+      language: lang,
+      responseId: String(formDataRef.current.response_id || ''),
+      questionId: currentQuestion.id,
+      questionType: currentQuestion.type,
+      metadata: {
+        step_index: currentStep,
+      },
+    });
+  }, [hasStarted, currentQuestion, currentStep, selectedCountry, sessionId, lang, persistActiveSession]);
+
+  useEffect(() => {
+    if (!hasStarted || isCompleted) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'hidden') return;
+      surveyTelemetryService.updateLastSeen({
+        lastQuestionId: currentQuestion?.id,
+        lastQuestionType: currentQuestion?.type,
+      });
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handleVisibilityChange);
+    };
+  }, [hasStarted, isCompleted, currentQuestion]);
+
+  const startSurvey = () => {
+    if (!selectedCountry) return;
+    if (!consentAccepted) {
+      setConsentError('Please confirm your consent to continue.');
+      return;
+    }
+    if (!canStartSurvey) return;
+
+    const responseId = crypto.randomUUID();
+    const nextFormData: Partial<SurveyResponse> = {
+      response_id: responseId,
+      country: selectedCountry,
+      selected_country: selectedCountry,
+      consent: 'yes',
+      question_timings: {},
+    };
+
+    commitFormData(nextFormData);
+    setIsCompleted(false);
+    setCurrentStep(0);
+    setSubmissionError(null);
+    setSubmissionPending(false);
+    setSurveyStartedAtMs(Date.now());
+    setAntiBotTrap('');
+    setConsentError(null);
+    setHasStarted(true);
+    setShowWelcome(false);
+    currentQuestionStartedAtRef.current = Date.now();
+
+    persistActiveSession({ responseId });
+    trackSurveyEvent({
+      sessionId,
+      eventType: 'survey_session_started',
+      country: selectedCountry,
+      language: lang,
+      responseId,
+      metadata: {
+        country_route: country || null,
+        wave: wave || null,
+      },
+    });
+  };
+
+  const recordQuestionOutcome = (
+    question: Question | undefined,
+    outcome: 'question_answered' | 'question_skipped',
+    snapshot: Partial<SurveyResponse>,
+  ) => {
+    if (!question || !selectedCountry) return snapshot;
+
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - currentQuestionStartedAtRef.current) / 1000));
+    const nextSnapshot: Partial<SurveyResponse> = {
+      ...snapshot,
+      question_timings: {
+        ...(snapshot.question_timings || {}),
+        [question.id]: elapsedSeconds,
+      },
+    };
+
+    commitFormData(nextSnapshot);
+    trackSurveyEvent({
+      sessionId,
+      eventType: outcome,
+      country: selectedCountry,
+      language: lang,
+      responseId: String(nextSnapshot.response_id || ''),
+      questionId: question.id,
+      questionType: question.type,
+      elapsedSeconds,
+      metadata: {
+        step_index: currentStep,
+      },
+    });
+
+    return nextSnapshot;
+  };
+
   const submitSurveyResponse = async (
     status: 'completed' | 'terminated',
     responseId: string,
-    options?: { skipRequiredValidation?: boolean },
+    options?: { skipRequiredValidation?: boolean; snapshot?: Partial<SurveyResponse> },
   ): Promise<void> => {
-    if (!formData.selected_country) return;
+    const submissionSnapshot = options?.snapshot || formDataRef.current;
+    if (!submissionSnapshot.selected_country) return;
 
     if (!options?.skipRequiredValidation) {
-      const requiredValidation = validateRequiredQuestions(visibleQuestions, formData);
+      const requiredValidation = validateRequiredQuestions(visibleQuestions, submissionSnapshot);
       if (!requiredValidation.valid) {
-        setSubmissionError(`Please complete all required questions before submitting. Missing: ${requiredValidation.missingQuestionIds.join(', ')}`);
+        setSubmissionError(
+          `Please complete all required questions before submitting. Missing: ${requiredValidation.missingQuestionIds.join(', ')}`,
+        );
         return;
       }
     }
 
     const normalized = normalizeResponseForSubmission({
-      data: formData,
+      data: submissionSnapshot,
       responseId,
       deviceId,
       language: lang,
@@ -213,9 +401,23 @@ const SurveyPage: React.FC = () => {
     try {
       await responseService.submitPublicResponse(normalized.response, antiBotTrap);
       saveResponse(normalized.response);
+
       if (!isAdminSurveyMode) {
-        respondentPanel.recordSubmission(deviceId, formData.selected_country);
+        respondentPanel.recordSubmission(deviceId, submissionSnapshot.selected_country);
       }
+
+      trackSurveyEvent({
+        sessionId,
+        eventType: 'survey_submitted',
+        country: submissionSnapshot.selected_country,
+        language: lang,
+        responseId,
+        metadata: {
+          status,
+          question_count: visibleQuestions.length,
+        },
+      });
+      surveyTelemetryService.clearActiveSession();
 
       setIsCompleted(true);
       if (status === 'completed') {
@@ -230,144 +432,56 @@ const SurveyPage: React.FC = () => {
   };
 
   const handleNext = async () => {
-    if (!formData.selected_country) return;
-    if (!currentQuestion) return;
-    if (submissionPending) return;
+    if (!formDataRef.current.selected_country || !currentQuestion || submissionPending) return;
 
-    const responseId = formData.response_id || crypto.randomUUID();
-
-    if (currentQuestion?.isTerminationPoint) {
+    const responseId = formDataRef.current.response_id || crypto.randomUUID();
+    if (currentQuestion.isTerminationPoint) {
       await submitSurveyResponse('terminated', responseId, { skipRequiredValidation: true });
       return;
     }
 
+    let nextSnapshot = formDataRef.current;
+    if (currentQuestion.type !== 'note') {
+      const answered = isQuestionAnswered(currentQuestion, formDataRef.current);
+      nextSnapshot = recordQuestionOutcome(
+        currentQuestion,
+        answered ? 'question_answered' : 'question_skipped',
+        formDataRef.current,
+      );
+    }
+
     if (currentStep < visibleQuestions.length - 1) {
       setSubmissionError(null);
-      setCurrentStep(s => s + 1);
-    } else {
-      await submitSurveyResponse('completed', responseId);
-    }
-  };
-
-  const submitFollowUpPreferences = async () => {
-    if (!formData.selected_country) return;
-    if (contactSubmitted) return;
-    if (!joinPanel && !enterRaffle) {
-      setContactSubmitted(true);
-      setContactError(null);
+      setCurrentStep((step) => step + 1);
       return;
     }
-    if (!contactName.trim() || (!contactEmail.trim() && !contactPhone.trim())) {
-      setContactError('To join panel and/or raffle, provide name and either email or phone.');
-      return;
-    }
-    setContactSubmitting(true);
-    setContactError(null);
-    try {
-      await responseService.submitPublicFollowUpContact({
-        responseId: formData.response_id,
-        deviceId,
-        country: formData.selected_country,
-        joinPanel,
-        enterRaffle,
-        contactName: contactName.trim(),
-        contactEmail: contactEmail.trim() || undefined,
-        contactPhone: contactPhone.trim() || undefined,
-        source: panelSource,
-        language: lang,
-      });
-      setContactSubmitted(true);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save contact details. Please try again.';
-      setContactError(message);
-    } finally {
-      setContactSubmitting(false);
-    }
+
+    await submitSurveyResponse('completed', responseId, { snapshot: nextSnapshot });
   };
 
-  const isNextDisabled = submissionPending || Boolean(currentQuestion?.required && !isQuestionAnswered(currentQuestion, formData));
-
-  const formatNextAllowed = (date?: Date) => {
-    if (!date) return 'in a few months';
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  const isNextDisabled =
+    submissionPending || Boolean(currentQuestion?.required && !isQuestionAnswered(currentQuestion, formData));
 
   if (isCompleted && hasStarted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#0f172a]">
         <div className="glass-card p-10 rounded-[40px] text-center max-w-lg w-full animate-in fade-in zoom-in duration-700">
           <CheckCircle2 size={64} className="text-emerald-500 mx-auto mb-6" />
-          <h1 className="text-3xl font-bold mb-4 text-white">{UI_STRINGS.murakoze[lang]}</h1>
-          <p className="opacity-60 mb-6 text-slate-300">{UI_STRINGS.successMessage[lang]}</p>
-          <div className="flex items-center justify-center gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm text-slate-200 mb-8">
-            <Gift size={18} className="text-emerald-400" />
-            <span>You earned {PANEL_CONFIG.INCENTIVE_POINTS_PER_SURVEY} points. Enter the raffle and join the panel below.</span>
-          </div>
-          <div className="mb-6 rounded-2xl border border-white/10 bg-slate-900/50 p-4 text-left space-y-3">
-            <p className="text-sm font-semibold text-white">Submit contact details for follow-up and prize draw</p>
-            <label className="flex items-center gap-2 text-xs text-slate-300">
-              <input
-                type="checkbox"
-                checked={enterRaffle}
-                onChange={(e) => {
-                  setEnterRaffle(e.target.checked);
-                  setContactSubmitted(false);
-                  setContactError(null);
-                }}
-              />
-              Option 1: Enter raffle draw
-            </label>
-            <label className="flex items-center gap-2 text-xs text-slate-300">
-              <input
-                type="checkbox"
-                checked={joinPanel}
-                onChange={(e) => {
-                  setJoinPanel(e.target.checked);
-                  setContactSubmitted(false);
-                  setContactError(null);
-                }}
-              />
-              Option 2: Join respondent panel for follow-up waves
-            </label>
-            {(joinPanel || enterRaffle) && (
-              <div className="grid gap-2">
-                <input
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="Full name"
-                  className="h-10 rounded-xl border border-white/10 bg-slate-950/60 px-3 text-sm text-white"
-                />
-                <input
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="Email (optional if phone provided)"
-                  className="h-10 rounded-xl border border-white/10 bg-slate-950/60 px-3 text-sm text-white"
-                />
-                <input
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="Phone (optional if email provided)"
-                  className="h-10 rounded-xl border border-white/10 bg-slate-950/60 px-3 text-sm text-white"
-                />
-              </div>
-            )}
-            {contactError && <p className="text-xs text-rose-300">{contactError}</p>}
-            {contactSubmitted && <p className="text-xs text-emerald-300">Contact details submitted.</p>}
-            <button
-              onClick={submitFollowUpPreferences}
-              disabled={contactSubmitting || contactSubmitted}
-              className="w-full rounded-xl border border-white/10 px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
-            >
-              {contactSubmitted ? 'Submitted' : contactSubmitting ? 'Submitting...' : 'Submit Contact Details'}
-            </button>
-          </div>
-          <button
-            onClick={() => window.location.reload()}
-            disabled={(joinPanel || enterRaffle) && !contactSubmitted}
-            className="w-full py-4 bg-blue-600 rounded-2xl font-bold text-white hover:bg-blue-700 transition-all disabled:opacity-50 disabled:hover:bg-blue-600"
+          <h1 className="text-3xl font-bold mb-4 text-white">Thank you for your feedback</h1>
+          <p className="text-slate-200 mb-4">
+            Your response has been recorded anonymously and will help improve banking services.
+          </p>
+          <p className="mb-8 text-sm text-slate-400">
+            BrandEdge uses survey responses only in aggregated reporting and service improvement analysis.
+          </p>
+          <a
+            href={BRANDEDGE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white transition-all hover:bg-blue-500"
           >
-            Done
-          </button>
+            Visit BrandEdge <ExternalLink size={18} />
+          </a>
         </div>
       </div>
     );
@@ -380,7 +494,8 @@ const SurveyPage: React.FC = () => {
           <div className="max-w-lg w-full rounded-3xl border border-white/10 bg-slate-900/60 p-8 text-center">
             <h1 className="text-3xl font-black text-white">Choose your country first</h1>
             <p className="mt-4 text-sm text-slate-300">
-              This survey intro is country-specific. Return to the survey entry page to choose Rwanda, Uganda, or Burundi before starting.
+              This survey intro is country-specific. Return to the survey entry page to choose Rwanda, Uganda, or Burundi
+              before starting.
             </p>
             <Link
               to="/survey"
@@ -396,84 +511,107 @@ const SurveyPage: React.FC = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0f172a]">
         <div className="max-w-lg w-full text-center space-y-10 animate-in fade-in zoom-in duration-700">
-           <ShieldCheck size={80} className="mx-auto" style={{ color: selectedCountryTheme.primary }} />
-           <div className="space-y-4">
-              <p className="text-xs uppercase tracking-[0.3em]" style={{ color: selectedCountryTheme.secondary }}>
-                Country Survey
+          <ShieldCheck size={80} className="mx-auto" style={{ color: surveyTheme.primaryFill }} />
+          <div className="space-y-4">
+            <p className="text-xs uppercase tracking-[0.3em]" style={{ color: surveyTheme.emphasisText }}>
+              Country Survey
+            </p>
+            <h1 className="text-4xl lg:text-5xl font-black text-white">Banking Feedback {selectedCountryTheme.name}</h1>
+            <p className="text-slate-400">
+              This questionnaire is for respondents in {selectedCountryTheme.name}. Your answers are anonymous, confidential,
+              and used only in aggregated market analysis.
+            </p>
+            {wave && <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Survey Wave {wave}</p>}
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/10 mx-auto w-fit">
+              {(['en', 'rw', 'fr'] as Language[]).map((nextLang) => (
+                <button
+                  key={nextLang}
+                  onClick={() => setLang(nextLang)}
+                  className={`px-4 lg:px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    lang === nextLang ? '' : 'text-slate-400 hover:text-white'
+                  }`}
+                  style={lang === nextLang ? { backgroundColor: surveyTheme.primaryFill, color: surveyTheme.primaryText } : undefined}
+                >
+                  {nextLang === 'en' ? 'English' : nextLang === 'rw' ? 'Kiny' : 'Français'}
+                </button>
+              ))}
+            </div>
+            <p className="text-sm text-slate-300">Choose your preferred language before starting.</p>
+
+            <div className="grid gap-4 text-left md:grid-cols-3">
+              <article className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
+                <p className="text-xs uppercase tracking-widest text-slate-500">Applies To</p>
+                <p className="mt-2 text-sm font-bold text-white">{selectedCountryTheme.name}</p>
+              </article>
+              <article className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
+                <p className="text-xs uppercase tracking-widest text-slate-500">Completion Time</p>
+                <p className="mt-2 text-sm font-bold text-white">About 5-8 minutes</p>
+              </article>
+              <article className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
+                <p className="text-xs uppercase tracking-widest text-slate-500">Why Participate</p>
+                <p className="mt-2 text-sm font-bold text-white">
+                  Help improve banking services in {selectedCountryTheme.name}
+                </p>
+              </article>
+            </div>
+
+            <div className="rounded-3xl border border-white/15 bg-slate-900/60 px-5 py-5 text-left text-sm text-slate-200 shadow-lg shadow-slate-950/40">
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">
+                Please tick the box below to begin.
               </p>
-              <h1 className="text-4xl lg:text-5xl font-black text-white">
-                Banking Feedback {selectedCountryTheme.name}
-              </h1>
-              <p className="text-slate-400">
-                This questionnaire is for respondents in {selectedCountryTheme.name}. Your answers are anonymous, confidential,
-                and used only in aggregated market analysis.
-              </p>
-              {wave && (
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Survey Wave {wave}</p>
+              <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-white/15 bg-slate-950/40 p-4 transition-colors hover:border-white/30">
+                <input
+                  type="checkbox"
+                  checked={consentAccepted}
+                  onChange={(event) => {
+                    const nextChecked = event.target.checked;
+                    setConsentAccepted(nextChecked);
+                    if (nextChecked) {
+                      setConsentError(null);
+                      trackSurveyEvent({
+                        sessionId,
+                        eventType: 'consent_confirmed',
+                        country: selectedCountry,
+                        language: lang,
+                      });
+                    }
+                  }}
+                  className="mt-0.5 h-6 w-6 min-h-6 min-w-6 rounded border-2 border-slate-400 bg-slate-950 accent-blue-500"
+                  style={{ accentColor: surveyTheme.primaryFill }}
+                />
+                <span className="leading-6">
+                  I confirm that I am participating voluntarily, that this survey applies to {selectedCountryTheme.name},
+                  and that I understand my answers will be stored anonymously for aggregated research and product insights.
+                </span>
+              </label>
+              {consentError && (
+                <p className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                  {consentError}
+                </p>
               )}
-           </div>
+            </div>
 
-           <div className="space-y-6">
-              <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/5 mx-auto w-fit">
-                {(['en', 'rw', 'fr'] as Language[]).map(l => (
-                  <button
-                    key={l}
-                    onClick={() => setLang(l)}
-                    className={`px-4 lg:px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${lang === l ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}
-                  >
-                    {l === 'en' ? 'English' : l === 'rw' ? 'Kiny' : 'Français'}
-                  </button>
-                ))}
+            {!canStartSurvey && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                Thank you for your feedback. You can take this survey again after {formatNextAllowed(panelStatus.nextAllowedDate)}.
               </div>
+            )}
 
-              <div className="grid gap-4 text-left md:grid-cols-3">
-                <article className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                  <p className="text-xs uppercase tracking-widest text-slate-500">Applies To</p>
-                  <p className="mt-2 text-sm font-bold text-white">{selectedCountryTheme.name}</p>
-                </article>
-                <article className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                  <p className="text-xs uppercase tracking-widest text-slate-500">Completion Time</p>
-                  <p className="mt-2 text-sm font-bold text-white">About 5-8 minutes</p>
-                </article>
-                <article className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                  <p className="text-xs uppercase tracking-widest text-slate-500">Why Participate</p>
-                  <p className="mt-2 text-sm font-bold text-white">Help improve banking services in {selectedCountryTheme.name}</p>
-                </article>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-slate-900/50 px-4 py-4 text-left text-sm text-slate-300">
-                <label className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={consentAccepted}
-                    onChange={(event) => setConsentAccepted(event.target.checked)}
-                    className="mt-1"
-                  />
-                  <span>
-                    I confirm that I am participating voluntarily, that this survey applies to {selectedCountryTheme.name},
-                    and that I understand my answers will be stored anonymously for aggregated research and product insights.
-                  </span>
-                </label>
-              </div>
-
-              {!canStartSurvey && (
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                  Thanks for joining the panel! You can return on {formatNextAllowed(panelStatus.nextAllowedDate)}.
-                </div>
-              )}
-
-              <button
-                onClick={startSurvey}
-                disabled={!consentAccepted || !canStartSurvey}
-                className="w-full h-16 lg:h-20 bg-blue-600 rounded-3xl font-black text-lg lg:text-xl flex items-center justify-center gap-4 hover:scale-105 transition-all text-white shadow-xl shadow-blue-500/30 disabled:opacity-60 disabled:hover:scale-100"
-                style={consentAccepted ? { backgroundColor: selectedCountryTheme.primary } : undefined}
-              >
-                Begin Questionnaire <ChevronRight />
-              </button>
-              <p className="text-xs text-slate-500">
-                Consent is recorded here before the first survey question. You can review the country-specific questionnaire immediately after this step.
-              </p>
-           </div>
+            <button
+              onClick={startSurvey}
+              disabled={!canStartSurvey}
+              className="w-full h-16 lg:h-20 rounded-3xl font-black text-lg lg:text-xl flex items-center justify-center gap-4 transition-all shadow-xl disabled:opacity-60 disabled:hover:scale-100 hover:scale-[1.01]"
+              style={{ backgroundColor: surveyTheme.primaryFill, color: surveyTheme.primaryText }}
+            >
+              Begin Questionnaire <ChevronRight />
+            </button>
+            <p className="text-xs text-slate-500">
+              Consent is confirmed on this screen before the first survey question, so the begin button does not feel broken.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -484,15 +622,19 @@ const SurveyPage: React.FC = () => {
       <header className="max-w-2xl mx-auto px-6 py-8 lg:py-10 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div
-            className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white text-sm"
-            style={theme ? { backgroundColor: theme.primary } : {}}
+            className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center font-black text-white text-sm"
+            style={{
+              backgroundColor: surveyTheme.badgeFill,
+              color: surveyTheme.badgeText,
+              boxShadow: surveyTheme.variant === 'uganda' ? '0 12px 30px rgba(245, 197, 66, 0.22)' : undefined,
+            }}
           >
-            {formData.selected_country?.substr(0, 2).toUpperCase() || '?'}
+            {selectedCountry?.slice(0, 2).toUpperCase() || 'BE'}
           </div>
-          <span className="font-black uppercase tracking-widest text-xs lg:text-sm text-white">Collector</span>
+          <span className="font-black uppercase tracking-widest text-xs lg:text-sm text-white">BrandEdge</span>
         </div>
         <button
-          onClick={() => setLang(l => l === 'en' ? 'rw' : l === 'rw' ? 'fr' : 'en')}
+          onClick={() => setLang((value) => (value === 'en' ? 'rw' : value === 'rw' ? 'fr' : 'en'))}
           className="px-4 py-2 glass-card rounded-xl text-[10px] font-black uppercase text-white hover:bg-white/5 transition-all"
         >
           {lang.toUpperCase()}
@@ -500,22 +642,23 @@ const SurveyPage: React.FC = () => {
       </header>
 
       <div className="max-w-2xl mx-auto px-6 mb-6 lg:mb-8">
-        <ProgressBar current={currentStep + 1} total={visibleQuestions.length} themeColor={theme?.primary} />
+        <ProgressBar current={currentStep + 1} total={visibleQuestions.length} themeColor={surveyTheme.primaryFill} />
       </div>
 
       <main className="max-w-2xl mx-auto px-6 pb-36 lg:pb-40">
         {currentQuestion && (
-          <div key={`${currentQuestion.id}-${lang}`} className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h2 className="text-2xl lg:text-3xl font-black text-white">{currentQuestion.label[lang]}</h2>
-            {currentQuestion.description && <p className="opacity-60 text-slate-300">{currentQuestion.description[lang]}</p>}
+            {currentQuestion.description && <p className="opacity-80 text-slate-300">{currentQuestion.description[lang]}</p>}
             <QuestionRenderer
+              key={currentQuestion.id}
               question={currentQuestion}
               formData={formData}
               value={formData[currentQuestion.id]}
               lang={lang}
-              onChange={(v) => setFormData(prev => ({ ...prev, [currentQuestion.id]: v }))}
-              onMetaChange={(patch) => setFormData(prev => ({ ...prev, ...patch }))}
-              themeColor={theme?.primary}
+              onChange={(value) => mergeFormData({ [currentQuestion.id]: value } as Partial<SurveyResponse>)}
+              onMetaChange={(patch) => mergeFormData(patch)}
+              themeColor={surveyTheme.primaryFill}
             />
           </div>
         )}
@@ -526,7 +669,7 @@ const SurveyPage: React.FC = () => {
         )}
       </main>
 
-      <footer className="fixed bottom-0 inset-x-0 p-6 lg:p-8 glass-card border-t border-white/5">
+      <footer className="fixed bottom-0 inset-x-0 p-6 lg:p-8 glass-card border-t border-white/10">
         <div className="max-w-2xl mx-auto flex gap-4">
           <div className="sr-only" aria-hidden="true">
             <label htmlFor="survey-company-website">Leave this field empty</label>
@@ -539,25 +682,28 @@ const SurveyPage: React.FC = () => {
             />
           </div>
           <button
-            onClick={() => setCurrentStep(s => s - 1)}
+            onClick={() => setCurrentStep((step) => step - 1)}
             disabled={currentStep === 0 || Boolean(currentQuestion?.isTerminationPoint)}
-            className="flex-1 py-4 lg:py-5 rounded-2xl lg:rounded-3xl font-black border border-white/5 disabled:opacity-20 text-white transition-all hover:bg-white/5"
+            className="flex-1 py-4 lg:py-5 rounded-2xl lg:rounded-3xl font-black border border-white/15 disabled:opacity-20 text-white transition-all hover:bg-white/5"
           >
             {UI_STRINGS.back[lang]}
           </button>
           <button
             onClick={handleNext}
             disabled={isNextDisabled}
-            className="flex-[2] py-4 lg:py-5 rounded-2xl lg:rounded-3xl bg-blue-600 font-black disabled:opacity-50 text-white transition-all hover:bg-blue-700"
-            style={!isNextDisabled && theme ? { backgroundColor: theme.primary } : {}}
+            className="flex-[2] py-4 lg:py-5 rounded-2xl lg:rounded-3xl font-black disabled:opacity-50 transition-all hover:brightness-110"
+            style={{
+              backgroundColor: isNextDisabled ? '#475569' : surveyTheme.primaryFill,
+              color: isNextDisabled ? '#E2E8F0' : surveyTheme.primaryText,
+            }}
           >
             {submissionPending
               ? 'Submitting...'
               : currentQuestion?.isTerminationPoint
-                ? 'Finish'
+              ? 'Finish'
               : currentStep === visibleQuestions.length - 1
-                ? UI_STRINGS.complete[lang]
-                : UI_STRINGS.continue[lang]}
+              ? UI_STRINGS.complete[lang]
+              : UI_STRINGS.continue[lang]}
           </button>
         </div>
         <div className="max-w-2xl mx-auto mt-3 text-[11px] text-slate-500">

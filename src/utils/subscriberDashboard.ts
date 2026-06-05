@@ -6,6 +6,8 @@ import {
   CountryCode,
   SurveyResponse,
 } from '@/types';
+import { isIncludedInAnalytics } from '@/utils/survey/respondentInclusion';
+import { computeSampleGuard, SampleGuard } from '@/utils/sampleGuards';
 
 export type TimeWindow = 'all' | '30d' | '90d' | '12m';
 export type LoyaltyBucket = 'Committed' | 'Favors' | 'Potential' | 'Accessibles' | 'Rejectors';
@@ -117,6 +119,7 @@ export interface DemographicCohortRow {
   nps: number;
   avgIntent: number;
   multiBankRate: number;
+  guard?: SampleGuard;
 }
 
 export interface DemographicOpportunityRow {
@@ -127,6 +130,7 @@ export interface DemographicOpportunityRow {
   usageGap: number;
   nps: number;
   priority: 'High' | 'Medium' | 'Low';
+  guard?: SampleGuard;
 }
 
 export interface DemographicDiagnostics {
@@ -666,6 +670,7 @@ export const filterResponsesForDashboard = (responses: SurveyResponse[], filters
   return responses.filter((response) => {
     const country = responseCountry(response);
     if (!country || country !== filters.country) return false;
+    if (!isIncludedInAnalytics(response)) return false;
 
     if (filters.ageGroups.length > 0 && (!response.b2_age || !filters.ageGroups.includes(response.b2_age))) {
       return false;
@@ -2213,8 +2218,8 @@ export const computeTrendForecastDiagnostics = (
   if ((yoyPp || 0) > 0) highlights.push('Year-over-year awareness is up, reducing seasonality distortion risk.');
   if (exponentialSignal) highlights.push('Growth pattern is accelerating across recent periods.');
   if ((volatilityLabel === 'High volatility')) highlights.push('High volatility flagged: use conservative planning and monitor weekly signal quality.');
-  if ((regressionR2 || 0) > 0.7) highlights.push('Regression fit is strong; forecast reliability is comparatively higher.');
-  if (!forecastEligible) highlights.push(`Forecast suppressed: ${forecastReasons.join(', ') || 'insufficient_history'}.`);
+  if ((regressionR2 || 0) > 0.7) highlights.push('Trend data quality is strong — forecast estimates are more reliable.');
+  if (!forecastEligible) highlights.push('Forecasts will appear once enough survey waves have been completed.');
   if (highlights.length === 0) highlights.push('Trend remains mixed; prioritize stabilizing consistency before scaling investment.');
 
   return {
@@ -2396,6 +2401,7 @@ const cohortRowsForDimension = (
         nps,
         avgIntent,
         multiBankRate,
+        guard: computeSampleGuard(cohort.length),
       };
     })
     .sort((a, b) => b.sample - a.sample);
@@ -2418,6 +2424,7 @@ const opportunitiesForDimension = (
       usageGap: gap,
       nps: row.nps,
       priority,
+      guard: computeSampleGuard(row.sample),
     };
   });
 };
@@ -2426,10 +2433,11 @@ export const computeDemographicDiagnostics = (
   responses: SurveyResponse[],
   bankId: string,
 ): DemographicDiagnostics => {
-  const ageRows = cohortRowsForDimension(responses, bankId, 'age');
-  const genderRows = cohortRowsForDimension(responses, bankId, 'gender');
-  const employmentRows = cohortRowsForDimension(responses, bankId, 'employment');
-  const educationRows = cohortRowsForDimension(responses, bankId, 'education');
+  const includedResponses = responses.filter(isIncludedInAnalytics);
+  const ageRows = cohortRowsForDimension(includedResponses, bankId, 'age');
+  const genderRows = cohortRowsForDimension(includedResponses, bankId, 'gender');
+  const employmentRows = cohortRowsForDimension(includedResponses, bankId, 'employment');
+  const educationRows = cohortRowsForDimension(includedResponses, bankId, 'education');
 
   const opportunities = [
     ...opportunitiesForDimension(ageRows, 'age'),
@@ -2454,7 +2462,7 @@ export const computeDemographicDiagnostics = (
     }));
 
   return {
-    sample: responses.length,
+    sample: includedResponses.length,
     ageRows,
     genderRows,
     employmentRows,
@@ -2465,7 +2473,8 @@ export const computeDemographicDiagnostics = (
 };
 
 export const computeDemographics = (responses: SurveyResponse[]): DemographicSummary => {
-  const sample = responses.length || 1;
+  const includedResponses = responses.filter(isIncludedInAnalytics);
+  const sample = includedResponses.length || 1;
   const countMap = (values: Array<string | undefined | null>) => {
     const map = new Map<string, number>();
     values.forEach((value) => {
@@ -2478,10 +2487,10 @@ export const computeDemographics = (responses: SurveyResponse[]): DemographicSum
   };
 
   return {
-    sample: responses.length,
-    age: countMap(responses.map((response) => response.b2_age)).slice(0, 6),
-    gender: countMap(responses.map((response) => response.gender)).slice(0, 4),
-    employment: countMap(responses.map((response) => response.e1_employment)).slice(0, 6),
-    education: countMap(responses.map((response) => response.e2_education)).slice(0, 6),
+    sample: includedResponses.length,
+    age: countMap(includedResponses.map((response) => response.b2_age)).slice(0, 6),
+    gender: countMap(includedResponses.map((response) => response.gender)).slice(0, 4),
+    employment: countMap(includedResponses.map((response) => response.e1_employment)).slice(0, 6),
+    education: countMap(includedResponses.map((response) => response.e2_education)).slice(0, 6),
   };
 };

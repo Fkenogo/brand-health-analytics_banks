@@ -86,6 +86,7 @@ export interface OverviewAggregateMarketRow {
 
 export interface AggregateContract {
   aggregateSchemaVersion: number;
+  methodologyVersion: string;
   supportedMetrics: AggregateMetricKey[];
   supportedFilters: {
     country: boolean;
@@ -139,6 +140,9 @@ export interface DashboardOverviewAggregate {
   statusCounts: {
     completed: number;
     terminated: number;
+    included: number;
+    screenedOut: number;
+    under18: number;
   };
   flagCounts: {
     suspicious: number;
@@ -221,7 +225,12 @@ type AggregateBankCounts = {
 type AggregateDoc = {
   country?: CountryCode;
   dateBucket?: string;
+  methodology_version?: string;
+  methodologyVersion?: string;
   responseCount?: number;
+  analyticsIncludedCount?: number;
+  screenedOutCount?: number;
+  screenedOutUnder18Count?: number;
   completedCount?: number;
   terminatedCount?: number;
   suspiciousCount?: number;
@@ -232,13 +241,26 @@ type AggregateDoc = {
 };
 
 type AggregateLoadResult = {
-  aggregate: DashboardOverviewAggregate;
+  aggregate: DashboardOverviewAggregate | null;
   source: 'callable' | 'firestore';
   fallbackReason: string | null;
 };
 
+type AggregateFilterScope = {
+  ageGroups?: string[];
+  genders?: string[];
+};
+
+type AggregateValidationContext = {
+  country: CountryCode;
+  timeWindow?: OverviewTimeWindow;
+  source: 'callable' | 'firestore';
+  phase: 'bucket' | 'payload' | 'filter';
+};
+
 const RESPONSE_ANALYTICS_COLLECTION = 'responseAnalyticsDaily';
 const RESPONSE_ANALYTICS_STATUS_COLLECTION = 'responseAnalyticsStatus';
+const DEFAULT_METHODOLOGY_VERSION = 'v1';
 const BRAND_EDGE_WEIGHTS = {
   awareness: 0.3,
   usage: 0.3,
@@ -250,6 +272,121 @@ const BRAND_EDGE_WEIGHTS = {
 const round = (value: number) => Math.round(Number(value || 0));
 const pct = (num: number, den: number) => (den > 0 ? (num / den) * 100 : 0);
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const aggregateWarn = (event: string, details: Record<string, unknown>) => {
+  console.warn(`[analytics_aggregate] ${event}`, { event, ...details });
+};
+
+const hasOwn = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
+
+const methodologyVersionFor = (value: { methodology_version?: string; methodologyVersion?: string } | null | undefined) =>
+  String(value?.methodology_version || value?.methodologyVersion || DEFAULT_METHODOLOGY_VERSION);
+
+const unsupportedFilterReasons = (contract: AggregateContract | null | undefined, filters?: AggregateFilterScope) => {
+  const reasons: string[] = [];
+  if (!contract?.supportedFilters?.country) reasons.push('country');
+  if (!contract?.supportedFilters?.selectedBank) reasons.push('selectedBank');
+  if (!contract?.supportedFilters?.timeWindow) reasons.push('timeWindow');
+  if ((filters?.ageGroups?.length || 0) > 0 && !contract?.supportedFilters?.ageGroups) reasons.push('ageGroups');
+  if ((filters?.genders?.length || 0) > 0 && !contract?.supportedFilters?.genders) reasons.push('genders');
+  return reasons;
+};
+
+const validateAggregateBucket = (docData: AggregateDoc, context: AggregateValidationContext) => {
+  const failures: string[] = [];
+  const requiredFields = ['analyticsIncludedCount'];
+  requiredFields.forEach((field) => {
+    if (!hasOwn(docData, field)) failures.push(`missing_${field}`);
+  });
+
+  const sample = Number(docData.analyticsIncludedCount);
+  if (!Number.isFinite(sample) || sample < 0) failures.push('invalid_analyticsIncludedCount');
+
+  Object.entries(docData.banks || {}).forEach(([bankId, bankData]) => {
+    const checks = [
+      ['awareCount', bankData.awareCount],
+      ['topOfMindCount', bankData.topOfMindCount],
+      ['spontaneousCount', bankData.spontaneousCount],
+      ['aidedCount', bankData.aidedCount],
+      ['everUsedCount', bankData.everUsedCount],
+      ['currentUsingCount', bankData.currentUsingCount],
+      ['preferredCount', bankData.preferredCount],
+      ['considerCount', bankData.considerCount],
+    ] as const;
+    checks.forEach(([field, raw]) => {
+      const value = Number(raw || 0);
+      if (Number.isFinite(sample) && value > sample) {
+        failures.push(`${bankId}.${field}_exceeds_denominator`);
+      }
+      if (!Number.isFinite(value) || value < 0) {
+        failures.push(`${bankId}.${field}_invalid`);
+      }
+    });
+  });
+
+  if (failures.length > 0) {
+    aggregateWarn('aggregate_bucket_validation_failed', {
+      ...context,
+      country: docData.country || context.country,
+      dateBucket: docData.dateBucket || 'unknown',
+      methodologyVersion: methodologyVersionFor(docData),
+      failures,
+    });
+  }
+  return failures;
+};
+
+const validateAggregatePayload = (
+  aggregate: DashboardOverviewAggregate,
+  context: AggregateValidationContext,
+  filters?: AggregateFilterScope,
+) => {
+  const failures: string[] = [];
+  const sample = Number(aggregate.sampleSize);
+  if (!Number.isFinite(sample) || sample < 0) failures.push('invalid_sampleSize');
+  if (!aggregate.contract?.methodologyVersion) failures.push('missing_methodologyVersion');
+  const unsupportedFilters = unsupportedFilterReasons(aggregate.contract, filters);
+  unsupportedFilters.forEach((filter) => failures.push(`unsupported_filter_${filter}`));
+
+  aggregate.marketRows.forEach((row) => {
+    const checks = [
+      ['awareCount', row.awareCount],
+      ['everUsedCount', row.everUsedCount],
+      ['currentUsingCount', row.currentUsingCount],
+      ['preferredCount', row.preferredCount],
+      ['considerCount', row.considerCount],
+    ] as const;
+    checks.forEach(([field, raw]) => {
+      const value = Number(raw || 0);
+      if (Number.isFinite(sample) && value > sample) failures.push(`${row.bankId}.${field}_exceeds_denominator`);
+      if (!Number.isFinite(value) || value < 0) failures.push(`${row.bankId}.${field}_invalid`);
+    });
+  });
+
+  if (aggregate.selectedMetrics) {
+    const selected = aggregate.selectedMetrics;
+    [
+      ['selected.awareCount', selected.awareCount],
+      ['selected.everUsedCount', selected.everUsedCount],
+      ['selected.currentUsingCount', selected.currentUsingCount],
+      ['selected.preferredCount', selected.preferredCount],
+      ['selected.considerCount', selected.considerCount],
+    ].forEach(([field, raw]) => {
+      const value = Number(raw || 0);
+      if (Number.isFinite(sample) && value > sample) failures.push(`${field}_exceeds_denominator`);
+    });
+  }
+
+  if (failures.length > 0) {
+    aggregateWarn('aggregate_payload_validation_failed', {
+      ...context,
+      bankId: aggregate.bankId,
+      methodologyVersion: aggregate.contract?.methodologyVersion || null,
+      failures,
+    });
+  }
+  return failures;
+};
 
 const momentumFromComponents = (
   awarenessGrowthScore: number,
@@ -322,7 +459,11 @@ const ensureBankCounts = (aggregate: AggregateDoc, bankId: string) => {
 const createEmptyAggregateDoc = (country: CountryCode): AggregateDoc => ({
   country,
   dateBucket: 'merged',
+  methodology_version: DEFAULT_METHODOLOGY_VERSION,
   responseCount: 0,
+  analyticsIncludedCount: 0,
+  screenedOutCount: 0,
+  screenedOutUnder18Count: 0,
   completedCount: 0,
   terminatedCount: 0,
   suspiciousCount: 0,
@@ -334,8 +475,12 @@ const createEmptyAggregateDoc = (country: CountryCode): AggregateDoc => ({
 
 const mergeAggregateDocs = (country: CountryCode, docs: AggregateDoc[]): AggregateDoc => {
   const merged = createEmptyAggregateDoc(country);
+  merged.methodology_version = methodologyVersionFor(docs[0]);
   docs.forEach((docData) => {
     merged.responseCount = Number(merged.responseCount || 0) + Number(docData.responseCount || 0);
+    merged.analyticsIncludedCount = Number(merged.analyticsIncludedCount || 0) + Number(docData.analyticsIncludedCount || 0);
+    merged.screenedOutCount = Number(merged.screenedOutCount || 0) + Number(docData.screenedOutCount || 0);
+    merged.screenedOutUnder18Count = Number(merged.screenedOutUnder18Count || 0) + Number(docData.screenedOutUnder18Count || 0);
     merged.completedCount = Number(merged.completedCount || 0) + Number(docData.completedCount || 0);
     merged.terminatedCount = Number(merged.terminatedCount || 0) + Number(docData.terminatedCount || 0);
     merged.suspiciousCount = Number(merged.suspiciousCount || 0) + Number(docData.suspiciousCount || 0);
@@ -485,7 +630,11 @@ const buildOverviewSnapshot = (
   selectedBankId: string,
 ) => {
   const banks = ALL_BANKS.filter((bank) => bank.country === country);
-  const sampleSize = Number(aggregate.responseCount || 0);
+  const responseCount = Number(aggregate.responseCount || 0);
+  const includedCount = Number(aggregate.analyticsIncludedCount ?? aggregate.completedCount ?? 0);
+  const screenedOutCount = Number(aggregate.screenedOutCount ?? Math.max(0, responseCount - includedCount));
+  const under18Count = Number(aggregate.screenedOutUnder18Count || 0);
+  const sampleSize = includedCount;
   const rawRows = banks.map((bank) => {
     const counts = (aggregate.banks?.[bank.id] as AggregateBankCounts | undefined) || emptyBankCounts();
     const metrics = summarizeBankCounts(counts, sampleSize);
@@ -547,6 +696,9 @@ const buildOverviewSnapshot = (
     statusCounts: {
       completed: Number(aggregate.completedCount || 0),
       terminated: Number(aggregate.terminatedCount || 0),
+      included: includedCount,
+      screenedOut: screenedOutCount,
+      under18: under18Count,
     },
     flagCounts: {
       suspicious: Number(aggregate.suspiciousCount || 0),
@@ -569,6 +721,47 @@ const fetchAggregateDocs = async (country: CountryCode, startBucket: string | nu
   }
   const snapshot = await getDocs(query(collection(db, RESPONSE_ANALYTICS_COLLECTION), ...constraints));
   return snapshot.docs.map((docSnap) => docSnap.data() as AggregateDoc);
+};
+
+const assertValidAggregateDocs = (
+  docs: AggregateDoc[],
+  context: Omit<AggregateValidationContext, 'phase'>,
+) => {
+  if (docs.length === 0) {
+    aggregateWarn('aggregate_validation_failed', {
+      ...context,
+      phase: 'bucket',
+      failures: ['no_aggregate_buckets'],
+    });
+    throw new Error('Overview aggregate data is not available for this filter context.');
+  }
+  const failures = docs.flatMap((docData) => validateAggregateBucket(docData, { ...context, phase: 'bucket' }));
+  if (failures.length > 0) {
+    aggregateWarn('aggregate_raw_fallback_triggered', {
+      ...context,
+      phase: 'bucket',
+      bucketCount: docs.length,
+      failureCount: failures.length,
+    });
+    throw new Error('Overview aggregate integrity validation failed. Falling back to live-response analytics.');
+  }
+};
+
+const assertValidAggregatePayload = (
+  aggregate: DashboardOverviewAggregate,
+  context: Omit<AggregateValidationContext, 'phase'>,
+  filters?: AggregateFilterScope,
+) => {
+  const failures = validateAggregatePayload(aggregate, { ...context, phase: 'payload' }, filters);
+  if (failures.length > 0) {
+    aggregateWarn('aggregate_raw_fallback_triggered', {
+      ...context,
+      phase: 'payload',
+      bankId: aggregate.bankId,
+      failureCount: failures.length,
+    });
+    throw new Error('Overview aggregate integrity validation failed. Falling back to live-response analytics.');
+  }
 };
 
 const buildDirectOverviewAggregate = async (
@@ -595,6 +788,12 @@ const buildDirectOverviewAggregate = async (
       return start.toISOString().slice(0, 10);
     })(), currentWindow.endBucket),
   ]);
+
+  const baseContext = { country, timeWindow, source: 'firestore' as const };
+  assertValidAggregateDocs(currentDocs, baseContext);
+  if (currentMonthDocs.length > 0) assertValidAggregateDocs(currentMonthDocs, baseContext);
+  if (previousMonthDocs.length > 0) assertValidAggregateDocs(previousMonthDocs, baseContext);
+  if (trendDocs.length > 0) assertValidAggregateDocs(trendDocs, baseContext);
 
   const currentOverview = buildOverviewSnapshot(country, mergeAggregateDocs(country, currentDocs), bankId);
   const currentMonthOverview = buildOverviewSnapshot(country, mergeAggregateDocs(country, currentMonthDocs), bankId);
@@ -639,6 +838,7 @@ const buildDirectOverviewAggregate = async (
     generatedAt: new Date().toISOString(),
     contract: {
       aggregateSchemaVersion: Number(statusData.aggregateSchemaVersion || 2),
+      methodologyVersion: String(statusData.methodologyVersion || statusData.methodology_version || DEFAULT_METHODOLOGY_VERSION),
       supportedMetrics: Array.isArray(statusData.supportedMetrics) ? statusData.supportedMetrics : [],
       supportedFilters: statusData.supportedFilters || {
         country: true,
@@ -981,14 +1181,22 @@ const toAggregateError = (error: unknown): string => {
   return message || 'Failed to load overview aggregate.';
 };
 
+const shouldForceRawFallback = (reason: string) => {
+  const normalized = reason.toLowerCase();
+  return normalized.includes('integrity validation failed')
+    || normalized.includes('unsupported_filter')
+    || normalized.includes('does not support active filters');
+};
+
 export const analyticsAggregateService = {
   getDashboardOverviewAggregateWithFallback: async (
     country: CountryCode,
     bankId: string,
     timeWindow: OverviewTimeWindow,
+    filters?: AggregateFilterScope,
   ): Promise<AggregateLoadResult> => {
     try {
-      const aggregate = await analyticsAggregateService.getDashboardOverviewAggregate(country, bankId, timeWindow);
+      const aggregate = await analyticsAggregateService.getDashboardOverviewAggregate(country, bankId, timeWindow, filters);
       return {
         aggregate,
         source: 'callable',
@@ -996,18 +1204,65 @@ export const analyticsAggregateService = {
       };
     } catch (error) {
       const fallbackReason = error instanceof Error ? error.message : 'Overview aggregate callable failed.';
-      const aggregate = await buildDirectOverviewAggregate(country, bankId, timeWindow);
-      return {
-        aggregate,
-        source: 'firestore',
-        fallbackReason,
-      };
+      if (shouldForceRawFallback(fallbackReason)) {
+        aggregateWarn('aggregate_raw_fallback_triggered', {
+          country,
+          bankId,
+          timeWindow,
+          source: 'callable',
+          phase: 'payload',
+          reason: fallbackReason,
+        });
+        return {
+          aggregate: null,
+          source: 'callable',
+          fallbackReason,
+        };
+      }
+      try {
+        const aggregate = await buildDirectOverviewAggregate(country, bankId, timeWindow);
+        assertValidAggregatePayload(aggregate, { country, timeWindow, source: 'firestore' }, filters);
+        return {
+          aggregate,
+          source: 'firestore',
+          fallbackReason,
+        };
+      } catch (fallbackError) {
+        const directReason = fallbackError instanceof Error ? fallbackError.message : 'Direct aggregate fallback failed.';
+        aggregateWarn('aggregate_raw_fallback_triggered', {
+          country,
+          bankId,
+          timeWindow,
+          source: 'firestore',
+          phase: 'payload',
+          callableReason: fallbackReason,
+          directReason,
+        });
+        return {
+          aggregate: null,
+          source: 'firestore',
+          fallbackReason: `${fallbackReason} ${directReason}`,
+        };
+      }
     }
   },
-  getDashboardOverviewAggregate: async (country: CountryCode, bankId: string, timeWindow: OverviewTimeWindow) => {
+  getDashboardOverviewAggregate: async (
+    country: CountryCode,
+    bankId: string,
+    timeWindow: OverviewTimeWindow,
+    filters?: AggregateFilterScope,
+  ) => {
     try {
       const result = await getDashboardOverviewAggregateCallable({ country, bankId, timeWindow });
-      return result.data.aggregate;
+      const aggregate = {
+        ...result.data.aggregate,
+        contract: {
+          ...result.data.aggregate.contract,
+          methodologyVersion: result.data.aggregate.contract?.methodologyVersion || DEFAULT_METHODOLOGY_VERSION,
+        },
+      };
+      assertValidAggregatePayload(aggregate, { country, timeWindow, source: 'callable' }, filters);
+      return aggregate;
     } catch (error) {
       throw new Error(toAggregateError(error));
     }
