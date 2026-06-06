@@ -382,7 +382,7 @@ const SURFACE_MODE_STORAGE_KEY = 'subscriber-dashboard-surface-mode';
 const ACCENT_PRIMARY = '#E10613';
 const ACCENT_POSITIVE = '#059669';
 const ACCENT_NEGATIVE = '#F43F5E';
-const ACCENT_NEUTRAL = '#94A3B8';
+const ACCENT_NEUTRAL = '#475569';
 
 const hexToRgba = (hex: string, alpha: number) => {
   const normalized = hex.replace('#', '');
@@ -490,7 +490,7 @@ const Card: React.FC<{
   >
     <div className="flex items-center justify-between gap-1.5">
       <div className="flex items-center gap-1">
-        <p className={`uppercase tracking-wide text-slate-500 ${variant === 'primary' ? 'text-[11px] font-semibold' : 'text-[10px]'}`}>{title}</p>
+        <p className={`uppercase tracking-wide text-slate-600 ${variant === 'primary' ? 'text-[11px] font-semibold' : 'text-[10px]'}`}>{title}</p>
         {metricKey ? <MetricInfoIcon metricKey={metricKey} /> : null}
       </div>
       <DeltaBadge delta={delta} />
@@ -501,7 +501,7 @@ const Card: React.FC<{
       </p>
       <Sparkline values={sparklineValues} accent={delta && delta < 0 ? 'red' : 'blue'} />
     </div>
-    {subtitle ? <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{subtitle}</p> : null}
+    {subtitle ? <p className="mt-0.5 text-[10px] leading-snug text-slate-600">{subtitle}</p> : null}
   </div>
 );
 
@@ -535,13 +535,13 @@ const FunnelSteps: React.FC<{ steps: Array<{ label: string; value: number; color
         const previous = idx > 0 ? steps[idx - 1] : null;
         const conversion = previous && previous.value > 0 ? Math.round((step.value / previous.value) * 100) : null;
         const dropOff = previous ? Math.max(previous.value - step.value, 0) : null;
-        const stageColors = [ACCENT_PRIMARY, '#667085', '#94A3B8', ACCENT_POSITIVE];
+        const stageColors = [ACCENT_PRIMARY, '#667085', '#475569', ACCENT_POSITIVE];
         const stageColor = step.color.startsWith('#') ? step.color : stageColors[idx % stageColors.length];
         const dropPct = previous && previous.value > 0 ? (dropOff / previous.value) * 100 : 0;
         const dropColor = dropPct >= 25 ? ACCENT_NEGATIVE : ACCENT_NEUTRAL;
         return (
           <div key={step.label} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <p className="text-xs font-medium text-slate-500">{step.label}</p>
+            <p className="text-xs font-medium text-slate-600">{step.label}</p>
             <p className="mt-1 text-2xl font-bold text-slate-800">{step.value}%</p>
             <div className="mt-2 h-1.5 rounded-full bg-slate-200">
               <div
@@ -553,7 +553,7 @@ const FunnelSteps: React.FC<{ steps: Array<{ label: string; value: number; color
               />
             </div>
             {conversion !== null ? (
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600">
                 <span style={{ color: ACCENT_PRIMARY }}>{conversion}% convert</span>
                 <span style={{ color: dropColor }}>{dropOff}% drop</span>
               </div>
@@ -573,7 +573,7 @@ const ExecutiveHero: React.FC<{
   rightCards: Array<{ label: string; value: string; tone?: 'positive' | 'negative' | 'neutral'; descriptor?: string }>;
 }> = ({ label, score, delta, summary, rightCards }) => (
   <div className="grid gap-8 md:grid-cols-3">
-    <div className="rounded-3xl bg-gradient-to-br from-[#5A0B10] via-[#8E1018] to-[#C1121F] p-10 text-white md:col-span-2">
+    <div className="rounded-3xl bg-gradient-to-br from-[#5A0B10] via-[#8E1018] to-[#C1121F] p-6 text-white md:col-span-2 md:p-10">
       <p className="text-sm font-semibold uppercase tracking-wide text-red-100">{label}</p>
       <p className="mt-4 text-6xl font-bold">{score}</p>
       <p className="mt-4 text-sm font-medium" style={{ color: delta === null ? 'rgba(255,255,255,0.65)' : delta > 0 ? '#A7F3D0' : delta < 0 ? '#FECACA' : 'rgba(255,255,255,0.65)' }}>
@@ -583,7 +583,7 @@ const ExecutiveHero: React.FC<{
     </div>
     <div className="grid gap-6">
       {rightCards.map((item) => (
-        <div key={item.label} className="flex h-full flex-col justify-between rounded-2xl bg-white p-5 shadow-xl">
+        <div key={item.label} className="flex flex-col justify-between rounded-2xl bg-white p-5 shadow-xl md:h-full">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#667085]">{item.label}</p>
           <p
             className="mt-1 text-3xl font-bold"
@@ -592,7 +592,7 @@ const ExecutiveHero: React.FC<{
             {item.value}
           </p>
           {item.descriptor && (
-            <p className="mt-1 text-[11px] text-[#98A2B3]">{item.descriptor}</p>
+            <p className="mt-1 text-[11px] text-[#667085]">{item.descriptor}</p>
           )}
         </div>
       ))}
@@ -1257,12 +1257,12 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   );
 
   const hasObservedWinLoss = competitiveDiagnostics?.winLoss.hasPanelTransitions ?? false;
-  const winLossSectionTitle = hasObservedWinLoss ? 'Observed Preference Transitions' : 'Proxy Competitive Balance';
+  const winLossSectionTitle = hasObservedWinLoss ? 'Observed Preference Transitions' : 'Competitive Win/Loss Estimate';
   const winLossSectionSubtitle = hasObservedWinLoss
     ? 'Based on device-linked preferred-bank changes across matched responses.'
     : 'Modeled from multi-bank overlap and market-share deltas. This is directional, not observed customer switching.';
-  const winLossPrimaryCardTitle = hasObservedWinLoss ? 'Observed Win Rate' : 'Proxy Balance';
-  const winLossModeLabel = hasObservedWinLoss ? 'Observed transitions' : 'Proxy signal';
+  const winLossPrimaryCardTitle = hasObservedWinLoss ? 'Observed Win Rate' : 'Estimated Win Rate';
+  const winLossModeLabel = hasObservedWinLoss ? 'Observed transitions' : 'Modelled estimate';
   const winLossModeSubtitle = hasObservedWinLoss
     ? 'Matched preferred-bank movement across linked responses.'
     : 'Estimated from overlap and share movement rather than observed customer transitions.';
@@ -2858,32 +2858,38 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
   return (
     <div className="executive-dashboard min-h-screen text-white" data-surface-mode={surfaceMode}>
-      <header className="border-b border-slate-600/40 bg-slate-800/80 px-6 py-6 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+      <header className="border-b border-slate-600/40 bg-slate-800/80 px-6 py-4 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <div>
             <p className="text-xs font-semibold tracking-[0.12em] text-slate-500">{adminMode ? 'Admin Console' : 'Subscriber Dashboard'}</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Brand Health Tracking</h1>
-              <p className="mt-1 text-sm text-slate-400">
-                Data source: {dashboardSource === 'aggregate'
-                  ? 'Live Firestore aggregate'
-                  : dashboardSource === 'firestore'
-                    ? 'Live Firestore responses'
-                    : 'Local fallback responses'}
-              </p>
-              {dashboardSource === 'aggregate' ? (
-                <p className="mt-1 text-xs text-slate-500">
-                  Aggregate is the primary source for overview metrics. Some deep-dive diagnostics remain live-response derived.
-                </p>
-              ) : null}
-              {dashboardSourceReason ? (
-              <p className="mt-1 text-xs text-amber-300">
-                {dashboardSource === 'aggregate' && overviewAggregateReason
-                  ? `Aggregate callable fallback: ${overviewAggregateReason}`
-                  : `Fallback reason: ${dashboardSourceReason}`}
-              </p>
-            ) : null}
+            <h1 className="text-xl font-semibold tracking-tight sm:text-3xl">Brand Health Tracking</h1>
+              {adminMode ? (
+                <>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Data source: {dashboardSource === 'aggregate'
+                      ? 'Live Firestore aggregate'
+                      : dashboardSource === 'firestore'
+                        ? 'Live Firestore responses'
+                        : 'Local fallback responses'}
+                  </p>
+                  {dashboardSource === 'aggregate' ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Aggregate is the primary source for overview metrics. Some deep-dive diagnostics remain live-response derived.
+                    </p>
+                  ) : null}
+                  {dashboardSourceReason ? (
+                    <p className="mt-1 text-xs text-amber-300">
+                      {dashboardSource === 'aggregate' && overviewAggregateReason
+                        ? `Aggregate callable fallback: ${overviewAggregateReason}`
+                        : `Fallback reason: ${dashboardSourceReason}`}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-1 text-xs text-slate-500">Data current for the selected period.</p>
+              )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setSurfaceMode((prev) => (prev === 'executive-dark' ? 'soft-neutral' : 'executive-dark'))}
@@ -2934,7 +2940,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
       <main className="dashboard-main">
         <div className="dashboard-filter-shell">
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
             <div>
               <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Country</p>
               <select
@@ -2993,7 +2999,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                 ))}
               </select>
             </div>
-            <div className="flex items-end gap-2">
+            <div className="col-span-2 flex items-end gap-2 md:col-span-1">
                 <button
                   onClick={exportCurrentView}
                   disabled={exportControlDisabled}
@@ -3011,7 +3017,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             </div>
           </div>
 
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="mt-2 grid gap-2 md:mt-3 md:grid-cols-2 md:gap-3">
             <div>
               <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Age filters</p>
               <div className="flex flex-wrap gap-2">
@@ -3045,12 +3051,12 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
         <div className="dashboard-shell dashboard-shell-spaced">
           <Tabs value={section} onValueChange={(value) => requestSection(value as SubscriberSection)}>
-            <TabsList className="dashboard-tablist flex flex-wrap gap-2">
+            <TabsList className="dashboard-tablist flex gap-2 overflow-x-auto pb-0.5 flex-nowrap md:flex-wrap">
               {visibleSections.map((item) => (
                 <TabsTrigger
                   key={item.id}
                   value={item.id}
-                  className="dashboard-tab-trigger rounded-xl border border-slate-500/35 bg-slate-700/35 px-4 py-2 text-[12px] font-semibold text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-600/45 hover:text-white data-[state=active]:!border-white/90 data-[state=active]:!bg-white data-[state=active]:!text-slate-900"
+                  className="dashboard-tab-trigger flex-shrink-0 rounded-xl border border-slate-500/35 bg-slate-700/35 px-4 py-2 text-[12px] font-semibold text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-600/45 hover:text-white data-[state=active]:!border-white/90 data-[state=active]:!bg-white data-[state=active]:!text-slate-900"
                 >
                   {item.label}
                 </TabsTrigger>
@@ -3090,7 +3096,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   title="Current Usage"
                   variant="primary"
                   value={safePercent(overviewTopMetrics.currentUsage.value)}
-                  subtitle={compareSubtitle(compareBankName, compareDisplayValue(overviewTopMetrics.currentUsage, (value) => safePercent(value)), safePercent(selectedMetricsView?.preferred, EMPTY_COPY.noData) === EMPTY_COPY.noData ? EMPTY_COPY.noDataInSlice : `${safePercent(selectedMetricsView?.preferred)} preferred (BUMO)`)}
+                  subtitle={compareSubtitle(compareBankName, compareDisplayValue(overviewTopMetrics.currentUsage, (value) => safePercent(value)), safePercent(selectedMetricsView?.preferred, EMPTY_COPY.noData) === EMPTY_COPY.noData ? EMPTY_COPY.noDataInSlice : `${safePercent(selectedMetricsView?.preferred)} preferred bank`)}
                   delta={compareDelta(overviewTopMetrics.currentUsage)}
                   sparklineValues={trendView.map((point) => point.usage)}
                 />
@@ -3158,7 +3164,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               ? 'bg-[#E10613] text-white'
                               : p.level === 'Important'
                               ? 'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]'
-                              : 'bg-[#F9FAFB] text-[#98A2B3] border border-[#E4E7EC]'
+                              : 'bg-[#F9FAFB] text-[#667085] border border-[#E4E7EC]'
                           }`}
                         >
                           {p.level}
@@ -3176,7 +3182,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
 
                         {/* Supporting metric */}
                         <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] px-3 py-1.5">
-                          <span className="text-[10px] text-[#98A2B3]">{p.metricLabel}:</span>
+                          <span className="text-[10px] text-[#667085]">{p.metricLabel}:</span>
                           <span className="text-xs font-bold text-[#1F2230]">{p.metricValue}</span>
                         </div>
                       </div>
@@ -3425,7 +3431,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
                         trendView.length >= 2
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-[#F9FAFB] text-[#98A2B3] border border-[#E4E7EC]'
+                          : 'bg-[#F9FAFB] text-[#667085] border border-[#E4E7EC]'
                       }`}
                     >
                       {trendView.length >= 2 ? 'Active' : 'Pending'}
@@ -3439,7 +3445,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       : EMPTY_COPY.forecastUnavailable}
                   </p>
                   {trendView.length >= 2 && (trendsDiagnostics?.highlights || []).length > 1 && (
-                    <p className="mt-1 text-[10px] text-[#98A2B3]">
+                    <p className="mt-1 text-[10px] text-[#667085]">
                       {(trendsDiagnostics?.highlights ?? []).length - 1} more observation{(trendsDiagnostics?.highlights ?? []).length - 1 !== 1 ? 's' : ''} in the module reports.
                     </p>
                   )}
@@ -3502,7 +3508,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   )}
                 </div>
                 <div className={awarenessMetricInsights.awarenessDepthScore ? 'kpi-card-has-footer' : undefined}>
-                  <Card title="Awareness Depth Score" metricKey="awareness_depth_score" value={`${awarenessDepthScore}/100`} subtitle={compareSubtitle(compareBankName, compareAwarenessDepthScore === null ? null : `${compareAwarenessDepthScore}/100`, 'Weighted: ToM×3 + Spontaneous×2 + AidedOnly×1')} delta={compareAwarenessDepthScore === null ? null : awarenessDepthScore - compareAwarenessDepthScore} />
+                  <Card title="Awareness Depth Score" metricKey="awareness_depth_score" value={`${awarenessDepthScore}/100`} subtitle={compareSubtitle(compareBankName, compareAwarenessDepthScore === null ? null : `${compareAwarenessDepthScore}/100`, 'Composite recall quality score: combines top-of-mind, spontaneous, and aided recall')} delta={compareAwarenessDepthScore === null ? null : awarenessDepthScore - compareAwarenessDepthScore} />
                   {awarenessMetricInsights.awarenessDepthScore && (
                     <KpiCardAnalysisFooter insight={awarenessMetricInsights.awarenessDepthScore} title="Awareness Depth Score" definition={AWARENESS_METRIC_CONTENT.awareness_depth_score.definition} />
                   )}
@@ -3652,7 +3658,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                     positionLabel={usageDiagnostics.positionLabel}
                     sampleSize={sampleSize}
                   />
-                  <div className="mt-6 grid gap-4 md:grid-cols-5">
+                  <div className="mt-6 grid gap-4 md:grid-cols-3 lg:grid-cols-5">
                     <Card
                       title="Ever Used"
                       metricKey="ever_used"
@@ -3679,7 +3685,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         delta={usageToplineMetrics?.preferred.compare?.delta ?? null}
                       />
                       {preferenceInsight && (
-                        <KpiCardAnalysisFooter insight={preferenceInsight} title="Preferred (BUMO Penetration)" definition="Percentage of aware respondents who name this bank as their primary/most-used bank" />
+                        <KpiCardAnalysisFooter insight={preferenceInsight} title="Primary Bank Preference" definition="Percentage of aware respondents who name this bank as their primary/most-used bank" />
                       )}
                     </div>
                     <Card
@@ -3784,7 +3790,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <Card title="Average Banks per User" metricKey="avg_banks_per_user" value={usageDiagnostics.currentCount > 0 ? safeNumber(usageDiagnostics.avgBanksPerUser) : '--'} subtitle={usageDiagnostics.currentCount > 0 ? 'Among your current users' : EMPTY_COPY.noCurrentUsersInSlice} />
-                        <Card title="Primary in Multi-Bankers" value={usageDiagnostics.currentCount > 0 ? safePercent(usageDiagnostics.primaryPositionInMultiPct) : '--'} subtitle={usageDiagnostics.currentCount > 0 ? 'Your BUMO share among users with 2+ banks' : EMPTY_COPY.noCurrentUsersInSlice} />
+                        <Card title="Primary in Multi-Bankers" value={usageDiagnostics.currentCount > 0 ? safePercent(usageDiagnostics.primaryPositionInMultiPct) : '--'} subtitle={usageDiagnostics.currentCount > 0 ? 'Your primary bank position among customers using 2+ banks' : EMPTY_COPY.noCurrentUsersInSlice} />
                       </div>
                       <div className="mt-4 space-y-3">
                         <MiniBar label="Single-bankers" value={usageDiagnostics.currentCount > 0 ? usageDiagnostics.singleBankerPct : null} color="bg-blue-500" />
@@ -3927,7 +3933,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <Card title="Non-Triers" value={safeCount(usageDiagnostics.nonTriersCount)} subtitle={`${safeRatioPercent(usageDiagnostics.nonTriersCount, usageDiagnostics.awareCount)} of aware`} />
                         <Card title="Lapsed Users" value={safeCount(usageDiagnostics.lapsedUsersCount)} subtitle={`${safeRatioPercent(usageDiagnostics.lapsedUsersCount, usageDiagnostics.everCount)} of ever-used`} />
                         <Card title="Secondary Users" value={safeCount(usageDiagnostics.secondaryUsersCount)} subtitle={`${safeRatioPercent(usageDiagnostics.secondaryUsersCount, usageDiagnostics.currentCount)} of current`} />
-                        <Card title="Primary Users (BUMO)" value={safeCount(usageDiagnostics.primaryUsersCount)} subtitle={usageDiagnostics.currentCount > 0 ? `${safePercent(usageDiagnostics.preferenceRate)} preference rate` : EMPTY_COPY.noCurrentUsersInSlice} />
+                        <Card title="Primary Bank Users" value={safeCount(usageDiagnostics.primaryUsersCount)} subtitle={usageDiagnostics.currentCount > 0 ? `${safePercent(usageDiagnostics.preferenceRate)} preference rate` : EMPTY_COPY.noCurrentUsersInSlice} />
                       </div>
                       <SectionAnalysisBlock title="Usage Segmentation Analysis" insight={usageSegmentationInsight} />
                     </div>
@@ -4020,7 +4026,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   const rows: URow[] = ([
                     { label: 'Current Usage', current: selectedMetricsView?.currentUsageRate ?? null, previous: isFiniteMetricValue(prev.usage) ? prev.usage : null, delta: usageDelta },
                     { label: 'Ever Used', current: selectedMetricsView?.trialRate ?? null, previous: null, delta: null },
-                    { label: 'Preferred (BUMO)', current: selectedMetricsView?.preferenceRate ?? null, previous: null, delta: null },
+                    { label: 'Preferred', current: selectedMetricsView?.preferenceRate ?? null, previous: null, delta: null },
                     { label: 'Multi-Banking Rate', current: selectedMetricsView?.multiBankRate ?? null, previous: null, delta: null },
                   ] as URow[]).filter(({ current }) => isFiniteMetricValue(current));
                   return (
@@ -4310,7 +4316,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                   />
 
                   {/* KPI Cards */}
-                  <div className="mt-6 grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+                  <div className="mt-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
                     <div className={momentumScoreInsight ? 'kpi-card-has-footer' : undefined}>
                       <Card
                         title="Momentum Score"
@@ -4337,7 +4343,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         value={momentumTopMetrics?.awarenessGrowth.value ?? '--'}
                         subtitle={momentumTopMetrics?.awarenessGrowth.base_n && momentumTopMetrics.awarenessGrowth.base_n < 4
                           ? firstStatusNote(momentumTopMetrics.awarenessGrowth.notes)
-                          : `Normalized period growth · ${validPeriodSubtitle(momentumTopMetrics?.awarenessGrowth.base_n)}`}
+                          : `Period-over-period growth rate · ${validPeriodSubtitle(momentumTopMetrics?.awarenessGrowth.base_n)}`}
                       />
                       {momentumAwarenessGrowthInsight && (
                         <KpiCardAnalysisFooter
@@ -4865,9 +4871,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                         <SectionInsightsTrigger sectionKey="win_loss_ci" ctaLabel="View Insights" />
                       </div>
                       <p className="mt-2 text-xs text-slate-400">{winLossSectionSubtitle}</p>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <div className="mt-4">
                         <Card title={winLossPrimaryCardTitle} metricKey="win_rate_ci" value={`${competitiveDiagnostics.winLoss.overallWinRate}%`} subtitle={hasObservedWinLoss ? 'Across measured competitor transitions' : 'Across modeled competitor pressure signals'} />
-                        <Card title="Evidence Mode" value={winLossModeLabel} subtitle={winLossModeSubtitle} />
                       </div>
                       <div className="mt-4 overflow-auto">
                         <table className="w-full text-xs text-slate-300">
@@ -5124,7 +5129,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               <th className="py-2 pr-2">Size</th>
                               <th className="py-2 pr-2">Aware</th>
                               <th className="py-2 pr-2">Current</th>
-                              <th className="py-2 pr-2">BUMO</th>
+                              <th className="py-2 pr-2">Preferred</th>
                               <th className="py-2 pr-2">NPS</th>
                               <th className="py-2">Intent</th>
                             </tr>
@@ -5161,7 +5166,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               <th className="py-2 pr-2">Size</th>
                               <th className="py-2 pr-2">Aware</th>
                               <th className="py-2 pr-2">Current</th>
-                              <th className="py-2 pr-2">BUMO</th>
+                              <th className="py-2 pr-2">Preferred</th>
                               <th className="py-2 pr-2">NPS</th>
                               <th className="py-2">Multi-Bank</th>
                             </tr>
@@ -5203,7 +5208,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               <tr>
                                 <th className="py-2 pr-2">Employment</th>
                                 <th className="py-2 pr-2">Current</th>
-                                <th className="py-2 pr-2">BUMO</th>
+                                <th className="py-2 pr-2">Preferred</th>
                                 <th className="py-2">NPS</th>
                               </tr>
                             </thead>
@@ -5234,7 +5239,7 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
                               <tr>
                                 <th className="py-2 pr-2">Education</th>
                                 <th className="py-2 pr-2">Current</th>
-                                <th className="py-2 pr-2">BUMO</th>
+                                <th className="py-2 pr-2">Preferred</th>
                                 <th className="py-2">NPS</th>
                               </tr>
                             </thead>

@@ -37,7 +37,7 @@ const TONE_CLASSES: Record<StatusTone, string> = {
 const BADGE_CLASSES: Record<ModulePriorityBadge, string> = {
   'Highest Priority': 'bg-[#E10613] text-white',
   'Priority':         'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]',
-  'Monitor':          'bg-[#F9FAFB] text-[#98A2B3] border border-[#E4E7EC]',
+  'Monitor':          'bg-[#F9FAFB] text-[#667085] border border-[#E4E7EC]',
 };
 
 /** Strip a leading "Label: " prefix (e.g. "Leaky Bucket: ") and capitalise the first character. */
@@ -89,7 +89,7 @@ export const OverviewModuleCard: React.FC<OverviewModuleCardProps> = ({
         <div className="mt-3 flex items-baseline gap-2">
           <span className="text-3xl font-black leading-none text-[#1F2230]">{metric}</span>
           {metricLabel && (
-            <span className="text-xs text-[#98A2B3]">{metricLabel}</span>
+            <span className="text-xs text-[#667085]">{metricLabel}</span>
           )}
         </div>
 

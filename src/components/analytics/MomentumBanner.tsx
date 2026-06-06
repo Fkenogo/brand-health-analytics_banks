@@ -61,14 +61,14 @@ export const MomentumBanner: React.FC<MomentumBannerProps> = ({
             </div>
           )}
           {/* Fixed: was missing font-medium uppercase tracking-widest */}
-          <p className="text-[10px] font-medium uppercase tracking-widest text-[#98A2B3]">
+          <p className="text-[10px] font-medium uppercase tracking-widest text-[#667085]">
             N={sampleSize}
           </p>
         </div>
 
         {/* CENTER — module title + narrative */}
         <div className="min-w-0 flex-1">
-          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#98A2B3]">
+          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#667085]">
             <span className="text-[#E10613]" aria-hidden="true">◈</span>
             Momentum Overview
           </p>
@@ -87,7 +87,7 @@ export const MomentumBanner: React.FC<MomentumBannerProps> = ({
                 <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-[#667085] truncate">{label}</p>
                 <p className="text-xl font-black text-[#1F2230]">{value}</p>
                 {sub && (
-                  <p className="mt-0.5 text-[10px] text-[#98A2B3] truncate">{sub}</p>
+                  <p className="mt-0.5 text-[10px] text-[#667085] truncate">{sub}</p>
                 )}
               </div>
             ))}

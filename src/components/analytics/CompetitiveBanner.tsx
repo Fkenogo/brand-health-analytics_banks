@@ -49,14 +49,14 @@ export const CompetitiveBanner: React.FC<CompetitiveBannerProps> = ({
             </div>
           )}
           {/* Fixed: was missing uppercase tracking-widest */}
-          <p className="text-[10px] font-medium uppercase tracking-widest text-[#98A2B3]">
+          <p className="text-[10px] font-medium uppercase tracking-widest text-[#667085]">
             N={sampleSize}
           </p>
         </div>
 
         {/* CENTER — module title + narrative */}
         <div className="min-w-0 flex-1">
-          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#98A2B3]">
+          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#667085]">
             <span className="text-[#E10613]" aria-hidden="true">◈</span>
             Competitive Overview
           </p>
