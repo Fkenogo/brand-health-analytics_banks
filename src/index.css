@@ -218,6 +218,22 @@
     background: color-mix(in srgb, #ffffff 97%, #f8fafc);
   }
 
+  /* Platform-shell overrides: sections get visible borders on light surface */
+  .platform-shell .dashboard-section {
+    border-color: #E2E8F0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .platform-shell .dashboard-section:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+  }
+
+  .platform-shell .dashboard-diagnostic {
+    border-color: #E2E8F0;
+    background: #F8FAFC;
+  }
+
   .executive-dashboard[data-surface-mode='soft-neutral'] .dashboard-section {
     border-color: hsl(216 15% 48% / 0.26);
     background: hsl(217 14% 26% / 0.75);
@@ -257,11 +273,19 @@
 
   .kpi-card-diagnostic {
     border-radius: var(--radius-sm);
-    padding: 1.25rem;
+    padding: 0.875rem 1rem;
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: var(--shadow-1);
     opacity: 0.92;
     background: #ffffff !important;
+  }
+
+  /* Platform-shell: diagnostic cards use subtle grey to distinguish from primary */
+  .platform-shell .kpi-card-diagnostic {
+    border-color: #E2E8F0;
+    background: #F8FAFC !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    opacity: 1;
   }
 
   .kpi-card-footer {
@@ -456,19 +480,23 @@
     border-left: 2px solid var(--accent-negative);
   }
 
-  .executive-dashboard .dashboard-section h3 {
+  .executive-dashboard .dashboard-section h3,
+  .platform-shell .dashboard-section h3 {
     color: #0f172a !important;
   }
 
-  .executive-dashboard .dashboard-section .text-slate-300 {
+  .executive-dashboard .dashboard-section .text-slate-300,
+  .platform-shell .dashboard-section .text-slate-300 {
     color: #334155 !important;
   }
 
-  .executive-dashboard .dashboard-section .text-slate-400 {
+  .executive-dashboard .dashboard-section .text-slate-400,
+  .platform-shell .dashboard-section .text-slate-400 {
     color: #64748b !important;
   }
 
-  .executive-dashboard .dashboard-section .text-slate-500 {
+  .executive-dashboard .dashboard-section .text-slate-500,
+  .platform-shell .dashboard-section .text-slate-500 {
     color: #64748b !important;
   }
 
@@ -479,6 +507,257 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+/* ─── Platform Shell — executive analytics layout ──────────────────────────── */
+@layer components {
+  .platform-shell {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: #F8FAFC;
+    color: #0F172A;
+  }
+
+  /* ── Sidebar ── */
+  .platform-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: #ffffff;
+    border-right: 1px solid #E2E8F0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    transition: width 220ms ease;
+  }
+
+  .platform-sidebar.collapsed {
+    width: 72px;
+  }
+
+  .platform-sidebar-logo {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .platform-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6875rem 1.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    position: relative;
+    transition: background 150ms ease, color 150ms ease;
+    border-radius: 0;
+  }
+
+  .platform-nav-item:hover {
+    background: #F8FAFC;
+    color: #0F172A;
+  }
+
+  .platform-nav-item.active {
+    background: #EFF6FF;
+    color: #1D4ED8;
+    font-weight: 600;
+  }
+
+  .platform-nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: #E10613;
+  }
+
+  .platform-nav-item .nav-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+  }
+
+  .platform-nav-item .nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .platform-sidebar.collapsed .nav-label {
+    display: none;
+  }
+
+  .platform-sidebar.collapsed .platform-nav-item {
+    padding: 0.6875rem;
+    justify-content: center;
+  }
+
+  .platform-sidebar.collapsed .platform-sidebar-logo {
+    padding: 1.25rem 0;
+    justify-content: center;
+  }
+
+  /* ── Platform Header ── */
+  .platform-header {
+    height: 72px;
+    flex-shrink: 0;
+    background: #ffffff;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    gap: 1rem;
+    z-index: 10;
+  }
+
+  /* ── Platform filter chips bar ── */
+  .platform-filter-chips {
+    flex-shrink: 0;
+    background: #ffffff;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 0.5rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  /* ── Platform workspace ── */
+  .platform-workspace {
+    flex: 1;
+    overflow-y: auto;
+    background: #F8FAFC;
+    padding: 1.5rem 2rem 3rem;
+  }
+
+  /* ── Platform analytics panels (replaces dashboard-section on white bg) ── */
+  .platform-panel {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    padding: 1.25rem;
+  }
+
+  .platform-panel-header {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #475569;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Insight alert card (replaces intelligence banners) ── */
+  .platform-insight-card {
+    background: #FEF2F2;
+    border-left: 4px solid #E10613;
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .platform-insight-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 0.25rem;
+  }
+
+  .platform-insight-body {
+    font-size: 0.8125rem;
+    color: #475569;
+    line-height: 1.6;
+  }
+
+  /* ── Executive hero band (70/30) ── */
+  .platform-hero-band {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: 70fr 30fr;
+    margin-bottom: 1.5rem;
+    align-items: stretch;
+  }
+
+  /* Hero right column: metric tiles stack with equal height */
+  .platform-hero-band > *:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .platform-hero-band > *:last-child > * {
+    flex: 1;
+    min-height: 80px;
+  }
+
+  @media (max-width: 768px) {
+    .platform-hero-band {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ── Tab panel rhythm on platform ── */
+  .platform-workspace .dashboard-tab-panel {
+    gap: 1.25rem;
+    margin-top: 0;
+  }
+
+  /* ── Rounded white card row used in insight/trend blocks ── */
+  .platform-shell .rounded-2xl.border-\[#E4E7EC\] {
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  }
+
+  /* ── Insight/analysis modal improvements ── */
+  .dashboard-insight-modal {
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard-insight-modal [role="dialog"] {
+    overflow: hidden;
+  }
+
+  /* Mobile sidebar drawer */
+  .platform-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 40;
+    display: none;
+  }
+
+  .platform-sidebar-overlay.open {
+    display: block;
+  }
+
+  @media (max-width: 1023px) {
+    .platform-sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 50;
+      transform: translateX(-100%);
+      transition: transform 220ms ease;
+    }
+
+    .platform-sidebar.mobile-open {
+      transform: translateX(0);
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { BotMessageSquare, ChevronRight, CircleHelp, FileDown, Loader2, Lock, Palette, Send, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import { BarChart3, BotMessageSquare, ChevronLeft, ChevronRight, CircleHelp, Eye, FileDown, GitCompare, Heart, LayoutDashboard, Loader2, Lock, Menu, Palette, Send, Sparkles, TrendingDown, TrendingUp, Users, X, Zap } from 'lucide-react';
 import { useAuth } from '@/auth/context';
 import { hasPermission } from '@/auth/types';
 import { ANALYTICS_BASE_TYPES, BANKS, COUNTRY_CHOICES } from '@/constants';
@@ -337,39 +337,42 @@ const SectionInsightsTrigger: React.FC<{ sectionKey: DashboardSectionInsightKey;
           {ctaLabel}
         </button>
       </DialogTrigger>
-      <DialogContent className="dashboard-insight-modal border-slate-600/30 bg-slate-900/95 text-slate-100 sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">{content.title}</DialogTitle>
+      <DialogContent className="dashboard-insight-modal flex flex-col border border-[#E2E8F0] bg-white text-[#0F172A] shadow-xl sm:max-w-xl">
+        <DialogHeader className="border-b border-[#F1F5F9] pb-4">
+          <DialogTitle className="text-base font-bold text-[#0F172A]">{content.title}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 border-l-2 border-[#E10613]/40 pl-5 text-sm leading-relaxed">
-          <div className="rounded-xl bg-slate-800/70 p-4">
-            <p className="text-xs font-semibold text-slate-300">Interpretation Thresholds</p>
-            <ul className="mt-2 space-y-2.5 text-slate-200">
+        <div className="flex-1 space-y-3 overflow-y-auto pt-2 text-sm leading-relaxed">
+          <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8]">Interpretation Thresholds</p>
+            <ul className="mt-2.5 space-y-2 text-[#344054]">
               {content.interpretationThresholds.map((item) => (
                 <li key={item} className="flex items-start gap-2">
-                  <ChevronRight className="mt-0.5 h-3.5 w-3.5 text-[#E10613]" />
+                  <ChevronRight className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#E10613]" />
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
           </div>
-          <div className="rounded-xl bg-slate-800/70 p-4">
-            <p className="text-xs font-semibold text-slate-300">Key Insight</p>
-            <p className="mt-2 leading-7 text-slate-200">{content.keyInsight}</p>
+          <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8]">Key Insight</p>
+            <p className="mt-2 leading-7 text-[#344054]">{content.keyInsight}</p>
           </div>
           {content.strategicImplications && content.strategicImplications.length > 0 ? (
-            <div className="rounded-xl bg-slate-800/70 p-4">
-              <p className="text-xs font-semibold text-slate-300">Strategic Implications</p>
-              <ul className="mt-2 space-y-2.5 text-slate-200">
+            <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8]">Strategic Implications</p>
+              <ul className="mt-2.5 space-y-2 text-[#344054]">
                 {content.strategicImplications.map((item) => (
                   <li key={item} className="flex items-start gap-2">
-                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 text-emerald-300" />
+                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-emerald-600" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
           ) : null}
+        </div>
+        <div className="border-t border-[#F1F5F9] pt-4">
+          <p className="text-[10px] text-[#94A3B8]">Use these thresholds as reference benchmarks when reviewing module data.</p>
         </div>
       </DialogContent>
     </Dialog>
@@ -572,8 +575,8 @@ const ExecutiveHero: React.FC<{
   summary: string;
   rightCards: Array<{ label: string; value: string; tone?: 'positive' | 'negative' | 'neutral'; descriptor?: string }>;
 }> = ({ label, score, delta, summary, rightCards }) => (
-  <div className="grid gap-8 md:grid-cols-3">
-    <div className="rounded-3xl bg-gradient-to-br from-[#5A0B10] via-[#8E1018] to-[#C1121F] p-6 text-white md:col-span-2 md:p-10">
+  <div className="grid gap-5 md:grid-cols-[70fr_30fr]">
+    <div className="rounded-2xl bg-gradient-to-br from-[#5A0B10] via-[#8E1018] to-[#C1121F] p-6 text-white md:p-8">
       <p className="text-sm font-semibold uppercase tracking-wide text-red-100">{label}</p>
       <p className="mt-4 text-6xl font-bold">{score}</p>
       <p className="mt-4 text-sm font-medium" style={{ color: delta === null ? 'rgba(255,255,255,0.65)' : delta > 0 ? '#A7F3D0' : delta < 0 ? '#FECACA' : 'rgba(255,255,255,0.65)' }}>
@@ -581,9 +584,9 @@ const ExecutiveHero: React.FC<{
       </p>
       <p className="mt-3 text-sm text-red-100">{summary}</p>
     </div>
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       {rightCards.map((item) => (
-        <div key={item.label} className="flex flex-col justify-between rounded-2xl bg-white p-5 shadow-xl md:h-full">
+        <div key={item.label} className="flex flex-col justify-between rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#667085]">{item.label}</p>
           <p
             className="mt-1 text-3xl font-bold"
@@ -759,6 +762,102 @@ const createMessage = (role: AdvisorMessage['role'], content: string): AdvisorMe
   createdAt: new Date().toISOString(),
 });
 
+// ─── Platform Sidebar ─────────────────────────────────────────────────────────
+
+type SidebarSection = SubscriberSection;
+
+const SIDEBAR_NAV: Array<{ id: SidebarSection; label: string; icon: React.ElementType }> = [
+  { id: 'overview',                  label: 'Overview',                  icon: LayoutDashboard },
+  { id: 'awareness_consideration',   label: 'Awareness & Consideration', icon: Eye },
+  { id: 'usage_behavior',            label: 'Usage & Behavior',          icon: Users },
+  { id: 'loyalty_satisfaction',      label: 'Loyalty & Satisfaction',    icon: Heart },
+  { id: 'brand_momentum',            label: 'Brand Momentum',            icon: Zap },
+  { id: 'competitive_intelligence',  label: 'Competitive Intelligence',  icon: GitCompare },
+  { id: 'demographics',              label: 'Demographics',              icon: BarChart3 },
+];
+
+const PlatformSidebar: React.FC<{
+  section: SubscriberSection;
+  collapsed: boolean;
+  mobileOpen: boolean;
+  isFreeTier: boolean;
+  onSelect: (s: SubscriberSection) => void;
+  onToggleCollapse: () => void;
+  onCloseMobile: () => void;
+}> = ({ section, collapsed, mobileOpen, isFreeTier, onSelect, onToggleCollapse, onCloseMobile }) => {
+  const visibleNav = isFreeTier
+    ? SIDEBAR_NAV.filter((item) => item.id === 'overview')
+    : SIDEBAR_NAV;
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      <div
+        className={`platform-sidebar-overlay ${mobileOpen ? 'open' : ''}`}
+        onClick={onCloseMobile}
+        aria-hidden="true"
+      />
+      {/* Sidebar panel */}
+      <aside className={`platform-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+        {/* Logo area */}
+        <div className="platform-sidebar-logo">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#E10613]">
+            <span className="text-[11px] font-black text-white">BE</span>
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-[#0F172A] leading-tight">Brand Health</p>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-[#94A3B8]">Tracking</p>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 py-3">
+          {!collapsed && (
+            <p className="mb-1 px-6 text-[9px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">Modules</p>
+          )}
+          {visibleNav.map((item) => {
+            const Icon = item.icon;
+            const isActive = section === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => { onSelect(item.id); onCloseMobile(); }}
+                className={`platform-nav-item ${isActive ? 'active' : ''}`}
+                title={collapsed ? item.label : undefined}
+              >
+                <Icon className="nav-icon" />
+                {!collapsed && <span className="nav-label">{item.label}</span>}
+              </button>
+            );
+          })}
+          {isFreeTier && !collapsed && (
+            <div className="mx-4 mt-4 rounded-lg border border-dashed border-[#E2E8F0] bg-[#F8FAFC] p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-[#94A3B8]">Free Tier</p>
+              <p className="mt-1 text-[11px] text-[#475569]">Upgrade to access all 7 modules.</p>
+            </div>
+          )}
+        </nav>
+
+        {/* Collapse toggle — desktop only */}
+        <div className="hidden border-t border-[#E2E8F0] p-3 lg:block">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-[11px] font-semibold text-[#94A3B8] hover:bg-[#F8FAFC] hover:text-[#475569]"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>Collapse</span></>}
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+};
+
+// ─── End Platform Sidebar ─────────────────────────────────────────────────────
+
 interface SubscriberDashboardPageProps {
   adminMode?: boolean;
 }
@@ -775,6 +874,8 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   const { country: routeCountry } = useParams<{ country?: string }>();
 
   const [section, setSection] = useState<SubscriberSection>('overview');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeCountry, setActiveCountry] = useState<CountryCode | null>(accessibleCountries[0] || null);
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [compareBankId, setCompareBankId] = useState<string>('');
@@ -2857,221 +2958,201 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
   }
 
   return (
-    <div className="executive-dashboard min-h-screen text-white" data-surface-mode={surfaceMode}>
-      <header className="border-b border-slate-600/40 bg-slate-800/80 px-6 py-4 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.12em] text-slate-500">{adminMode ? 'Admin Console' : 'Subscriber Dashboard'}</p>
-            <h1 className="text-xl font-semibold tracking-tight sm:text-3xl">Brand Health Tracking</h1>
-              {adminMode ? (
-                <>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Data source: {dashboardSource === 'aggregate'
-                      ? 'Live Firestore aggregate'
-                      : dashboardSource === 'firestore'
-                        ? 'Live Firestore responses'
-                        : 'Local fallback responses'}
-                  </p>
-                  {dashboardSource === 'aggregate' ? (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Aggregate is the primary source for overview metrics. Some deep-dive diagnostics remain live-response derived.
-                    </p>
-                  ) : null}
-                  {dashboardSourceReason ? (
-                    <p className="mt-1 text-xs text-amber-300">
-                      {dashboardSource === 'aggregate' && overviewAggregateReason
-                        ? `Aggregate callable fallback: ${overviewAggregateReason}`
-                        : `Fallback reason: ${dashboardSourceReason}`}
-                    </p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="mt-1 text-xs text-slate-500">Data current for the selected period.</p>
-              )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSurfaceMode((prev) => (prev === 'executive-dark' ? 'soft-neutral' : 'executive-dark'))}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-[#E10613]/50"
-            >
-              <Palette className="h-3.5 w-3.5" />
-              {surfaceMode === 'executive-dark' ? 'Soft Neutral Mode' : 'Dark Executive Mode'}
-            </button>
-            {adminMode ? (
-              <>
-                <button
-                  onClick={() => navigate('/survey')}
-                  className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-[#E10613]/50"
-                >
-                  Survey Access
-                </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-[#E10613]/50">
-                      Admin Modules
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64">
-                    <DropdownMenuLabel>Admin Management</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => navigate('/admin/subscribers')}>Subscribers</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/admin/subscriptions')}>Subscription Management</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/admin/users')}>User Management</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/admin/unrecognized')}>Recognition Exceptions</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/admin/questionnaires')}>Questionnaires</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/admin/panels')}>Panels</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/admin/reports')}>Reports</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/admin/aliases')}>Aliases</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/admin/raffles')}>Raffles</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : null}
-            <button
-              onClick={handleExit}
-              className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-[#E10613]/50"
-            >
-              Log Out
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="platform-shell flex h-screen overflow-hidden">
 
-      <main className="dashboard-main">
-        <div className="dashboard-filter-shell">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
-            <div>
-              <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Country</p>
+      {/* ── Persistent left sidebar ──────────────────────────────────────── */}
+      <PlatformSidebar
+        section={section}
+        collapsed={sidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        isFreeTier={isFreeTier}
+        onSelect={requestSection}
+        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
+
+      {/* ── Right column: header + filter bar + workspace ────────────────── */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+
+        {/* ── Platform header (72px) ───────────────────────────────────────── */}
+        <header className="platform-header flex-shrink-0">
+          {/* Mobile sidebar toggle */}
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(true)}
+            className="mr-3 flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] lg:hidden"
+            aria-label="Open navigation"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+
+          {/* Page title */}
+          <div className="min-w-0 flex-shrink-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#94A3B8]">
+              {adminMode ? 'Admin Console' : 'Subscriber Dashboard'}
+            </p>
+            <h1 className="text-base font-bold text-[#0F172A] leading-tight sm:text-lg">Brand Health Tracking</h1>
+          </div>
+
+          {/* Filters inline ── main dropdowns */}
+          <div className="ml-6 hidden flex-1 items-center gap-3 sm:flex">
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8]">Country</label>
               <select
                 value={activeCountry}
                 onChange={(event) => setActiveCountry(event.target.value as CountryCode)}
                 disabled={isFreeTier}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                className="rounded-md border border-[#E2E8F0] bg-white px-2.5 py-1.5 text-xs text-[#0F172A] shadow-sm focus:outline-none"
               >
                 {accessibleCountries.map((country) => (
-                  <option key={country} value={country}>
-                    {country}
-                  </option>
+                  <option key={country} value={country}>{country}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Brand</p>
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8]">Brand</label>
               <select
                 value={selectedBankId}
                 onChange={(event) => setSelectedBankId(event.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                className="rounded-md border border-[#E2E8F0] bg-white px-2.5 py-1.5 text-xs text-[#0F172A] shadow-sm focus:outline-none"
               >
                 {countryBanks.map((bank) => (
-                  <option key={bank.id} value={bank.id}>
-                    {bank.name}
-                  </option>
+                  <option key={bank.id} value={bank.id}>{bank.name}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Compare brand</p>
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8]">Compare Brand</label>
               <select
                 value={compareBankId}
                 onChange={(event) => setCompareBankId(event.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                className="rounded-md border border-[#E2E8F0] bg-white px-2.5 py-1.5 text-xs text-[#0F172A] shadow-sm focus:outline-none"
               >
                 <option value="">No comparison</option>
                 {countryBanks.filter((bank) => bank.id !== selectedBankId).map((bank) => (
-                  <option key={bank.id} value={bank.id}>
-                    {bank.name}
-                  </option>
+                  <option key={bank.id} value={bank.id}>{bank.name}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Time period</p>
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8]">Time Period</label>
               <select
                 value={timeWindow}
                 onChange={(event) => setTimeWindow(event.target.value as TimeWindow)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                className="rounded-md border border-[#E2E8F0] bg-white px-2.5 py-1.5 text-xs text-[#0F172A] shadow-sm focus:outline-none"
               >
                 {TIME_WINDOWS.map((window) => (
-                  <option key={window.id} value={window.id}>
-                    {window.label}
-                  </option>
+                  <option key={window.id} value={window.id}>{window.label}</option>
                 ))}
               </select>
             </div>
-            <div className="col-span-2 flex items-end gap-2 md:col-span-1">
-                <button
-                  onClick={exportCurrentView}
-                  disabled={exportControlDisabled}
-                  className="w-full rounded-lg bg-[#C1121F] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-[#E31B23] disabled:opacity-50"
-                >
-                Export view
-              </button>
-                <button
-                  onClick={exportComparisonView}
-                  disabled={exportControlDisabled}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 shadow-sm disabled:opacity-50"
-                >
-                Export compare
-              </button>
-            </div>
           </div>
 
-          <div className="mt-2 grid gap-2 md:mt-3 md:grid-cols-2 md:gap-3">
-            <div>
-              <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Age filters</p>
-              <div className="flex flex-wrap gap-2">
-                {AGE_OPTIONS.map((age) => (
-                  <button
-                    key={age}
-                    onClick={() => toggleFilter(age, ageGroups, setAgeGroups)}
-                    className={`rounded-full border px-3 py-1 text-xs ${ageGroups.includes(age) ? 'border-[#E10613] bg-[#E10613]/15 text-red-200' : 'border-white/10 text-slate-300'}`}
-                  >
-                    {age}
+          {/* Right actions */}
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={exportCurrentView}
+              disabled={exportControlDisabled}
+              className="hidden rounded-lg bg-[#E10613] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white hover:bg-[#C1121F] disabled:opacity-50 sm:block"
+            >
+              Export View
+            </button>
+            <button
+              onClick={exportComparisonView}
+              disabled={exportControlDisabled}
+              className="hidden rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50 sm:block"
+            >
+              Export Compare
+            </button>
+            {adminMode ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#475569] hover:bg-[#F8FAFC]">
+                    Admin
                   </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Gender filters</p>
-              <div className="flex flex-wrap gap-2">
-                {GENDER_OPTIONS.map((gender) => (
-                  <button
-                    key={gender}
-                    onClick={() => toggleFilter(gender, genders, setGenders)}
-                    className={`rounded-full border px-3 py-1 text-xs uppercase ${genders.includes(gender) ? 'border-[#E10613] bg-[#E10613]/15 text-red-200' : 'border-white/10 text-slate-300'}`}
-                  >
-                    {gender}
-                  </button>
-                ))}
-              </div>
-            </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel>Admin Management</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => navigate('/survey')}>Survey Access</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/subscribers')}>Subscribers</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/subscriptions')}>Subscription Management</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/users')}>User Management</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/unrecognized')}>Recognition Exceptions</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/questionnaires')}>Questionnaires</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/panels')}>Panels</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/reports')}>Reports</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/aliases')}>Aliases</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/admin/raffles')}>Raffles</DropdownMenuItem>
+                  {adminMode && dashboardSourceReason ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-[10px] text-amber-600">
+                        Source: {dashboardSource} {dashboardSourceReason ? `· ${dashboardSourceReason.slice(0, 40)}` : ''}
+                      </DropdownMenuLabel>
+                    </>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+            <button
+              onClick={handleExit}
+              className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#475569] hover:bg-[#F8FAFC]"
+            >
+              Log Out
+            </button>
+          </div>
+        </header>
+
+        {/* ── Age/Gender filter chips bar ──────────────────────────────────── */}
+        <div className="platform-filter-chips flex-shrink-0">
+          <span className="mr-2 text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8]">Filters:</span>
+          {AGE_OPTIONS.map((age) => (
+            <button
+              key={age}
+              onClick={() => toggleFilter(age, ageGroups, setAgeGroups)}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-colors ${ageGroups.includes(age) ? 'border-[#E10613] bg-[#FEF2F2] text-[#E10613] font-semibold' : 'border-[#E2E8F0] text-[#475569] hover:border-[#94A3B8]'}`}
+            >
+              {age}
+            </button>
+          ))}
+          <span className="mx-2 text-[#E2E8F0]">|</span>
+          {GENDER_OPTIONS.map((gender) => (
+            <button
+              key={gender}
+              onClick={() => toggleFilter(gender, genders, setGenders)}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] capitalize transition-colors ${genders.includes(gender) ? 'border-[#E10613] bg-[#FEF2F2] text-[#E10613] font-semibold' : 'border-[#E2E8F0] text-[#475569] hover:border-[#94A3B8]'}`}
+            >
+              {gender}
+            </button>
+          ))}
+          {/* Mobile filters also accessible inline */}
+          <div className="ml-auto flex items-center gap-2 sm:hidden">
+            <button onClick={exportCurrentView} disabled={exportControlDisabled} className="rounded-md bg-[#E10613] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">Export</button>
           </div>
         </div>
 
-        <div className="dashboard-shell dashboard-shell-spaced">
+        {/* ── Platform workspace ───────────────────────────────────────────── */}
+        <main className="platform-workspace">
+
+          {/* Hero intelligence band — 70/30 */}
+          <div className="platform-hero-band">
+            <ExecutiveHero
+              label={heroConfig.label}
+              score={heroConfig.score}
+              delta={heroConfig.delta}
+              summary={heroConfig.summary}
+              rightCards={heroConfig.rightCards}
+            />
+          </div>
+
+          {/* Tab content — Tabs wrapper kept for Radix controlled state; TabsList hidden */}
           <Tabs value={section} onValueChange={(value) => requestSection(value as SubscriberSection)}>
-            <TabsList className="dashboard-tablist flex gap-2 overflow-x-auto pb-0.5 flex-nowrap md:flex-wrap">
+            <TabsList className="sr-only">
               {visibleSections.map((item) => (
-                <TabsTrigger
-                  key={item.id}
-                  value={item.id}
-                  className="dashboard-tab-trigger flex-shrink-0 rounded-xl border border-slate-500/35 bg-slate-700/35 px-4 py-2 text-[12px] font-semibold text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-600/45 hover:text-white data-[state=active]:!border-white/90 data-[state=active]:!bg-white data-[state=active]:!text-slate-900"
-                >
-                  {item.label}
-                </TabsTrigger>
+                <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
               ))}
             </TabsList>
-
-            <div className="mt-8">
-              <ExecutiveHero
-                label={heroConfig.label}
-                score={heroConfig.score}
-                delta={heroConfig.delta}
-                summary={heroConfig.summary}
-                rightCards={heroConfig.rightCards}
-              />
-            </div>
 
             <TabsContent value="overview" className="dashboard-tab-panel motion-safe:animate-[fadeIn_160ms_ease-out]">
               {/* Row 1 — four primary KPI cards */}
@@ -5332,11 +5413,14 @@ const SubscriberDashboardPage: React.FC<SubscriberDashboardPageProps> = ({ admin
             </TabsContent>
 
           </Tabs>
-        </div>
 
-        {loadingResponses ? <p className="mt-4 text-sm text-slate-400">Loading live responses…</p> : null}
-      </main>
+          {loadingResponses ? <p className="mt-3 text-xs text-[#94A3B8]">Loading live responses…</p> : null}
+        </main>
+        {/* end platform-workspace */}
+      </div>
+      {/* end right column */}
 
+      {/* ── Overlays: AI advisor + modals (portaled, position in DOM doesn't matter) ── */}
       <button
         type="button"
         onClick={() => handleOpenAdvisor(true)}
