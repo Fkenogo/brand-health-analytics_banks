@@ -34,9 +34,9 @@ export const USAGE_METRIC_CONTENT: Record<UsageMetricKey, MetricInsightContent> 
     formulaPlain: 'Current Usage Rate = Currently Using / Aware × 100',
   },
   bumo: {
-    title: 'Preferred Bank (BUMO)',
+    title: 'Primary Bank Preference',
     definition: 'Share of aware respondents who identify this bank as their main day-to-day bank.',
-    formulaPlain: 'BUMO Penetration = Preferred / Aware × 100',
+    formulaPlain: 'Primary Bank Preference = Preferred / Aware × 100',
   },
   trial_rate: {
     title: 'Trial Rate',

@@ -26,7 +26,7 @@ export type CompetitiveSectionInsightKey =
 export const COMPETITIVE_METRIC_CONTENT: Record<CompetitiveMetricKey, MetricInsightContent> = {
   market_share: {
     title: 'Market Share',
-    definition: 'Your share of respondents who identify your bank as primary (preferred bank/BUMO).',
+    definition: 'Your share of respondents who identify your bank as their primary bank.',
     formulaPlain: 'Market Share = Preferred bank count / Total sample × 100',
   },
   market_concentration: {

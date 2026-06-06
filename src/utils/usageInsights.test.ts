@@ -30,7 +30,7 @@ const mockDropoffStages: UsageDropoffStage[] = [
     diagnosis: 'Moderate retention issue',
   },
   {
-    stage: 'Currently Using -> Preferred (BUMO)' as const,
+    stage: 'Currently Using -> Preferred Bank' as const,
     lostCount: 50,
     dropoffPct: 30,
     frictionScore: 45,
@@ -291,9 +291,9 @@ describe('buildPreferenceInsight', () => {
     expect(result?.detail).toMatch(/PREFERENCE CAPTURE SIGNAL/);
   });
 
-  it('detail contains BUMO PENETRATION CONTEXT section', () => {
+  it('detail contains PRIMARY BANK PENETRATION CONTEXT section', () => {
     const result = buildPreferenceInsight(baseArgs);
-    expect(result?.detail).toMatch(/BUMO PENETRATION CONTEXT/);
+    expect(result?.detail).toMatch(/PRIMARY BANK PENETRATION CONTEXT/);
   });
 
   it('result has both snapshot and detail strings', () => {
@@ -371,7 +371,7 @@ describe('buildUsageFunnelInsight', () => {
     retentionRate: 60,
     preferenceRate: 30,
     funnelHealthDiagnosis: 'Healthy usage funnel',
-    highestFrictionStage: 'Currently Using -> Preferred (BUMO)',
+    highestFrictionStage: 'Currently Using -> Preferred Bank',
     sampleSize: 100,
   };
 
@@ -399,7 +399,7 @@ describe('buildUsageFunnelInsight', () => {
 
   it('references highestFrictionStage value in detail', () => {
     const result = buildUsageFunnelInsight(baseArgs);
-    expect(result?.detail).toContain('Currently Using -> Preferred (BUMO)');
+    expect(result?.detail).toContain('Currently Using -> Preferred Bank');
   });
 });
 
@@ -441,7 +441,7 @@ describe('buildDropoffInsight', () => {
     const result = buildDropoffInsight(baseArgs);
     expect(result?.detail).toContain('Aware -> Ever Used');
     expect(result?.detail).toContain('Ever Used -> Currently Using');
-    expect(result?.detail).toContain('Currently Using -> Preferred (BUMO)');
+    expect(result?.detail).toContain('Currently Using -> Preferred Bank');
   });
 });
 

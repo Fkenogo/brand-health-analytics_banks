@@ -151,7 +151,7 @@ export interface UsageOverlapRow {
 }
 
 export interface UsageDropoffStage {
-  stage: 'Aware -> Ever Used' | 'Ever Used -> Currently Using' | 'Currently Using -> Preferred (BUMO)';
+  stage: 'Aware -> Ever Used' | 'Ever Used -> Currently Using' | 'Currently Using -> Preferred Bank';
   lostCount: number;
   dropoffPct: number;
   frictionScore: number;
@@ -1030,7 +1030,7 @@ export const computeUsageDiagnostics = (
       diagnosis: dropoffEverCurrent > 35 ? 'Retention problem' : 'Within expected range',
     },
     {
-      stage: 'Currently Using -> Preferred (BUMO)',
+      stage: 'Currently Using -> Preferred Bank',
       lostCount: secondaryUsersCount,
       dropoffPct: dropoffCurrentPreferred,
       frictionScore: Math.round(dropoffCurrentPreferred * 1.5),

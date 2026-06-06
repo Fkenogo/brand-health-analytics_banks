@@ -32,7 +32,7 @@ export const DEMOGRAPHICS_METRIC_CONTENT: Record<DemographicsMetricKey, MetricIn
     formulaPlain: 'Current usage % = Current users in cohort / Cohort respondents × 100',
   },
   demo_preferred: {
-    title: 'Preferred (BUMO) by Cohort',
+    title: 'Preferred Bank by Cohort',
     definition: 'Primary-bank share within a demographic cohort.',
     formulaPlain: 'Preferred % = Preferred in cohort / Cohort respondents × 100',
   },
